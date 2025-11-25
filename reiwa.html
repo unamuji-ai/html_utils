@@ -1,4 +1,38 @@
 ﻿<!DOCTYPE html>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+/* PC用 */
+	.row.grid {
+	  display: grid;
+	  grid-template-columns: 1fr 1fr;
+	  gap: 16px;
+	}
+
+	/* スマホ用 */
+	@media (max-width: 600px) {
+	  .row.grid {
+	    grid-template-columns: 1fr; /* 1列にする */
+	  }
+	}
+	@media (max-width: 600px) {
+	  textarea, input, select, button {
+	    font-size: 16px;   /* 指で押しやすいサイズ */
+	    padding: 12px;     /* 余白を広めに */
+	  }
+	}
+	.toolbar {
+	  display: flex;
+	  flex-wrap: wrap;
+	  gap: 8px;
+	}
+
+	@media (max-width: 600px) {
+	  .toolbar {
+	    flex-direction: column; /* 縦並び */
+	  }
+	}
+</style>
+
 <html>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
