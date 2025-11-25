@@ -1,0 +1,40 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+	
+<head>
+    <meta charset="utf-8">
+    <title>ちくわ</title>
+</head>
+
+<body>
+
+    <h1 id="days" style="text-align:center;"></h1>
+    <script>
+    time();
+    function time(){
+        var now = new Date();
+        // 本日の終業
+        var targetTime = new Date(now.getFullYear(), now.getMonth(), now.getDate(),18,0);
+        var diff = (targetTime.getTime() - now.getTime()) / 1000;
+        // 秒数差
+        // 日時の計算と端数切り捨て
+        var daysLeft = Math.floor(diff / (24 * 60 * 60));
+        var hoursLeft = (Math.floor(diff / (60 * 60))) % 24;
+        var minitesLeft = (Math.floor(diff / 60)) % 60;
+        var secondsLeft = Math.floor(diff) % 60;
+        // 二桁表示
+        minitesLeft = ("0" + minitesLeft).slice(-2)
+        secondsLeft = ("0" + secondsLeft).slice(-2)
+        // 出力
+        document.getElementById("days").innerHTML = ("ちくわの賞味期限は残り" + hoursLeft + "時間" + minitesLeft + "分" + secondsLeft + "秒です");
+    }
+    setInterval('time()',500);
+    </script>
+	<div align="center">
+		<img src="./tmp/chikuwa.jpg">
+	</div>
+</body>
+
+
+
+</html>

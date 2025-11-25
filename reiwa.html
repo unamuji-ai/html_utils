@@ -1,0 +1,95 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<title>年号変換</title>
+</head>
+<body>
+<script language="JavaScript">
+	Today　= new Date();
+
+	AD = Today.getYear()+1900;
+	reiwa = AD - 18 - 2000;
+	heisei = reiwa + 30;
+	showa = heisei + 63;
+	taisho = showa + 14;
+	meiji = taisho + 44;
+
+	document.write( "<h1>今年何年だっけ？</h1>" );
+	document.write( "今年は西暦:"+AD+"年 令和:"+reiwa+"年 平成:"+heisei+"年 昭和:"+showa+"年 大正:"+taisho+"年 明治:"+meiji+"年です");
+
+	function convert(nengo){
+		if(nengo == "reiwa"){
+			target = document.form.reiwa.value;
+			document.write("令和"+target+"年は<br>");
+			target = Number(target) + 2018;
+		}
+		else if(nengo == "heisei"){
+			target = document.form.heisei.value;
+			document.write("平成"+target+"年は<br>");
+			target = Number(target) + 1988;
+		}
+		else if(nengo == "showa"){
+			target = document.form.showa.value;
+			document.write("昭和"+target+"年は<br>");
+			target = Number(target) + 1925;
+		}
+		else if(nengo == "AD"){
+			target = document.form.AD.value;
+			document.write("西暦"+target+"年は<br>");
+			target = Number(target);
+		}
+		if(isNaN(target)){
+			document.write("年を「半角数字」で入力してください");
+		}
+		
+		AD = target;
+		reiwa = AD - 18 - 2000;
+		heisei = reiwa + 30;
+		showa = heisei + 63;
+
+		if(AD > 0){
+			if(nengo != "AD"){
+				document.write( "西暦:"+AD+"年<br>");
+			}
+		}
+		if(reiwa > 0){
+			if(nengo != "reiwa"){
+				document.write( "令和:"+reiwa+"年<br>");
+			}
+		}
+		if(heisei > 0){
+			if(nengo != "heisei"){
+				document.write( "平成:"+heisei+"年<br>");
+			}
+		}
+		if(showa > 0){
+			if(nengo != "showa"){
+				document.write( "昭和:"+showa+"年<br>");
+			}
+		}
+
+		year = (Today.getYear()+1900) - AD;
+		document.write("この年に生まれた人は現在"+year+"歳です。");
+
+		document.write("<input type='button' value='もどる' onClick='location.reload()'>");
+	}
+
+
+</script>
+<p>
+知りたい年号の年数を入力してください。
+<hr>
+
+<form name="form">
+令和<input type="text" name="reiwa">年<input type="button" value="この令和年号を変換" onClick="convert('reiwa')"><br>
+平成<input type="text" name="heisei">年<input type="button" value="この平成年号を変換" onClick="convert('heisei')"><br>
+昭和<input type="text" name="showa">年<input type="button" value="この昭和年号を変換" onClick="convert('showa')"><br>
+西暦<input type="text" name="AD">年<input type="button" value="この西暦を変換" onClick="convert('AD')"><br>
+</form>
+</p>
+
+
+
+</body>
+</html>
