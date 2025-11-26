@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>年齢から干支・西暦・年号を計算</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
+    background: #f7f7f9;
+    color: #222;
+    margin: 0;
+    padding: 16px;
+  }
+  .card {
+    max-width: 480px; /* スマホで見やすい幅 */
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.08);
+    padding: 16px;
+  }
+  h1 {
+    font-size: 1.2rem;
+    margin: 0 0 12px;
+    text-align: center;
+  }
+  label {
+    font-weight: 600;
+    display: block;
+    margin-bottom: 6px;
+  }
+  input[type="number"] {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-sizing: border-box;
+  }
+  .opt {
+    margin-top: 12px;
+    display: flex;
+    flex-direction: column; /* スマホでは縦並び */
+    gap: 8px;
+  }
+  button {
+    margin-top: 16px;
+    width: 100%;
+    padding: 14px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    background: #2b7;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .out {
+    margin-top: 20px;
+    border-top: 1px solid #eee;
+    padding-top: 16px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+  .key { color: #777; font-size: .9rem; }
+  .val { font-weight: 700; }
+</style>
+</head>
+<body>
+  <div class="card">
+    <h1>年齢 → 干支・西暦・年号</h1>
+    <label for="age">年齢</label>
+    <input id="age" type="number" min="0" max="130" placeholder="例: 35" inputmode="numeric">
+
+    <div class="opt">
+      <label><input type="radio" name="bd" value="passed" checked> 誕生日は今年もう過ぎた</label>
+      <label><input type="radio" name="bd" value="upcoming"> 誕生日は今年まだ</label>
+    </div>
+
+    <button id="calc">計算する</button>
+
+    <div class="out" id="out" hidden>
+      <div class="grid">
+        <div class="key">推定生年</div><div class="val" id="by"></div>
+        <div class="key">和暦</div><div class="val" id="era"></div>
+        <div class="key">干支</div><div class="val" id="eto"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  const etoList = ["子(ね)","丑(うし)","寅(とら)","卯(う)","辰(たつ)","巳(み)","午(うま)","未(ひつじ)","申(さる)","酉(とり)","戌(いぬ)","亥(い)"];
+  function etoFromYear(y){ return etoList[(y - 4 + 12) % 12]; }
+  function eraFromYear(y){
+    if (y >= 2019) return `令和${y - 2018}年`;
+    if (y >= 1989) return `平成${y - 1988}年`;
+    if (y >= 1926) return `昭和${y - 1925}年`;
+    if (y >= 1912) return `大正${y - 1911}年`;
+    if (y >= 1868) return `明治${y - 1867}年`;
+    return "明治以前";
+  }
+  const ageEl = document.getElementById('age');
+  const calcBtn = document.getElementById('calc');
+  const out = document.getElementById('out');
+  const byEl = document.getElementById('by');
+  const eraEl = document.getElementById('era');
+  const etoEl = document.getElementById('eto');
+
+  function calc(){
+    const nowYear = new Date().getFullYear();
+    const age = Number(ageEl.value);
+    if (!Number.isFinite(age) || age < 0 || age > 130){ out.hidden = true; return; }
+    const bdVal = (document.querySelector('input[name="bd"]:checked')||{}).value || 'passed';
+    let birthYear = nowYear - age + (bdVal === 'upcoming' ? 1 : 0);
+    byEl.textContent = `${birthYear}年`;
+    eraEl.textContent = eraFromYear(birthYear);
+    etoEl.textContent = etoFromYear(birthYear);
+    out.hidden = false;
+  }
+  calcBtn.addEventListener('click', calc);
+})();
+</script>
+</body>
+</html>
