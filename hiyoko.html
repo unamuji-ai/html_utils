@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>直接言えないことはひよこに言わせろ</title>
+<title>代弁者ひよこ</title>
 <style>
   body { text-align:center; background:#f7f7f9; font-family:sans-serif; padding:20px; }
   img {
@@ -27,6 +27,7 @@
     color: #fff;
     font-weight: bold;
     cursor: pointer;
+    margin: 6px;
   }
   .meter {
     width: 20px;
@@ -57,6 +58,7 @@
 </style>
 </head>
 <body>
+  <h1>ひよこからおはなしがあります</h1>
   <img id="yuruChar" src="hiyoko.png" alt="ひよこキャラ">
   <div class="meter"><div id="levelBar" class="level" style="height:0%"></div></div>
 
@@ -69,6 +71,7 @@
   </div>
 
   <button id="recordBtn">🎤 録音開始</button>
+  <button id="playBtn" disabled>▶️ 再生</button>
 
 <script>
 let mediaRecorder;
@@ -76,7 +79,10 @@ let audioChunks = [];
 let isRecording = false;
 let analyser, audioCtx, sourceNode;
 let drawId;
+let recordedBuffer = null;
+
 const btn = document.getElementById("recordBtn");
+const playBtn = document.getElementById("playBtn");
 const char = document.getElementById("yuruChar");
 const levelBar = document.getElementById("levelBar");
 
@@ -97,33 +103,9 @@ btn.addEventListener("click", async () => {
       const blob = new Blob(audioChunks, { type: 'audio/webm' });
       const arrayBuffer = await blob.arrayBuffer();
       const ctx = new AudioContext();
-      const buffer = await ctx.decodeAudioData(arrayBuffer);
-
-      // 選択されたピッチを取得
-      const pitchVal = parseFloat(document.querySelector('input[name="pitch"]:checked').value);
-
-      const source = ctx.createBufferSource();
-      source.buffer = buffer;
-      source.playbackRate.value = pitchVal;
-      source.connect(ctx.destination);
-      source.start();
-
-      // 再生中の音声レベル解析
-      const replayAnalyser = ctx.createAnalyser();
-      const replaySource = ctx.createBufferSource();
-      replaySource.buffer = buffer;
-      replaySource.playbackRate.value = pitchVal;
-      replaySource.connect(replayAnalyser);
-      replayAnalyser.connect(ctx.destination);
-      replaySource.start();
-
-      char.classList.add("talking");
-      drawMeter(replayAnalyser);
-      replaySource.onended = () => {
-        char.classList.remove("talking");
-        cancelAnimationFrame(drawId);
-        levelBar.style.height = "0%";
-      };
+      recordedBuffer = await ctx.decodeAudioData(arrayBuffer);
+      playBtn.disabled = false; // 再生ボタンを有効化
+      levelBar.style.height = "0%";
     };
 
     mediaRecorder.start();
@@ -135,6 +117,34 @@ btn.addEventListener("click", async () => {
     btn.textContent = "🎤 録音開始";
     isRecording = false;
   }
+});
+
+playBtn.addEventListener("click", () => {
+  if (!recordedBuffer) return;
+  const ctx = new AudioContext();
+  const pitchVal = parseFloat(document.querySelector('input[name="pitch"]:checked').value);
+
+  const source = ctx.createBufferSource();
+  source.buffer = recordedBuffer;
+  source.playbackRate.value = pitchVal;
+  source.connect(ctx.destination);
+  source.start();
+
+  const replayAnalyser = ctx.createAnalyser();
+  const replaySource = ctx.createBufferSource();
+  replaySource.buffer = recordedBuffer;
+  replaySource.playbackRate.value = pitchVal;
+  replaySource.connect(replayAnalyser);
+  replayAnalyser.connect(ctx.destination);
+  replaySource.start();
+
+  char.classList.add("talking");
+  drawMeter(replayAnalyser);
+  replaySource.onended = () => {
+    char.classList.remove("talking");
+    cancelAnimationFrame(drawId);
+    levelBar.style.height = "0%";
+  };
 });
 
 function drawMeter(analyserNode){
