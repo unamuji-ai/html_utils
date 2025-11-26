@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>直接言えないことはひよこに言わせろ</title>
+<style>
+  body { text-align:center; background:#f7f7f9; font-family:sans-serif; padding:20px; }
+  img {
+    width: 240px;
+    transition: transform 0.2s ease-in-out;
+  }
+  .talking {
+    animation: squishy 0.6s infinite alternate ease-in-out;
+  }
+  @keyframes squishy {
+    0%   { transform: scale(1,1); }
+    50%  { transform: scale(1.05,0.95); }
+    100% { transform: scale(0.95,1.05); }
+  }
+  button {
+    padding: 12px 20px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    background: #2b7;
+    color: #fff;
+    font-weight: bold;
+    cursor: pointer;
+  }
+  .meter {
+    width: 20px;
+    height: 120px;
+    background: #ddd;
+    margin: 20px auto;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+  }
+  .level {
+    position: absolute;
+    bottom: 0;
+    width: 100%;
+    background: linear-gradient(to top, #2b7, #6f6);
+    transition: height 0.1s ease-out;
+  }
+  .pitch-options {
+    margin: 12px 0;
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .pitch-options label {
+    font-size: 0.9rem;
+  }
+</style>
+</head>
+<body>
+  <img id="yuruChar" src="hiyoko.png" alt="ひよこキャラ">
+  <div class="meter"><div id="levelBar" class="level" style="height:0%"></div></div>
+
+  <div class="pitch-options">
+    <label><input type="radio" name="pitch" value="0.8">低め</label>
+    <label><input type="radio" name="pitch" value="1.0">普通</label>
+    <label><input type="radio" name="pitch" value="1.5">やや高め</label>
+    <label><input type="radio" name="pitch" value="1.8" checked>高め</label>
+    <label><input type="radio" name="pitch" value="2.2">かなり高め</label>
+  </div>
+
+  <button id="recordBtn">🎤 録音開始</button>
+
+<script>
+let mediaRecorder;
+let audioChunks = [];
+let isRecording = false;
+let analyser, audioCtx, sourceNode;
+let drawId;
+const btn = document.getElementById("recordBtn");
+const char = document.getElementById("yuruChar");
+const levelBar = document.getElementById("levelBar");
+
+btn.addEventListener("click", async () => {
+  if (!isRecording) {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    audioCtx = new AudioContext();
+    sourceNode = audioCtx.createMediaStreamSource(stream);
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    sourceNode.connect(analyser);
+
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+    mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+    mediaRecorder.onstop = async () => {
+      cancelAnimationFrame(drawId);
+      const blob = new Blob(audioChunks, { type: 'audio/webm' });
+      const arrayBuffer = await blob.arrayBuffer();
+      const ctx = new AudioContext();
+      const buffer = await ctx.decodeAudioData(arrayBuffer);
+
+      // 選択されたピッチを取得
+      const pitchVal = parseFloat(document.querySelector('input[name="pitch"]:checked').value);
+
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      source.playbackRate.value = pitchVal;
+      source.connect(ctx.destination);
+      source.start();
+
+      // 再生中の音声レベル解析
+      const replayAnalyser = ctx.createAnalyser();
+      const replaySource = ctx.createBufferSource();
+      replaySource.buffer = buffer;
+      replaySource.playbackRate.value = pitchVal;
+      replaySource.connect(replayAnalyser);
+      replayAnalyser.connect(ctx.destination);
+      replaySource.start();
+
+      char.classList.add("talking");
+      drawMeter(replayAnalyser);
+      replaySource.onended = () => {
+        char.classList.remove("talking");
+        cancelAnimationFrame(drawId);
+        levelBar.style.height = "0%";
+      };
+    };
+
+    mediaRecorder.start();
+    drawMeter(analyser);
+    btn.textContent = "⏹️ 録音停止";
+    isRecording = true;
+  } else {
+    mediaRecorder.stop();
+    btn.textContent = "🎤 録音開始";
+    isRecording = false;
+  }
+});
+
+function drawMeter(analyserNode){
+  const dataArray = new Uint8Array(analyserNode.frequencyBinCount);
+  function draw(){
+    analyserNode.getByteFrequencyData(dataArray);
+    const avg = dataArray.reduce((a,b) => a + b, 0) / dataArray.length;
+    const percent = Math.min(100, Math.floor(avg / 2));
+    levelBar.style.height = percent + "%";
+    drawId = requestAnimationFrame(draw);
+  }
+  draw();
+}
+</script>
+</body>
+</html>
