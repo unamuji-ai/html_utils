@@ -38,7 +38,8 @@
       <select id="preset">
         <option value="none">なし（素の文字）</option>
         <option value="mold">半モザイク</option>
-        <option value="semi_letter" selected>濁点、半濁点</option>
+        <option value="semi_letter">濁点、半濁点</option>
+        <option value="correction" selected>ノイズ(アルファベット用)</option>
         <option value="all">混合</option>
       </select>
     </label>
@@ -82,6 +83,7 @@
   // 日本語対応結合文字セット
 	const MOLD=["\u0488","\u0489"];
 	const SEMI_LETTER=["\u3099","\u309A"]
+	const CORRECTIONS=["\u0304","\u0305","\u0331","\u0307"]
   const SAFE_JAPANESE = ["\u0488","\u0489","\u3099","\u309A"]; // ҈ ҉ ゙ ゚
 
   const inputEl = document.getElementById('input');
@@ -126,7 +128,9 @@
 	      // 濁点・半濁点は最大1個
 	      marks.push(pick(SEMI_LETTER));
 	      break;
-
+			case "correction":
+	      for (let i = 0; i < dens; i++) marks.push(pick(CORRECTIONS));
+	      break;
 	    case "all":
 	      let usedDakuten = false;
 	      for (let i = 0; i < dens + 1; i++) {
