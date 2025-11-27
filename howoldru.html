@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>年齢計算（西暦・年号対応）</title>
+<style>
+  body { font-family: system-ui, sans-serif; background:#f7f7f9; padding:20px; }
+  h1 { text-align:center; }
+  .card { max-width:520px; margin:0 auto; background:#fff; border-radius:12px; padding:16px; box-shadow:0 6px 18px rgba(0,0,0,0.08); }
+  .era-options { display:flex; flex-wrap:wrap; gap:12px; margin-bottom:12px; }
+  .era-options label { font-size:0.95rem; }
+  select { padding:8px; font-size:1rem; margin:4px; }
+  button { padding:12px 18px; font-size:1rem; border:none; border-radius:8px; background:#2b7; color:#fff; font-weight:bold; cursor:pointer; margin-top:12px; }
+  .result { margin-top:16px; padding:12px; background:#f0f9f2; border-radius:8px; }
+  .error { margin-top:12px; color:#b00; font-weight:bold; }
+</style>
+</head>
+<body>
+  <h1>年齢計算（西暦・年号対応）</h1>
+  <div class="card">
+    <div class="era-options">
+      <label><input type="radio" name="era" value="西暦" checked>西暦</label>
+      <label><input type="radio" name="era" value="明治">明治</label>
+      <label><input type="radio" name="era" value="大正">大正</label>
+      <label><input type="radio" name="era" value="昭和">昭和</label>
+      <label><input type="radio" name="era" value="平成">平成</label>
+      <label><input type="radio" name="era" value="令和">令和</label>
+    </div>
+
+    <div>
+      <select id="year"></select>
+      <select id="month"></select>
+      <select id="day"></select>
+    </div>
+
+    <button id="calcBtn">年齢を計算</button>
+    <div id="error" class="error" style="display:none"></div>
+    <div id="result" class="result" style="display:none"></div>
+  </div>
+
+<script>
+// ---- Configs & state ----
+const eraBase = {
+  '西暦': 0,
+  '明治': 1867,
+  '大正': 1911,
+  '昭和': 1925,
+  '平成': 1988,
+  '令和': 2018
+};
+
+const yearSel = document.getElementById('year');
+const monthSel = document.getElementById('month');
+const daySel   = document.getElementById('day');
+const errorDiv = document.getElementById('error');
+const resultDiv= document.getElementById('result');
+
+let currentEra = '西暦';
+let lastValidYears = { '西暦': null, '明治': null, '大正': null, '昭和': null, '平成': null, '令和': null };
+let lastValidGregorianYear = new Date().getFullYear(); // 常に最後の有効西暦を保持
+
+
+// ---- Populate selectors ----
+function populateMonths() {
+  monthSel.innerHTML = '';
+  for (let m = 1; m <= 12; m++) {
+    const opt = document.createElement('option');
+    opt.value = m;
+    opt.textContent = m + '月';
+    monthSel.appendChild(opt);
+  }
+}
+function populateDays() {
+  daySel.innerHTML = '';
+  for (let d = 1; d <= 31; d++) {
+    const opt = document.createElement('option');
+    opt.value = d;
+    opt.textContent = d + '日';
+    daySel.appendChild(opt);
+  }
+}
+function ensurePlaceholderOption() {
+  // 先頭に "--" プレースホルダを入れておく（必要時のみ選択）
+  const first = yearSel.options[0];
+  if (!first || first.value !== '--') {
+    const opt = document.createElement('option');
+    opt.value = '--';
+    opt.textContent = '--';
+    yearSel.insertBefore(opt, yearSel.firstChild);
+  }
+}
+
+function populateYears(era) {
+  yearSel.innerHTML = '';
+  // 先頭に "--" を常設
+  ensurePlaceholderOption();
+
+  if (era === '西暦') {
+    const currentYear = new Date().getFullYear();
+    for (let y = 1950; y <= currentYear + 300; y++) {
+      const opt = document.createElement('option');
+      opt.value = String(y);
+      opt.textContent = y + '年';
+      yearSel.appendChild(opt);
+    }
+  } else {
+    for (let y = 1; y <= 300; y++) {
+      const opt = document.createElement('option');
+      opt.value = String(y);
+      opt.textContent = y + '年';
+      yearSel.appendChild(opt);
+    }
+  }
+}
+
+// ---- Helpers ----
+function toGregorian(era, eraYear) {
+  if (era === '西暦') return eraYear;
+  return eraBase[era] + eraYear;
+}
+function fromGregorian(targetEra, gregorianYear) {
+  if (targetEra === '西暦') return gregorianYear;
+  return gregorianYear - eraBase[targetEra];
+}
+function calcAge(birthDate, refDate = new Date()) {
+  let age = refDate.getFullYear() - birthDate.getFullYear();
+  const hadBirthday =
+    refDate.getMonth() > birthDate.getMonth() ||
+    (refDate.getMonth() === birthDate.getMonth() && refDate.getDate() >= birthDate.getDate());
+  if (!hadBirthday) age--;
+  return age;
+}
+
+// ---- Initialize ----
+populateMonths();
+populateDays();
+populateYears('西暦');
+// 初期選択
+yearSel.value = String(new Date().getFullYear()); // 今年
+monthSel.value = String(new Date().getMonth() + 1);
+daySel.value = String(new Date().getDate());
+lastValidYears['西暦'] = parseInt(yearSel.value, 10);
+
+// ---- Era switching ----
+document.querySelectorAll('input[name="era"]').forEach(radio => {
+  radio.addEventListener('change', () => {
+    const newEra = radio.value;
+
+    // 現在の選択値を西暦に換算
+    let gregorianYear;
+    if (yearSel.value === '--') {
+      // 無効状態なら最後に有効だった西暦を利用
+      gregorianYear = lastValidGregorianYear;
+    } else {
+      const eraYear = parseInt(yearSel.value, 10);
+      gregorianYear = toGregorian(currentEra, eraYear);
+      lastValidGregorianYear = gregorianYear; // 有効なら更新
+    }
+
+    // 新しいEraに換算
+    const newEraYear = fromGregorian(newEra, gregorianYear);
+
+    // 年リストを再生成
+    populateYears(newEra);
+
+    if (newEraYear <= 0) {
+      yearSel.value = '--';
+    } else {
+      const match = [...yearSel.options].find(opt => parseInt(opt.value, 10) === newEraYear);
+      if (match) {
+        yearSel.value = String(newEraYear);
+        lastValidYears[newEra] = newEraYear;
+      } else {
+        yearSel.value = (newEra === '西暦') ? '1950' : '1';
+        lastValidYears[newEra] = parseInt(yearSel.value, 10);
+      }
+    }
+
+    currentEra = newEra;
+
+    // 表示更新を追加
+    updateDisplay();
+
+
+  });
+});
+
+// ---- Calculate ----
+document.getElementById('calcBtn').addEventListener('click', () => {
+  errorDiv.style.display = 'none';
+  resultDiv.style.display = 'none';
+
+  const era = document.querySelector('input[name="era"]:checked').value;
+  const yearValue = yearSel.value;
+
+  // 無効年（"--"）なら計算せずエラー表示
+  if (yearValue === '--') {
+    errorDiv.textContent = '選択した年号では該当年が存在しません（--）。有効な年を選択してください。';
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  const eraYear = parseInt(yearValue, 10);
+  const month = parseInt(monthSel.value, 10);
+  const day = parseInt(daySel.value, 10);
+
+  const gregorianYear = (era === '西暦') ? eraYear : eraBase[era] + eraYear;
+  const birthDate = new Date(gregorianYear, month - 1, day);
+
+  // 日付妥当性チェック（例：2/30対策）
+  if (
+    birthDate.getFullYear() !== gregorianYear ||
+    birthDate.getMonth() !== (month - 1) ||
+    birthDate.getDate() !== day
+  ) {
+    errorDiv.textContent = '存在しない日付です。月日を確認してください。';
+    errorDiv.style.display = 'block';
+    return;
+  }
+
+  const age = calcAge(birthDate);
+
+  resultDiv.innerHTML =
+    `<div><strong>生年月日:</strong> ${gregorianYear}年${month}月${day}日 (${era}${eraYear}年)</div>
+     <div><strong>年齢:</strong> ${age} 歳</div>`;
+  resultDiv.style.display = 'block';
+});
+
+function updateDisplay() {
+  const era = document.querySelector('input[name="era"]:checked').value;
+  const yearValue = yearSel.value;
+  const month = parseInt(monthSel.value, 10);
+  const day = parseInt(daySel.value, 10);
+
+  if (yearValue === '--') {
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `<div><strong>生年月日:</strong> 該当なし (${era}--)</div>`;
+    return;
+  }
+
+  const eraYear = parseInt(yearValue, 10);
+  const gregorianYear = (era === '西暦') ? eraYear : eraBase[era] + eraYear;
+  const birthDate = new Date(gregorianYear, month - 1, day);
+
+  // 日付妥当性チェック
+  if (
+    birthDate.getFullYear() !== gregorianYear ||
+    birthDate.getMonth() !== (month - 1) ||
+    birthDate.getDate() !== day
+  ) {
+    resultDiv.style.display = 'block';
+    resultDiv.innerHTML = `<div><strong>生年月日:</strong> 存在しない日付 (${era}${eraYear}年)</div>`;
+    return;
+  }
+
+  const age = calcAge(birthDate);
+
+  resultDiv.style.display = 'block';
+  resultDiv.innerHTML =
+    `<div><strong>生年月日:</strong> ${gregorianYear}年${month}月${day}日 (${era}${eraYear}年)</div>
+     <div><strong>年齢:</strong> ${age} 歳</div>`;
+}
+
+// 計算ボタンでも呼ぶ
+document.getElementById('calcBtn').addEventListener('click', updateDisplay);
+
+</script>
+</body>
+</html>
