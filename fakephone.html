@@ -116,22 +116,28 @@
 
 <div class="statusbar">
   <span id="clock"></span>
-  <span>
-    <!-- 電波バー -->
-		<div class="antenna">
-		  <span class="bar"></span>
-		  <span class="bar"></span>
-		  <span class="bar"></span>
-		  <span class="bar"></span>
-	    5G
-	    <!-- バッテリーアイコン -->
-	    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="12" viewBox="0 0 24 12">
-	      <rect x="1" y="1" width="20" height="10" stroke="black" fill="none" rx="2"/>
-	      <rect x="22" y="4" width="2" height="4" fill="black"/>
-	      <rect x="2" y="2" width="16" height="8" fill="black"/> <!-- 残量部分 -->
-	    </svg>
-		</div>
-  </span>
+  <div style="display:flex; align-items:center; gap:8px;">
+    <!-- アンテナバー -->
+    <div class="antenna">
+      <span class="bar"></span>
+      <span class="bar"></span>
+      <span class="bar"></span>
+      <span class="bar"></span>
+    </div>
+    <!-- 通信方式 -->
+    <span>5G</span>
+    <!-- バッテリー -->
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="12" viewBox="0 0 24 12">
+      <rect x="1" y="1" width="20" height="10" stroke="black" fill="none" rx="2"/>
+      <rect x="22" y="4" width="2" height="4" fill="black"/>
+      <rect x="2" y="2" width="16" height="8" fill="black"/> <!-- 残量部分 -->
+    </svg>
+  </div>
+</div>
+
+<!-- 初期画面 -->
+<div id="start" class="screen active" style="display:flex; justify-content:center; align-items:center; height:80vh; font-size:20px; color:#666;">
+  画面をタップしてください
 </div>
 
 <!-- キーパッド画面 -->
@@ -169,6 +175,19 @@
 </div>
 
 <script>
+  const startScreen = document.getElementById('start');
+  const dialScreen = document.getElementById('dial');
+
+ // 初期画面タップでフルスクリーン＋キーパッド表示
+  startScreen.addEventListener('click', () => {
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen();
+    }
+    startScreen.style.display = "none";
+    dialScreen.classList.add("active");
+  });
+
+
   const dialNumber = document.getElementById('dialNumber');
 	const deleteBtn = document.getElementById('deleteBtn');
   const keypad = document.getElementById('keypad');
