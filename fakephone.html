@@ -37,9 +37,22 @@
 	  margin:auto;
 	}
   .avatar { width:80px; height:80px; border-radius:50%; background:#ccc; margin:20px auto; }
-  .name { font-size:20px; font-weight:bold; }
-  .desc { font-size:14px; color:#666; margin-top:4px; }
-  .timer { font-size:18px; margin-top:8px; font-variant-numeric:tabular-nums; color:#007aff; }
+	.name {
+	  font-size: 34px;   /* 番号用に大きく */
+	  font-weight: bold;
+	  margin-top: 40px;
+	}
+	.desc {
+	  font-size: 18px;   /* 緊急通報ラベル用に少し小さめ */
+	  color: #666;       /* グレーで実機っぽく */
+	  margin-top: 8px;
+	}
+	.timer {
+	  font-size: 16px;
+	  margin-top: 12px;
+	  font-variant-numeric: tabular-nums;
+	  color: #007aff;    /* iOSブルー */
+	}
   .controls { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-top:20px; }
   .control {
     width:60px; height:60px; border-radius:50%; background:#eee;
@@ -171,6 +184,24 @@
       </svg>
     </button>
     <button id="deleteBtn" style="display:none;" class="delete-btn">⌫</button>
+  </div>
+</div>
+
+<!-- 発信中画面 -->
+<div id="waiting" class="screen">
+  <div class="name">緊急通報</div>
+  <div class="desc">110 に発信中...</div>
+</div>
+
+<!-- 通話中画面 -->
+<div id="incall" class="screen">
+  <div class="name">緊急通報</div>
+  <div class="desc">110</div>
+  <div id="timer" class="timer">00:00</div>
+  <div class="controls">
+    <div class="control">🔇</div>
+    <div class="control">📞</div>
+    <div class="control end" id="endBtn">✕</div>
   </div>
 </div>
 
