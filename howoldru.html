@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>年齢計算（西暦・年号対応）</title>
+<title>自分の年齢がわからないお年寄りは今何歳？</title>
 <style>
   body { font-family: system-ui, sans-serif; background:#f7f7f9; padding:20px; }
   h1 { text-align:center; }
@@ -17,7 +17,7 @@
 </style>
 </head>
 <body>
-  <h1>年齢計算（西暦・年号対応）</h1>
+  <h1>生年月日を入力したらあなたの年齢を教えます</h1>
   <div class="card">
     <div class="era-options">
       <label><input type="radio" name="era" value="西暦" checked>西暦</label>
@@ -34,7 +34,7 @@
       <select id="day"></select>
     </div>
 
-    <button id="calcBtn">年齢を計算</button>
+    <button id="calcBtn">あなたの年齢</button>
     <div id="error" class="error" style="display:none"></div>
     <div id="result" class="result" style="display:none"></div>
   </div>
