@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>なめくじ</title>
+<style>
+  body {
+    font-family: sans-serif;
+    background: #eef;
+    padding: 20px;
+  }
+  #participantList {
+    margin-top: 10px;
+    padding: 0;
+    list-style: none;
+  }
+  #participantList li {
+    background: #fff;
+    margin: 4px 0;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+  }
+	#track {
+	  position: relative;
+	  width: 100%;
+	  height: 80vh;
+	  display: flex;
+	  justify-content: space-around;
+	  align-items: flex-end;
+	  border-bottom: 2px solid #333; /* スタートライン */
+	}
+	#race h2 {
+	  text-align: center;   /* 中央寄せ */
+	  margin-top: 0px;     /* 上の余白を少なめに */
+	  margin-bottom: 5px;   /* 下の余白も少し詰める */
+	  font-size: 1.5em;     /* 見やすいサイズ */
+	}
+	#lanes {
+	  display: flex;
+	  justify-content: space-around;
+	  align-items: flex-end;
+	  height: 100%;
+	  width: 100%;
+	}
+
+	.goal-line {
+	  position: absolute;
+	  top: 30px;   /* ← ゴール線を下げたい位置に調整 */
+	  left: 0;
+	  width: 100%;
+	  border-top: 2px solid #333;
+	}
+  .lane {
+    position: relative;
+    width: 80px;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: flex-end;
+  }
+	.slug {
+	  width: 60px;
+	  height: 120px;
+	  position: absolute;
+	  bottom: 0;
+	  transform-origin: center;
+	  transform: translateY(var(--posY, 0)) scaleY(1);
+	  animation: squish 1s ease-in-out infinite;
+	}
+
+	@keyframes squish {
+	  0%, 100% { transform: translateY(var(--posY, 0)) scaleY(1); }
+	  50%      { transform: translateY(var(--posY, 0)) scaleY(0.8); }
+	}
+  .nameLabel {
+    position: absolute;
+    top: 0px; /* ゴール付近に名前 */
+    text-align: center;
+    width: 100%;
+    font-weight: bold;
+    color: #333;
+  }
+</style>
+</head>
+<body>
+  <!-- 参加者登録エリア -->
+  <section id="register">
+    <h2>参加者登録</h2>
+    <input type="text" id="nameInput" placeholder="名前を入力">
+    <button id="addBtn">追加</button>
+    <ul id="participantList"></ul>
+    <button id="startBtn">レース開始</button>
+  </section>
+
+  <!-- レースエリア -->
+  <section id="race" style="display:none;">
+    <h2>Slug Grand Prix</h2>
+		<div id="track">		
+		  <div class="goal-line"></div>
+			<div id="lanes"></div>
+		</div>  </section>
+  <!-- 結果エリア -->
+  <section id="result" style="display:none;">
+    <h2>結果発表</h2>
+    <ol id="ranking"></ol>
+    <button id="retryBtn">もう一度</button>
+    <button id="resetBtn">最初から</button>
+  </section>
+
+<script>
+  const nameInput = document.getElementById("nameInput");
+  const addBtn = document.getElementById("addBtn");
+  const participantList = document.getElementById("participantList");
+  const startBtn = document.getElementById("startBtn");
+  const track = document.getElementById("track");
+  const raceSection = document.getElementById("race");
+  const registerSection = document.getElementById("register");
+  const resultSection = document.getElementById("result");
+  const rankingList = document.getElementById("ranking");
+  const retryBtn = document.getElementById("retryBtn");
+  const resetBtn = document.getElementById("resetBtn");
+
+  let participants = [];
+  let slugs = [];
+  let finished = [];
+
+  // 参加者追加
+  addBtn.addEventListener("click", () => {
+    const name = nameInput.value.trim();
+    if(name){
+      participants.push(name);
+      renderList();
+      nameInput.value = "";
+    }
+  });
+
+  function renderList(){
+    participantList.innerHTML = "";
+    participants.forEach((p, i) => {
+      const li = document.createElement("li");
+      li.textContent = `${i+1}. ${p}`;
+      participantList.appendChild(li);
+    });
+  }
+
+  // レース開始
+  startBtn.addEventListener("click", () => {
+    if(participants.length === 0){
+      alert("参加者を登録してください！");
+      return;
+    }
+    registerSection.style.display = "none";
+    raceSection.style.display = "block";
+    startRace();
+  });
+
+  // SVGなめくじ生成
+  function createSlug(name){
+    const lane = document.createElement("div");
+    lane.className = "lane";
+
+    const slug = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    slug.setAttribute("viewBox","0 0 60 120");
+    slug.classList.add("slug");
+
+    // 胴体
+    const body = document.createElementNS("http://www.w3.org/2000/svg","ellipse");
+    body.setAttribute("cx","30");
+    body.setAttribute("cy","60");
+    body.setAttribute("rx","20");
+    body.setAttribute("ry","50");
+    body.setAttribute("fill","#f5deb3");
+    slug.appendChild(body);
+
+    // 背中の縦ライン
+    const line1 = document.createElementNS("http://www.w3.org/2000/svg","line");
+    line1.setAttribute("x1","25"); line1.setAttribute("y1","30");
+    line1.setAttribute("x2","25"); line1.setAttribute("y2","100");
+    line1.setAttribute("stroke","#deb887"); line1.setAttribute("stroke-width","3");
+    slug.appendChild(line1);
+
+    const line2 = document.createElementNS("http://www.w3.org/2000/svg","line");
+    line2.setAttribute("x1","35"); line2.setAttribute("y1","30");
+    line2.setAttribute("x2","35"); line2.setAttribute("y2","100");
+    line2.setAttribute("stroke","#deb887"); line2.setAttribute("stroke-width","3");
+    slug.appendChild(line2);
+
+    // 触角
+    const antenna1 = document.createElementNS("http://www.w3.org/2000/svg","line");
+    antenna1.setAttribute("x1","20"); antenna1.setAttribute("y1","15");
+    antenna1.setAttribute("x2","15"); antenna1.setAttribute("y2","0");
+    antenna1.setAttribute("stroke","#f5deb3"); antenna1.setAttribute("stroke-width","5");
+    slug.appendChild(antenna1);
+
+    const antenna2 = document.createElementNS("http://www.w3.org/2000/svg","line");
+    antenna2.setAttribute("x1","40"); antenna2.setAttribute("y1","15");
+    antenna2.setAttribute("x2","45"); antenna2.setAttribute("y2","0");
+    antenna2.setAttribute("stroke","#f5deb3"); antenna2.setAttribute("stroke-width","5");
+    slug.appendChild(antenna2);
+
+    lane.appendChild(slug);
+
+    // 名前ラベル（ゴール付近）
+    const label = document.createElement("div");
+    label.className = "nameLabel";
+    label.textContent = name;
+    lane.appendChild(label);
+
+ 	  document.getElementById("lanes").appendChild(lane);
+
+
+    return {name, slug, pos:0};
+  }
+
+  // レース開始処理
+  function startRace(){
+	  const lanes = document.getElementById("lanes");
+		lanes.innerHTML="";
+    slugs = [];
+    finished = [];
+
+    participants.forEach(p=>{
+      slugs.push(createSlug(p));
+    });
+
+    const raceInterval = setInterval(()=>{
+      slugs.forEach(s=>{
+        if(finished.includes(s.name)) return;
+
+        // ランダムに進む量（時々止まる）
+        const step = Math.random() < 0.2 ? 0 : (2 + Math.random()*5);
+				// レース進行中の更新処理
+				s.pos += step;
+				s.slug.style.setProperty("--posY", `-${s.pos}px`);
+
+
+        // ゴール判定
+        if(s.pos >= track.clientHeight - 120){
+          finished.push(s.name);
+          if(finished.length === participants.length){
+            clearInterval(raceInterval);
+				    // 2秒待ってから結果表示
+				    setTimeout(showResults, 3000);
+          }
+        }
+      });
+    },100);
+  }
+
+  // 結果表示
+	function showResults(){
+	  raceSection.style.display = "none";
+	  resultSection.style.display = "block";
+	  rankingList.innerHTML = "";
+	  finished.forEach((name,i)=>{
+	    const li = document.createElement("li");
+	    li.textContent = `${name}`;  // ←順位だけ表示
+	    rankingList.appendChild(li);
+	  });
+	}
+  // 「もう一度」＝同じ参加者で再レース
+  retryBtn.addEventListener("click", () => {
+    resultSection.style.display = "none";
+    raceSection.style.display = "block";
+    startRace();
+  });
+
+  // 「最初から」＝参加者登録に戻る
+  resetBtn.addEventListener("click", () => {
+    resultSection.style.display = "none";
+    registerSection.style.display = "block";
+    participants = [];
+    renderList();
+  });
+</script>
+</body>
+</html>
