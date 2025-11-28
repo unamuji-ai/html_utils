@@ -3,164 +3,136 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="./manifest.json">
+
 <title>iPhone風フェイク通話UI</title>
 <style>
   body {
     margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
     background:#fff; color:#000; text-align:center;
   }
-  .statusbar {
-    font-size:14px; padding:8px 16px; display:flex; justify-content:space-between;
-  }
   .screen { display:none; padding:20px; }
   .screen.active { display:block; }
-	.number-display {
-	  font-size: 32px;
-	  margin: 20px 0;
-	  letter-spacing: 2px;
-	  min-height: 40px;   /* 高さ固定 */
-	  line-height: 40px;  /* 行の高さも固定 */
+  .number-display {
+    font-size: 32px;
+    margin: 20px 0;
+    letter-spacing: 2px;
+    min-height: 40px;
+    line-height: 40px;
+  }
+	.start-screen {
+	  display:flex; justify-content:center; align-items:center;
+	  height:80vh; font-size:20px; color:#666;
 	}
   .keypad {
     display:grid; grid-template-columns:repeat(3,1fr); gap:16px;
     max-width:300px; margin:0 auto;
   }
-  .key {
-    background:#eee; border-radius:50%; height:80px;
-    display:flex; flex-direction:column; justify-content:center; align-items:center;
-    cursor:pointer;
-  }
   .digit { font-size:24px; font-weight:bold; }
   .sub { font-size:10px; color:#666; margin-top:2px; }
-	.call-btn svg {
-	  display:block;
-	  margin:auto;
-	}
-  .avatar { width:80px; height:80px; border-radius:50%; background:#ccc; margin:20px auto; }
-	.name {
-	  font-size: 34px;   /* 番号用に大きく */
-	  font-weight: bold;
-	  margin-top: 40px;
-	}
-	.desc {
-	  font-size: 18px;   /* 緊急通報ラベル用に少し小さめ */
-	  color: #666;       /* グレーで実機っぽく */
-	  margin-top: 8px;
-	}
-	.timer {
-	  font-size: 16px;
-	  margin-top: 12px;
-	  font-variant-numeric: tabular-nums;
-	  color: #007aff;    /* iOSブルー */
-	}
+  .name { font-size: 34px; font-weight: bold; margin-top: 40px; }
+  .desc { font-size: 18px; color: #666; margin-top: 8px; }
+  .timer { font-size: 16px; margin-top: 12px; font-variant-numeric: tabular-nums; color: #007aff; }
   .controls { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-top:20px; }
-  .control {
-    width:60px; height:60px; border-radius:50%; background:#eee;
-    display:flex; align-items:center; justify-content:center; font-size:22px; cursor:pointer;
-  }
+  .control { width:60px; height:60px; border-radius:50%; background:#eee;
+             display:flex; align-items:center; justify-content:center; font-size:22px; cursor:pointer; }
   .control.end { background:#e74c3c; color:white; }
 
-	.navbar {
-	  display: flex;
-	  justify-content: space-around;
-	  border-top: 1px solid #ccc;
-	  padding: 6px 0;
-	  background: #f9f9f9;
-	  position: fixed;
-	  bottom: 0;
-	  width: 100%;
+	.key,
+	.call-btn {
+	  width:80px;
+	  height:80px;
+	  border-radius:50%; /* 完全な円 */
+	  display:flex;
+	  align-items:center;
+	  justify-content:center;
 	}
-	.nav-item {
-	  font-size: 12px;
-	  text-align: center;
-	  color: #666;
+
+	.key {
+	  background:#eee;
+	  border-radius:50%;
+	  width:80px;
+	  height:80px;
+	  display:flex;
+	  flex-direction:column;   /* ←縦並びにする */
+	  justify-content:center;
+	  align-items:center;
+	  cursor:pointer;
 	}
-	.nav-item.active {
-	  color: #007aff; /* iOSブルー */
-	  font-weight: bold;
-	}
+	.digit { font-size:24px; font-weight:bold; }
+	.sub   { font-size:10px; color:#666; margin-top:2px; }
+
 
 	.actions {
 	  position: relative;
 	  margin-top: 20px;
-	  height: 80px; /* 通話ボタンと同じ高さ */
+	  height: 80px;
 	}
 
 	.call-btn {
-	  background: #2ecc71;
-	  border: none;
-	  border-radius: 50%;
-	  padding: 20px;
-	  cursor: pointer;
+	  width:80px;
+	  height:80px;
+	  border-radius:50%;
+	  background:#2ecc71;
+	  border:none;
+	  cursor:pointer;
 	  position: absolute;
 	  left: 50%;
 	  transform: translateX(-50%); /* 常に中央 */
+	  display:flex;
+	  align-items:center;
+	  justify-content:center;
 	}
 
 	.delete-btn {
+	  width:80px;
+	  height:80px;
+	  border-radius:50%;
+	  background:none;
+	  border:none;
+	  font-size:24px;
+	  color:#007aff;
+	  cursor:pointer;
+	  display:none;
 	  position: absolute;
-	  left: calc(50% + 80px); /* 通話ボタンの右隣に固定配置 */
+	  left: calc(50% + 100px); /* 発信ボタンの右隣に固定 */
 	  top: 50%;
 	  transform: translateY(-50%);
-	  background: none;
-	  border: none;
-	  font-size: 20px;
-	  color: #007aff;
-	  cursor: pointer;
-	  display: none;
 	}
-	.antenna {
-	  display: flex;
-	  gap: 2px;
-	  align-items: flex-end;
+	.call-btn svg {
+	  width:28px;
+	  height:28px;
+	  fill:white;
 	}
-	.bar {
-	  width: 3px;
-	  background: black; /* ダークモードなら白 */
-	}
-	.bar:nth-child(1) { height: 4px; }
-	.bar:nth-child(2) { height: 8px; }
-	.bar:nth-child(3) { height: 12px; }
-	.bar:nth-child(4) { height: 16px; }
 
+  .navbar {
+    display: flex;
+    justify-content: space-around;
+    border-top: 1px solid #ccc;
+    padding: 6px 0;
+    background: #f9f9f9;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+  }
+  .nav-item { font-size: 12px; text-align: center; color: #666; }
+  .nav-item.active { color: #007aff; font-weight: bold; }
 </style>
 </head>
 <body>
 
-<div class="statusbar">
-  <span id="clock"></span>
-  <div style="display:flex; align-items:center; gap:8px;">
-    <!-- アンテナバー -->
-    <div class="antenna">
-      <span class="bar"></span>
-      <span class="bar"></span>
-      <span class="bar"></span>
-      <span class="bar"></span>
-    </div>
-    <!-- 通信方式 -->
-    <span>5G</span>
-    <!-- バッテリー -->
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="12" viewBox="0 0 24 12">
-      <rect x="1" y="1" width="20" height="10" stroke="black" fill="none" rx="2"/>
-      <rect x="22" y="4" width="2" height="4" fill="black"/>
-      <rect x="2" y="2" width="16" height="8" fill="black"/> <!-- 残量部分 -->
-    </svg>
-  </div>
-</div>
-
 <!-- 初期画面 -->
-<div id="start" class="screen active" style="display:flex; justify-content:center; align-items:center; height:80vh; font-size:20px; color:#666;">
-  画面をタップしてください
+<div id="start" class="screen active start-screen">
+  画面をタップ／クリックしてください
 </div>
 
 <!-- キーパッド画面 -->
-<div id="dial" class="screen active">
-  <!-- 番号表示と削除ボタンを横並びに -->
-  <div class="number-display">
-    <span id="dialNumber"></span>
-  </div>
+<div id="dial" class="screen">
+  <div class="number-display"><span id="dialNumber"></span></div>
 
-  <!-- キーパッド -->
   <div class="keypad" id="keypad">
     <div class="key" data-num="1"><div class="digit">1</div><div class="sub">•</div></div>
     <div class="key" data-num="2"><div class="digit">2</div><div class="sub">ABC</div></div>
@@ -174,16 +146,15 @@
     <div class="key" data-num="*"><div class="digit">*</div></div>
     <div class="key" data-num="0"><div class="digit">0</div><div class="sub">+</div></div>
     <div class="key" data-num="#"><div class="digit">#</div></div>
-	</div>
+  </div>
 
-  <!-- 通話ボタンと削除ボタンを横並びに -->
   <div class="actions">
-    <button class="call-btn" id="callBtn">
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="white" viewBox="0 0 24 24">
-        <path d="M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.05-.24c1.12.37 2.33.57 3.54.57.55 0 1 .45 1 1v3.5a1 1 0 01-1 1C10.61 21 3 13.39 3 4.5a1 1 0 011-1H7.5c.55 0 1 .45 1 1 0 1.21.2 2.42.57 3.54.11.36.03.77-.24 1.05l-2.21 2.2z"/>
-      </svg>
-    </button>
-    <button id="deleteBtn" style="display:none;" class="delete-btn">⌫</button>
+		<button class="call-btn" id="callBtn">
+		  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="white" viewBox="0 0 24 24">
+		    <path d="M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.05-.24c1.12.37 2.33.57 3.54.57.55 0 1 .45 1 1v3.5a1 1 0 01-1 1C10.61 21 3 13.39 3 4.5a1 1 0 011-1H7.5c.55 0 1 .45 1 1 0 1.21.2 2.42.57 3.54.11.36.03.77-.24 1.05l-2.21 2.2z"/>
+		  </svg>
+		</button>
+    <button id="deleteBtn" class="delete-btn">⌫</button>
   </div>
 </div>
 
@@ -205,64 +176,60 @@
   </div>
 </div>
 
+<!-- ナビゲーションバー（任意） -->
+<div class="navbar">
+  <div class="nav-item">⭐<br>よく使う項目</div>
+  <div class="nav-item">🕑<br>履歴</div>
+  <div class="nav-item">👤<br>連絡先</div>
+  <div class="nav-item active">🔢<br>キーパッド</div>
+  <div class="nav-item">📩<br>留守番電話</div>
+</div>
+
 <script>
+document.addEventListener("DOMContentLoaded", () => {
   const startScreen = document.getElementById('start');
   const dialScreen = document.getElementById('dial');
-
- // 初期画面タップでフルスクリーン＋キーパッド表示
-  startScreen.addEventListener('click', () => {
-    if (document.documentElement.requestFullscreen) {
-      document.documentElement.requestFullscreen();
-    }
-    startScreen.style.display = "none";
-    dialScreen.classList.add("active");
-  });
-
-
   const dialNumber = document.getElementById('dialNumber');
-	const deleteBtn = document.getElementById('deleteBtn');
+  const deleteBtn = document.getElementById('deleteBtn');
   const keypad = document.getElementById('keypad');
   const callBtn = document.getElementById('callBtn');
   const endBtn = document.getElementById('endBtn');
   const waitingScreen = document.getElementById('waiting');
   const incallScreen = document.getElementById('incall');
   const timerEl = document.getElementById('timer');
-  const clockEl = document.getElementById('clock');
 
   let input = "";
   let timer = 0;
   let intervalId = null;
 
-  // 時計更新
-  function updateClock(){
-    const now = new Date();
-    const hh = String(now.getHours()).padStart(2,'0');
-    const mm = String(now.getMinutes()).padStart(2,'0');
-    clockEl.textContent = `${hh}:${mm}`;
+  // 初期画面からキーパッドへ
+  function startApp() {
+    // iOSのブラウザでは Fullscreen API は動作しませんが、PCデバッグではクリックで遷移します
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+    startScreen.classList.remove("active");
+	  startScreen.style.display = "none";   // ←これを追加
+    dialScreen.classList.add("active");
   }
-  setInterval(updateClock,1000);
-  updateClock();
+  startScreen.addEventListener('click', startApp);
+  startScreen.addEventListener('touchstart', startApp, { passive: true });
 
-	// キーパッド入力
-	keypad.addEventListener('click', e => {
-	  const key = e.target.closest('.key');
-	  if (key) {
-	    input += key.dataset.num;
-	    dialNumber.textContent = input;
-	    if (input.length > 0) {
-	      deleteBtn.style.display = "inline";
-	    }
-	  }
-	});
+  // キーパッド入力
+  keypad.addEventListener('click', e => {
+    const key = e.target.closest('.key');
+    if (!key) return;
+    input += key.dataset.num;
+    dialNumber.textContent = input;
+    deleteBtn.style.display = input.length > 0 ? "inline" : "none";
+  });
 
-	// 削除ボタン
-	deleteBtn.addEventListener('click', () => {
-	  input = input.slice(0, -1);
-	  dialNumber.textContent = input;
-	  if (input.length === 0) {
-	    deleteBtn.style.display = "none";
-	  }
-	});
+  // 削除ボタン
+  deleteBtn.addEventListener('click', () => {
+    input = input.slice(0, -1);
+    dialNumber.textContent = input;
+    deleteBtn.style.display = input.length === 0 ? "none" : "inline";
+  });
 
   // 発信
   callBtn.addEventListener('click', () => {
@@ -272,21 +239,26 @@
       waitingScreen.classList.remove('active');
       incallScreen.classList.add('active');
       startTimer();
-    }, 2000);
+    }, 1500);
   });
 
   // 通話終了
   endBtn.addEventListener('click', () => {
     clearInterval(intervalId);
+    intervalId = null;
     timer = 0;
     timerEl.textContent = "00:00";
     incallScreen.classList.remove('active');
     dialScreen.classList.add('active');
     input = "";
     dialNumber.textContent = "";
+    deleteBtn.style.display = "none";
   });
 
   function startTimer() {
+    clearInterval(intervalId);
+    timer = 0;
+    timerEl.textContent = "00:00";
     intervalId = setInterval(() => {
       timer++;
       const mm = String(Math.floor(timer / 60)).padStart(2, '0');
@@ -294,15 +266,7 @@
       timerEl.textContent = `${mm}:${ss}`;
     }, 1000);
   }
+});
 </script>
-
-<!-- ナビゲーションバー -->
-<div class="navbar">
-  <div class="nav-item">⭐<br>よく使う項目</div>
-  <div class="nav-item">🕑<br>履歴</div>
-  <div class="nav-item">👤<br>連絡先</div>
-  <div class="nav-item active">🔢<br>キーパッド</div>
-  <div class="nav-item">📩<br>留守番電話</div>
-</div>
 </body>
 </html>
