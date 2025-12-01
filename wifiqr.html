@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Wi‑Fi接続QRコード生成</title>
+  <style>
+    body { font-family: system-ui, sans-serif; background: #f5f7fb; color: #222; padding: 20px; }
+    h1 { text-align: center; margin-bottom: 12px; }
+    .card { max-width: 520px; margin: 0 auto; background: #fff; border: 1px solid #e5e8ef; border-radius: 10px; padding: 16px; }
+    .row { display: flex; gap: 12px; }
+    .row > .field { flex: 1; }
+    .field { margin-bottom: 12px; }
+    .label { display: block; font-weight: 600; margin-bottom: 6px; }
+    input[type="text"], input[type="password"], select {
+      width: 100%; padding: 10px; border: 1px solid #c9ceda; border-radius: 8px; font-size: 14px;
+    }
+    .actions { display: flex; gap: 10px; margin-top: 10px; }
+    button {
+      padding: 10px 14px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer;
+    }
+    .primary { background: #4C7CF3; color: #fff; }
+    .secondary { background: #EEF2FF; color: #2d3a64; }
+    .danger { background: #ffe8e8; color: #b00020; }
+    #qrcode { display: grid; place-items: center; margin-top: 16px; min-height: 220px; }
+    .tip { font-size: 12px; color: #555; margin-top: 8px; }
+    .qrtext { margin-top: 12px; font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #333; word-break: break-all; }
+  </style>
+  <!-- QRCode.js (lightweight) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <h1>Wi‑Fi接続QRコード生成</h1>
+  <div class="card">
+    <div class="field">
+      <label class="label" for="auth">認証方式</label>
+      <select id="auth">
+        <option value="WPA">WPA/WPA2</option>
+        <option value="WEP">WEP</option>
+        <option value="nopass">パスワードなし（公開）</option>
+      </select>
+    </div>
+
+    <div class="row">
+      <div class="field">
+        <label class="label" for="ssid">ネットワーク名（SSID）</label>
+        <input id="ssid" type="text" placeholder="例: Office-WiFi" />
+      </div>
+      <div class="field">
+        <label class="label" for="hidden">
+          <input id="hidden" type="checkbox" /> 非公開SSID（hidden）
+        </label>
+      </div>
+    </div>
+
+    <div class="field" id="pwField">
+      <label class="label" for="password">パスワード</label>
+      <input id="password" type="password" placeholder="8〜63文字（WPA/WPA2）" />
+    </div>
+
+    <div class="actions">
+      <button class="primary" id="generateBtn">QRコード生成</button>
+      <button class="secondary" id="downloadBtn" disabled>PNGダウンロード</button>
+      <button class="danger" id="clearBtn">クリア</button>
+    </div>
+
+    <div id="qrcode"></div>
+    <div class="qrtext" id="qrText"></div>
+    <div class="tip">カメラでQRコードを読み取ると、対応端末ではWi‑Fi接続画面が表示されます。</div>
+  </div>
+
+  <script>
+    const authEl = document.getElementById('auth');
+    const ssidEl = document.getElementById('ssid');
+    const hiddenEl = document.getElementById('hidden');
+    const pwEl = document.getElementById('password');
+    const pwField = document.getElementById('pwField');
+    const generateBtn = document.getElementById('generateBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const qrDiv = document.getElementById('qrcode');
+    const qrTextEl = document.getElementById('qrText');
+
+    // 認証方式に応じてパスワード欄の表示を切替
+    authEl.addEventListener('change', () => {
+      const mode = authEl.value;
+      const needPw = mode !== 'nopass';
+      pwField.style.display = needPw ? 'block' : 'none';
+    });
+
+    // WIFI: 仕様に従い特殊文字をエスケープ
+    function escapeWifi(str) {
+      return str.replace(/([\\;,":])/g, '\\$1');
+    }
+
+    function buildWifiString({ auth, ssid, password, hidden }) {
+      // auth は WPA / WEP / nopass のいずれか
+      const T = auth;
+      const S = escapeWifi(ssid);
+      const P = auth === 'nopass' ? '' : escapeWifi(password || '');
+      const H = hidden ? 'true' : 'false';
+      // 形式: WIFI:T:<auth>;S:<ssid>;P:<password>;H:<hidden>;;
+      return `WIFI:T:${T};S:${S};${auth !== 'nopass' ? `P:${P};` : ''}H:${H};;`;
+    }
+
+    let qr;
+
+    function renderQR(text) {
+      qrDiv.innerHTML = '';
+      qr = new QRCode(qrDiv, { text, width: 220, height: 220, correctLevel: QRCode.CorrectLevel.M });
+      qrTextEl.textContent = text;
+      // ダウンロードボタン有効化
+      setTimeout(() => {
+        const img = qrDiv.querySelector('img') || qrDiv.querySelector('canvas');
+        downloadBtn.disabled = !img;
+      }, 50);
+    }
+
+    generateBtn.addEventListener('click', () => {
+      const auth = authEl.value;
+      const ssid = ssidEl.value.trim();
+      const hidden = hiddenEl.checked;
+      const password = pwEl.value;
+
+      // 簡易バリデーション
+      if (!ssid) { alert('SSIDを入力してください'); return; }
+      if (auth !== 'nopass' && !password) { alert('パスワードを入力してください'); return; }
+
+      const wifiText = buildWifiString({ auth, ssid, password, hidden });
+      renderQR(wifiText);
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      const img = qrDiv.querySelector('img');
+      const canvas = qrDiv.querySelector('canvas');
+      let dataUrl;
+      if (canvas) {
+        dataUrl = canvas.toDataURL('image/png');
+      } else if (img) {
+        // qrcodejs はデフォで <img src="data:image/png;base64,..."> を生成
+        dataUrl = img.src;
+      }
+      if (!dataUrl) return;
+      const a = document.createElement('a');
+      a.href = dataUrl;
+      a.download = 'wifi-qr.png';
+      a.click();
+    });
+
+    clearBtn.addEventListener('click', () => {
+      ssidEl.value = '';
+      pwEl.value = '';
+      hiddenEl.checked = false;
+      authEl.value = 'WPA';
+      pwField.style.display = 'block';
+      qrDiv.innerHTML = '';
+      qrTextEl.textContent = '';
+      downloadBtn.disabled = true;
+    });
+  </script>
+</body>
+</html>
