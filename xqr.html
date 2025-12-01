@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XアカウントQRコード生成</title>
+<style>
+  body {
+    font-family: sans-serif;
+    text-align: center;
+    background: #eef;
+    padding: 20px;
+  }
+  input, button {
+    padding: 8px;
+    margin: 5px;
+    font-size: 1em;
+  }
+  #qrcode {
+    margin-top: 20px;
+  }
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+  <h1>XアカウントQRコード生成</h1>
+  <p>アカウント名を入力してください（例: Copilot）</p>
+  <input type="text" id="accountInput" placeholder="Xアカウント名">
+  <button id="generateBtn">QRコード生成</button>
+
+  <div id="qrcode"></div>
+
+<script>
+const accountInput = document.getElementById("accountInput");
+const generateBtn = document.getElementById("generateBtn");
+const qrcodeDiv = document.getElementById("qrcode");
+
+// ページ読み込み時に保存済みアカウントを復元
+window.addEventListener("load", () => {
+  const savedAccount = localStorage.getItem("xAccount");
+  if (savedAccount) {
+    accountInput.value = savedAccount;
+    generateQRCode(savedAccount);
+  }
+});
+
+generateBtn.addEventListener("click", () => {
+  const account = accountInput.value.trim();
+  if (!account) {
+    alert("アカウント名を入力してください！");
+    return;
+  }
+  // 入力したアカウントを保存
+  localStorage.setItem("xAccount", account);
+  generateQRCode(account);
+});
+
+function generateQRCode(account) {
+  const url = `https://x.com/${account}`;
+  qrcodeDiv.innerHTML = "";
+  new QRCode(qrcodeDiv, {
+    text: url,
+    width: 200,
+    height: 200
+  });
+}
+</script>
+</body>
+</html>
