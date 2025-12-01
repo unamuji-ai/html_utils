@@ -18,6 +18,31 @@
     50%  { transform: scale(1.05,0.95); }
     100% { transform: scale(0.95,1.05); }
   }
+
+  /* 通常状態 */
+  #recordBtn {
+    background-color: #2b7;
+    color: white;
+    padding: 12px 20px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  /* 無効化状態（disabled） */
+  #recordBtn:disabled {
+    background-color: #ccc;   /* グレー背景 */
+    color: #666;              /* 文字も薄く */
+    cursor: not-allowed;      /* カーソルも禁止マーク */
+  }
+
+  /* 無効化状態（disabled） */
+  #playBtn:disabled {
+    background-color: #ccc;   /* グレー背景 */
+    color: #666;              /* 文字も薄く */
+    cursor: not-allowed;      /* カーソルも禁止マーク */
+  }
+
   button {
     padding: 12px 20px;
     font-size: 1rem;
@@ -70,8 +95,11 @@
     <label><input type="radio" name="pitch" value="2.2">かなり高め</label>
   </div>
 
-  <button id="recordBtn">🎤 録音開始</button>
+  <button id="recordBtn" disabled>🎤 録音開始</button>
   <button id="playBtn" disabled>▶️ 再生</button>
+	<br>
+	<button id="micToggleBtn">マイクON</button>
+
 
 <script>
 let mediaRecorder;
@@ -80,15 +108,20 @@ let isRecording = false;
 let analyser, audioCtx, sourceNode;
 let drawId;
 let recordedBuffer = null;
+let micOn = false;
+let stream = null;
 
-const btn = document.getElementById("recordBtn");
+const recordBtn = document.getElementById("recordBtn");
 const playBtn = document.getElementById("playBtn");
 const char = document.getElementById("yuruChar");
 const levelBar = document.getElementById("levelBar");
+const micToggleBtn = document.getElementById("micToggleBtn");
 
-btn.addEventListener("click", async () => {
+
+recordBtn.addEventListener("click", async () => {
+  if (!micOn) return; // マイクがOFFなら何もしない
+
   if (!isRecording) {
-    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioCtx = new AudioContext();
     sourceNode = audioCtx.createMediaStreamSource(stream);
     analyser = audioCtx.createAnalyser();
@@ -110,14 +143,40 @@ btn.addEventListener("click", async () => {
 
     mediaRecorder.start();
     drawMeter(analyser);
-    btn.textContent = "⏹️ 録音停止";
+    recordBtn.textContent = "⏹️ 録音停止";
     isRecording = true;
   } else {
     mediaRecorder.stop();
-    btn.textContent = "🎤 録音開始";
+    recordBtn.textContent = "🎤 録音開始";
     isRecording = false;
   }
 });
+
+micToggleBtn.addEventListener("click", async () => {
+  if (micOn) {
+    // マイクをOFFにする
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      stream = null;
+    }
+    micOn = false;
+    micToggleBtn.textContent = "マイクON";   // ボタン表示をONに戻す
+    recordBtn.disabled = true;              // 録音開始ボタンを無効化
+    console.log("マイクOFF");
+  } else {
+    // マイクをONにする
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micOn = true;
+      micToggleBtn.textContent = "マイクOFF"; // ボタン表示をOFFに切り替え
+      recordBtn.disabled = false;             // 録音開始ボタンを有効化
+      console.log("マイクON");
+    } catch (err) {
+      console.error("マイク取得失敗:", err);
+    }
+  }
+});
+
 
 playBtn.addEventListener("click", () => {
   if (!recordedBuffer) return;
