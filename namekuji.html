@@ -22,27 +22,11 @@
     border-radius: 6px;
     border: 1px solid #ccc;
   }
-	#track {
-	  position: relative;
-	  width: 100%;
-	  height: 80vh;
-	  display: flex;
-	  justify-content: space-around;
-	  align-items: flex-end;
-	  border-bottom: 2px solid #333; /* スタートライン */
-	}
 	#race h2 {
 	  text-align: center;   /* 中央寄せ */
 	  margin-top: 0px;     /* 上の余白を少なめに */
 	  margin-bottom: 5px;   /* 下の余白も少し詰める */
 	  font-size: 1.5em;     /* 見やすいサイズ */
-	}
-	#lanes {
-	  display: flex;
-	  justify-content: space-around;
-	  align-items: flex-end;
-	  height: 100%;
-	  width: 100%;
 	}
 
 	.goal-line {
@@ -60,14 +44,58 @@
     justify-content: center;
     align-items: flex-end;
   }
+
+	#track {
+	  position: relative;
+	  width: 100%;
+	  height: 70vh; /* 少し低めにしてスマホでも収まる */
+	  display: flex;
+	  justify-content: space-around;
+	  align-items: flex-end;
+	  border-bottom: 2px solid #333; /* スタートライン */
+	}
+
+	#lanes {
+	  display: flex;
+	  justify-content: space-around; /* 横に並べる */
+	  align-items: flex-end;
+	  height: 100%;
+	  width: 100%;
+	}
+	.lane {
+	  flex: 1;              /* レーンを均等に分配 */
+	  max-width: 80px;      /* PCでは最大幅 */
+	  position: relative;
+	  display: flex;
+	  justify-content: center;
+	  align-items: flex-end;
+	}
 	.slug {
-	  width: 60px;
-	  height: 120px;
+	  width: 12vw;          /* ←画面幅に応じて縮む */
+	  max-width: 60px;      /* PCでは最大60px */
+	  height: auto;         /* 高さは自動調整 */
 	  position: absolute;
 	  bottom: 0;
 	  transform-origin: center;
 	  transform: translateY(var(--posY, 0)) scaleY(1);
 	  animation: squish 1s ease-in-out infinite;
+	}
+
+	/* スマホ用調整 */
+	@media (max-width: 600px) {
+	  #track {
+	    height: 60vh; /* スマホでは少し低め */
+	  }
+	  .lane {
+	    max-width: 60px; /* レーン幅を縮める */
+	  }
+	  .slug {
+	    width: 18vw;     /* スマホでは幅を少し広めに相対指定 */
+	    max-width: 40px; /* 最大サイズを小さく */
+	  }
+	  .nameLabel {
+	    font-size: 0.8em; /* 名前ラベルも小さめに */
+	  }
 	}
 
 	@keyframes squish {
@@ -100,7 +128,8 @@
 		<div id="track">		
 		  <div class="goal-line"></div>
 			<div id="lanes"></div>
-		</div>  </section>
+		</div> 
+	</section>
   <!-- 結果エリア -->
   <section id="result" style="display:none;">
     <h2>結果発表</h2>
@@ -217,7 +246,7 @@
   // レース開始処理
   function startRace(){
 	  const lanes = document.getElementById("lanes");
-		lanes.innerHTML="";
+		document.getElementById("lanes").innerHTML = ""; // レーンだけ消す
     slugs = [];
     finished = [];
 
@@ -237,7 +266,7 @@
 
 
         // ゴール判定
-        if(s.pos >= track.clientHeight - 120){
+        if(s.pos >= track.clientHeight - 100){
           finished.push(s.name);
           if(finished.length === participants.length){
             clearInterval(raceInterval);
