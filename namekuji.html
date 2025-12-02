@@ -59,11 +59,10 @@
 
 	#lanes {
 	  display: flex;
-	  justify-content: space-around; /* 横に並べる */
 	  align-items: flex-end;
 	  height: 100%;
-	  width: 100%;
 	}
+
 	.lane {
 	  flex: 1;              /* レーンを均等に分配 */
 	  max-width: 80px;      /* PCでは最大幅 */
@@ -174,15 +173,19 @@
       nameInput.value = "";
     }
   });
+	function renderList(){
+	  participantList.innerHTML = "";
+	  participants.forEach((p, i) => {
+	    const li = document.createElement("li");
+	    li.textContent = `${i+1}. ${p}`;
+	    participantList.appendChild(li);
+	  });
 
-  function renderList(){
-    participantList.innerHTML = "";
-    participants.forEach((p, i) => {
-      const li = document.createElement("li");
-      li.textContent = `${i+1}. ${p}`;
-      participantList.appendChild(li);
-    });
-  }
+	  // レーン幅を参加者数に応じて広げる
+	  const lanes = document.getElementById("lanes");
+	  const laneWidth = 80; // 1レーンの基準幅(px)
+	  lanes.style.width = (participants.length * laneWidth) + "px";
+	}
 
 	function fitRaceToScreen() {
 	  const race = document.querySelector(".race-wrapper");
