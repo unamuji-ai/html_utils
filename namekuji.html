@@ -157,6 +157,11 @@
   let slugs = [];
   let finished = [];
 
+	document.addEventListener("DOMContentLoaded", () => {
+	  fitRaceToScreen();
+	  window.addEventListener("resize", fitRaceToScreen);
+	});
+
   // 参加者追加
   addBtn.addEventListener("click", () => {
     const name = nameInput.value.trim();
@@ -178,13 +183,20 @@
 
 	function fitRaceToScreen() {
 	  const race = document.querySelector(".race-wrapper");
+	  if (!race) return;
+
 	  const raceWidth = race.scrollWidth;
+	  const raceHeight = race.scrollHeight;
 	  const screenWidth = window.innerWidth;
-	  const scale = screenWidth / raceWidth;
+	  const screenHeight = window.innerHeight;
+
+	  const scaleX = screenWidth / raceWidth;
+	  const scaleY = screenHeight / raceHeight;
+	  const scale = Math.min(scaleX, scaleY);
+
+	  race.style.transformOrigin = "top left";
 	  race.style.transform = `scale(${scale})`;
 	}
-	window.addEventListener("resize", fitRaceToScreen);
-	fitRaceToScreen();
 
   // レース開始
   startBtn.addEventListener("click", () => {
