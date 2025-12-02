@@ -29,7 +29,8 @@
 	  font-size: 1.5em;     /* 見やすいサイズ */
 	}
 	.race-wrapper {
-	  transform-origin: top left;
+	  transform-origin: top center;
+	  margin: 0 auto;              /* ← ブロックを中央寄せ */
 	  overflow: hidden; /* ←追加 */
 	}
 	.goal-line {
@@ -199,9 +200,9 @@
 
 	  const scaleX = screenWidth / raceWidth;
 	  const scaleY = screenHeight / raceHeight;
-	  const scale = Math.min(scaleX, scaleY) * 0.9;
+	  const scale = Math.min(scaleX, scaleY) * 0.95;
 
-	  race.style.transformOrigin = "top left";
+	  race.style.transformOrigin = "top center";
 	  race.style.transform = `scale(${scale})`;
 	}
 
