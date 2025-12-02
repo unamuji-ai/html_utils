@@ -284,6 +284,9 @@
       slugs.push(createSlug(p));
     });
 
+	  // レース開始時に縮小処理を実行
+	  fitRaceToScreen();
+
     const raceInterval = setInterval(()=>{
       slugs.forEach(s=>{
         if(finished.includes(s.name)) return;
