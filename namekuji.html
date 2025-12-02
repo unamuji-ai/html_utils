@@ -30,6 +30,7 @@
 	}
 	.race-wrapper {
 	  transform-origin: top left;
+	  overflow: hidden; /* ←追加 */
 	}
 	.goal-line {
 	  position: absolute;
@@ -183,7 +184,7 @@
 
 	  // レーン幅を参加者数に応じて広げる
 	  const lanes = document.getElementById("lanes");
-	  const laneWidth = 80; // 1レーンの基準幅(px)
+	  const laneWidth = 100; // 1レーンの基準幅(px)
 	  lanes.style.width = (participants.length * laneWidth) + "px";
 	}
 
@@ -198,7 +199,7 @@
 
 	  const scaleX = screenWidth / raceWidth;
 	  const scaleY = screenHeight / raceHeight;
-	  const scale = Math.min(scaleX, scaleY);
+	  const scale = Math.min(scaleX, scaleY) * 0.9;
 
 	  race.style.transformOrigin = "top left";
 	  race.style.transform = `scale(${scale})`;
