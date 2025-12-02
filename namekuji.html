@@ -28,7 +28,9 @@
 	  margin-bottom: 5px;   /* 下の余白も少し詰める */
 	  font-size: 1.5em;     /* 見やすいサイズ */
 	}
-
+	.race-wrapper {
+	  transform-origin: top left;
+	}
 	.goal-line {
 	  position: absolute;
 	  top: 30px;   /* ← ゴール線を下げたい位置に調整 */
@@ -173,6 +175,16 @@
       participantList.appendChild(li);
     });
   }
+
+	function fitRaceToScreen() {
+	  const race = document.querySelector(".race-wrapper");
+	  const raceWidth = race.scrollWidth;
+	  const screenWidth = window.innerWidth;
+	  const scale = screenWidth / raceWidth;
+	  race.style.transform = `scale(${scale})`;
+	}
+	window.addEventListener("resize", fitRaceToScreen);
+	fitRaceToScreen();
 
   // レース開始
   startBtn.addEventListener("click", () => {
