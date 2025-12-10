@@ -1,0 +1,90 @@
+<div id="board"></div>
+<div id="instruction"></div>
+<div id="controls">
+  <button onclick="spin()">ルーレット回す</button>
+</div>
+<div id="countdown">
+  <div id="bar"></div>
+</div>
+
+<script>
+const colors = ["red","blue","green","yellow"];
+const fingers = ["親指","人差し指","中指","薬指","小指"];
+let countdownTime = 10; // 秒
+
+// 盤面生成
+function createBoard() {
+  const board = document.getElementById("board");
+  board.innerHTML = "";
+  for (let i = 0; i < 15; i++) {
+    const circle = document.createElement("div");
+    circle.className = "circle " + colors[Math.floor(Math.random()*colors.length)];
+    board.appendChild(circle);
+  }
+}
+
+// ルーレット
+function spin() {
+  const finger = fingers[Math.floor(Math.random()*fingers.length)];
+  const color = colors[Math.floor(Math.random()*colors.length)];
+  document.getElementById("instruction").textContent =
+    `${finger} を ${color} に置いてください！`;
+  startCountdown();
+}
+
+// カウントダウンバー
+function startCountdown() {
+  let time = countdownTime;
+  const bar = document.getElementById("bar");
+  bar.style.width = "100%";
+  bar.style.transition = "none";
+  setTimeout(() => {
+    bar.style.transition = `width ${time}s linear`;
+    bar.style.width = "0%";
+  }, 50);
+}
+
+// 初期化
+createBoard();
+</script>
+
+<style>
+#board { 
+  display:grid; 
+  grid-template-columns: repeat(3, 1fr); /* 横3列 */
+  grid-template-rows: repeat(5, 1fr);   /* 縦5行 */
+  gap: 10px; 
+  width: 220px; 
+  margin:auto;
+}
+.circle { 
+  width:60px; 
+  height:60px; 
+  border-radius:50%; 
+}
+.red { background:red; }
+.blue { background:blue; }
+.green { background:green; }
+.yellow { background:yellow; }
+
+#instruction { 
+  margin-top:20px; 
+  font-size:18px; 
+  text-align:center;
+}
+#controls { 
+  text-align:center; 
+  margin:10px;
+}
+#countdown {
+  width:200px;
+  height:20px;
+  border:1px solid #333;
+  margin:20px auto;
+}
+#bar {
+  height:100%;
+  width:100%;
+  background:limegreen;
+}
+</style>
