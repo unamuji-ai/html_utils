@@ -3,7 +3,6 @@
 body {
   -webkit-user-select: none;
   user-select: none;
-  touch-action: none;
   margin:0;
   padding:0;
 }
@@ -11,6 +10,7 @@ body {
 /* 盤面 */
 #board { 
   display:grid; 
+  pointer-events: none; /* 盤面は触れてもイベントを拾わない */
   grid-template-columns: repeat(3, 1fr); 
   grid-template-rows: repeat(5, 1fr);   
   gap: 2vw; 
@@ -56,8 +56,9 @@ button {
   background:limegreen;
 }
 #spinButton {
-  touch-action: none;
+  touch-action: manipulation; /* タップをクリック扱いにする */
 }
+
 /* ルーレット共通 */
 .roulette-wrap {
   display:flex; 
@@ -177,17 +178,9 @@ let countdownTime = 5; // 秒
 placeLabels("fingerRoulette", "label-finger", 5);
 placeLabels("colorRoulette", "label-color", 4);
 
-const button = document.getElementById("spinButton");
-button.addEventListener("pointerdown", (e) => {
-  // どの指でも反応させる
-  if (e.pointerType === "touch") {
-    e.preventDefault(); // ブラウザのジェスチャーを防ぐ
-    spinRoulette("roulette", 4, (result) => {
-      console.log("結果:", result);
-    });
-  }
+document.getElementById("spinButton").addEventListener("click", () => {
+  spinBoth();
 });
-
 
 // 盤面生成
 function createBoard() {
@@ -282,7 +275,7 @@ function spinBoth() {
 }
 
 function showResult(finger, color) {
-  document.getElementById("instruction").textContent = `${finger} を ${color} に置いてください！`;
+  document.getElementById("instruction").textContent = `${finger} を ${color} に置いてください`;
   startCountdown();
 }
 
