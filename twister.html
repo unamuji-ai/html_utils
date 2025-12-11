@@ -178,9 +178,20 @@ let countdownTime = 5; // 秒
 placeLabels("fingerRoulette", "label-finger", 5);
 placeLabels("colorRoulette", "label-color", 4);
 
-document.getElementById("spinButton").addEventListener("click", () => {
+
+const button = document.getElementById("spinButton");
+button.addEventListener("touchend", function(event){
   spinBoth();
-});
+	event.preventDefault();
+},{passive: false});;
+
+button.addEventListener('touchstart', function(event) {
+    // スクロール可能な要素ではない場合などに、デフォルト動作（スクロールなど）を無効化
+    // ただし、この処理はページ全体のスクロールまで止めてしまう可能性があるため、
+    // 適用範囲には注意が必要です。
+    // event.preventDefault();
+}, { passive: false });
+
 
 // 盤面生成
 function createBoard() {
