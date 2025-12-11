@@ -8,7 +8,7 @@ body {
 }
 
 /* 盤面 */
-#board { 
+#board {
   display:grid; 
   pointer-events: none; /* 盤面は触れてもイベントを拾わない */
   grid-template-columns: repeat(3, 1fr); 
@@ -166,7 +166,7 @@ button {
 </div>
 
 <div id="controls">
-  <button id="spinButton" onclick="spinBoth()">ルーレット回す</button>
+  <button id="spinButton">ルーレット回す</button>
 </div>
 <div id="instruction"></div>
 
@@ -185,12 +185,14 @@ button.addEventListener("touchend", function(event){
 	event.preventDefault();
 },{passive: false});;
 
+
 button.addEventListener('touchstart', function(event) {
     // スクロール可能な要素ではない場合などに、デフォルト動作（スクロールなど）を無効化
     // ただし、この処理はページ全体のスクロールまで止めてしまう可能性があるため、
     // 適用範囲には注意が必要です。
     // event.preventDefault();
 }, { passive: false });
+button.addEventListener("click", spinBoth);
 
 
 // 盤面生成
