@@ -55,7 +55,9 @@ button {
   width:100%;
   background:limegreen;
 }
-
+#spinButton {
+  touch-action: none;
+}
 /* ルーレット共通 */
 .roulette-wrap {
   display:flex; 
@@ -112,7 +114,7 @@ button {
   transform-origin: center;
   font-size: 20px;
   font-weight: bold;
-  color: #000;
+  color: #fff;
   text-shadow: 0 1px 2px rgba(255,255,255,0.7);
 }
 
@@ -163,17 +165,29 @@ button {
 </div>
 
 <div id="controls">
-  <button onclick="spinBoth()">ルーレット回す</button>
+  <button id="spinButton" onclick="spinBoth()">ルーレット回す</button>
 </div>
 <div id="instruction"></div>
 
 <script>
 const colorLabels = ["赤", "青", "緑", "黄"];     // conic-gradient の順と一致
 const fingers = ["親指","人差し指","中指","薬指","小指"];
-let countdownTime = 10; // 秒
+let countdownTime = 5; // 秒
 /* 初期配置（指5、色4）*/
 placeLabels("fingerRoulette", "label-finger", 5);
 placeLabels("colorRoulette", "label-color", 4);
+
+const button = document.getElementById("spinButton");
+button.addEventListener("pointerdown", (e) => {
+  // どの指でも反応させる
+  if (e.pointerType === "touch") {
+    e.preventDefault(); // ブラウザのジェスチャーを防ぐ
+    spinRoulette("roulette", 4, (result) => {
+      console.log("結果:", result);
+    });
+  }
+});
+
 
 // 盤面生成
 function createBoard() {
@@ -215,6 +229,12 @@ function startCountdown() {
   bar.style.width = "0%";
 }
 
+function resetCountdown(){
+  const bar = document.getElementById("bar");
+  bar.style.transition = "none";
+  bar.style.width = "100%";
+}
+
 /* スナップを中心角に合わせて回す */
 function spinRoulette(id, sliceCount, callback) {
   const roulette = document.getElementById(id);
@@ -248,6 +268,7 @@ function spinRoulette(id, sliceCount, callback) {
 function spinBoth() {
   let fingerResult = null;
   let colorResult = null;
+	resetCountdown();
 
   spinRoulette("fingerRoulette", 5, (idx) => {
     fingerResult = fingers[idx];
