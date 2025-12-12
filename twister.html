@@ -200,11 +200,29 @@ function createBoard() {
   const board = document.getElementById("board");
   board.innerHTML = "";
   const boardColors = ["board-red","board-blue","board-green","board-yellow"];
-  for (let i = 0; i < 15; i++) {
-    const circle = document.createElement("div");
-    circle.className = "circle " + boardColors[Math.floor(Math.random()*boardColors.length)];
-    board.appendChild(circle);
+  const totalCircles = 15;
+
+  // まず各色を1つずつ配置
+  let colors = [...boardColors];
+
+  // 残りをランダムに追加
+  for (let i = colors.length; i < totalCircles; i++) {
+    const randomColor = boardColors[Math.floor(Math.random() * boardColors.length)];
+    colors.push(randomColor);
   }
+
+  // シャッフル（ランダム感を出す）
+  for (let i = colors.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [colors[i], colors[j]] = [colors[j], colors[i]];
+  }
+
+  // 円を描画
+  colors.forEach(color => {
+    const circle = document.createElement("div");
+    circle.className = "circle " + color;
+    board.appendChild(circle);
+  });
 }
 
 /* 角度ユーティリティ */
