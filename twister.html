@@ -35,6 +35,11 @@
 	  font-size:5vw; 
 	  text-align:center;
 	}
+	#result{
+		color: red;
+	  font-size:6vw; 
+	  text-align:center;
+	}
 	#controls { 
 	  display: flex;
 	  justify-content: center;
@@ -174,6 +179,10 @@
 <div id="instruction"></div>
 <div id="result"></div>
 
+<div id="controls">
+	<button id="resetButton">始めから</button>
+</div>
+
 <script>
 const colorLabels = ["赤", "青", "緑", "黄"];     // conic-gradient の順と一致
 const fingers = ["親指","人差し指","中指","薬指","小指"];
@@ -202,6 +211,9 @@ button.addEventListener('touchstart', function(event) {
 }, { passive: false });
 button.addEventListener("click", spinBoth);
 
+const resetButton = document.getElementById("resetButton");
+resetButton.addEventListener("click", resetGame);
+
 
 // 盤面生成（省略：元のまま）
 function createBoard() {
@@ -224,6 +236,37 @@ function createBoard() {
     circle.className = "circle " + color;
     board.appendChild(circle);
   });
+}
+
+// リセット処理
+function resetGame() {
+  requiredFingers = 0;
+  currentFingers = 0;
+  usedFingers.clear();
+
+  // 表示を初期化
+  resetText();
+	resetCountdown();
+}
+
+// テキストクリア
+function resetText(){
+  // 表示を初期化
+  document.getElementById("instruction").textContent = "";
+  document.getElementById("result").textContent = "";
+}
+
+//	ボタン有効化/無効化
+function activateButton(flag)
+{
+	if(flag){
+		button.disabled = false;
+		resetButton.disabled = false;
+	}
+	else{
+		button.disabled = true;
+		resetButton.disabled = true;
+	}
 }
 
 /* 角度ユーティリティ */
@@ -291,8 +334,10 @@ function spinRoulette(id, sliceCount, callback) {
 function spinBoth() {
   let fingerResult = null;
   let colorResult = null;
+	resetText();
   resetCountdown();
-
+	activateButton(false);
+	
   spinRoulette("fingerRoulette", 5, (idx) => {
     fingerResult = fingers[idx];
     if (colorResult) showResult(fingerResult, colorResult);
@@ -325,6 +370,7 @@ function checkResult() {
   } else {
     resultDiv.textContent = `✕ 正しく指が置けていません (必要:${requiredFingers}, 実際:${currentFingers})`;
   }
+	activateButton(true);
 }
 
 /* タッチイベントで現在の指数を更新 */
