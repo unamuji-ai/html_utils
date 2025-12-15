@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>司会者用ページ</title>
+  <!-- Chart.js を CDNから読み込む（UMD版） -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+	<style>
+	  canvas {
+	    width: 300px !important;   /* 横幅を小さく */
+	    height: 160px !important;  /* 高さを小さく */
+	  }
+	</style>
+
+</head>
+<body>
+  <h2>司会者用ページ</h2>
+  <div>
+    <label for="categorySelect">Category:</label>
+    <select id="categorySelect">
+      <option value="">--選択してください--</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="questionSelect">Question:</label>
+    <select id="questionSelect">
+      <option value="">--選択してください--</option>
+    </select>
+  </div>
+
+  <button id="setQuestion">この設問を出す</button>
+
+  <div id="history"></div>
+
+  <!-- 集計ボタン -->
+  <h2>集計</h2>
+  <button onclick="aggregateVotes()">集計する</button>
+  <div id="results"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getFirestore, doc, setDoc, addDoc, collection, getDocs, onSnapshot, serverTimestamp } 
+      from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    // Firebase設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyAI8svAsgMv7iUEvdhBd8Iig75EV4LiDp4",
+      authDomain: "una-vote.firebaseapp.com",
+      projectId: "una-vote",
+      storageBucket: "una-vote.firebasestorage.app",
+      messagingSenderId: "431820061710",
+      appId: "1:431820061710:web:c489e5f2efe30c4dd7d05f",
+      measurementId: "G-N259J06NXW"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    let questionsData = {};
+
+    async function loadQuestions() {
+      const res = await fetch("questions.json");
+      questionsData = await res.json();
+
+      const categorySelect = document.getElementById("categorySelect");
+
+      Object.keys(questionsData).forEach(cat => {
+        const opt = document.createElement("option");
+        opt.value = cat;
+        opt.textContent = cat;
+        categorySelect.appendChild(opt);
+      });
+    }
+
+    const categorySelect = document.getElementById("categorySelect");
+    categorySelect.addEventListener("change", () => {
+      const questionSelect = document.getElementById("questionSelect");
+      questionSelect.innerHTML = "<option value=''>--選択してください--</option>";
+
+      const selectedCat = categorySelect.value;
+      if (selectedCat && questionsData[selectedCat]) {
+        questionsData[selectedCat].forEach(q => {
+          const opt = document.createElement("option");
+          opt.value = String(q.id);
+          opt.textContent = q.question;
+          questionSelect.appendChild(opt);
+        });
+      }
+    });
+
+    document.getElementById("setQuestion").addEventListener("click", async () => {
+      const category = document.getElementById("categorySelect").value;
+      const questionId = document.getElementById("questionSelect").value;
+
+      if (category && questionId) {
+        const questionObj = questionsData[category].find(q => String(q.id) === questionId);
+
+        if (!questionObj) {
+          alert("選択した設問が見つかりません");
+          return;
+        }
+
+        const snapshot = await getDocs(collection(db, "questionsHistory"));
+        const number = snapshot.size + 1;
+
+        await setDoc(doc(db, "current", "question"), {
+          number,
+          question: questionObj.question,
+          choices: questionObj.choices
+        });
+
+        await addDoc(collection(db, "questionsHistory"), {
+          number,
+          question: questionObj.question,
+          choices: questionObj.choices,
+          createdAt: serverTimestamp()
+        });
+
+        alert("設問を出しました！");
+      }
+    });
+
+    onSnapshot(collection(db, "questionsHistory"), (snapshot) => {
+      const historyDiv = document.getElementById("history");
+      historyDiv.innerHTML = "";
+
+      const items = [];
+      snapshot.forEach(docSnap => items.push(docSnap.data()));
+      items.sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
+
+      items.forEach(data => {
+        const section = document.createElement("div");
+        section.innerHTML = `<h3>${data.number}. ${data.question}</h3>`;
+        const canvas = document.createElement("canvas");
+        section.appendChild(canvas);
+        historyDiv.appendChild(section);
+
+        drawChart(canvas, data.number, data.choices);
+      });
+    });
+
+		function drawChart(canvas, questionNumber, choices) {
+		  if (!canvas._chartInstance) {
+		    canvas._chartInstance = new Chart(canvas, {
+		      type: "bar",
+		      data: {
+		        labels: choices,
+		        datasets: [{
+		          label: "票数",
+		          data: choices.map(() => 0),
+		          backgroundColor: "skyblue",
+		          barThickness: 10,       // 棒を細く
+		          maxBarThickness: 15     // 最大太さ制限
+		        }]
+		      },
+		      options: {
+		        indexAxis: "y",           // 横棒グラフにする
+		        animation: false,
+			      responsive: false,
+			      maintainAspectRatio: false,
+		        scales: {
+		          x: {
+		            ticks: {
+		              stepSize: 1,        // 票数軸を整数に
+		              precision: 0
+		            },
+		            beginAtZero: true
+		          }
+		        }
+		      }
+		    });
+		  }
+
+		  const chartInstance = canvas._chartInstance;
+
+		  onSnapshot(collection(db, "votes"), (snapshot) => {
+		    const counts = {};
+		    choices.forEach(c => counts[c] = 0);
+
+		    snapshot.forEach(docSnap => {
+		      const v = docSnap.data();
+		      if (Number(v.questionNumber) === Number(questionNumber)) {
+		        counts[v.choice] = (counts[v.choice] || 0) + 1;
+		      }
+		    });
+
+		    chartInstance.data.labels = Object.keys(counts);
+		    chartInstance.data.datasets[0].data = Object.values(counts);
+		    chartInstance.update();
+		  });
+		}
+
+    async function aggregateVotes() {
+      const snapshot = await getDocs(collection(db, "votes"));
+      const counts = {};
+      snapshot.forEach(docSnap => {
+        const choice = docSnap.data().choice;
+        counts[choice] = (counts[choice] || 0) + 1;
+      });
+
+      const resultDiv = document.getElementById("results");
+      resultDiv.innerHTML = "";
+      for (const [choice, count] of Object.entries(counts)) {
+        resultDiv.innerHTML += `<p>${choice}: ${count}票</p>`;
+      }
+    }
+
+    loadQuestions();
+    window.aggregateVotes = aggregateVotes;
+  </script>
+</body>
+</html>

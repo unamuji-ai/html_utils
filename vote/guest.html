@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>参加者ページ</title>
+	<style>
+	  canvas {
+	    width: 300px !important;   /* 横幅を小さく */
+	    height: 160px !important;  /* 高さを小さく */
+	  }
+	</style>
+
+
+  <!-- Chart.js を CDNから読み込む（UMD版） -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getFirestore, doc, onSnapshot, collection, addDoc, serverTimestamp } 
+      from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    // Firebase設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyAI8svAsgMv7iUEvdhBd8Iig75EV4LiDp4",
+      authDomain: "una-vote.firebaseapp.com",
+      projectId: "una-vote",
+      storageBucket: "una-vote.firebasestorage.app",
+      messagingSenderId: "431820061710",
+      appId: "1:431820061710:web:c489e5f2efe30c4dd7d05f",
+      measurementId: "G-N259J06NXW"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    // 設問をリアルタイム監視
+    onSnapshot(doc(db, "current", "question"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        document.getElementById("question").textContent = data.question || "";
+
+        const choicesDiv = document.getElementById("choices");
+        choicesDiv.innerHTML = "";
+
+        if (Array.isArray(data.choices)) {
+          data.choices.forEach(choice => {
+            const btn = document.createElement("button");
+            btn.textContent = choice;
+						btn.onclick = async () => {
+						  const votedKey = `voted_${data.number}`; // 設問番号ごとにキーを作る
+
+						  if (localStorage.getItem(votedKey)) {
+						    alert("この設問にはすでに投票済みです");
+						    return;
+						  }
+
+						  await addDoc(collection(db, "votes"), {
+						    choice,
+						    questionNumber: data.number,
+						    createdAt: serverTimestamp()
+						  });
+
+						  // 投票済みフラグを保存
+						  localStorage.setItem(votedKey, "true");
+
+						  alert("投票しました: " + choice);
+						};
+            choicesDiv.appendChild(btn);
+          });
+        } else {
+          choicesDiv.textContent = "no questions";
+        }
+      }
+    });
+
+    // 履歴を監視して描画
+    onSnapshot(collection(db, "questionsHistory"), (snapshot) => {
+      const historyDiv = document.getElementById("history");
+      historyDiv.innerHTML = "";
+
+      const items = [];
+      snapshot.forEach(docSnap => items.push(docSnap.data()));
+      items.sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
+
+      items.forEach(data => {
+        const section = document.createElement("div");
+        section.innerHTML = `<h3>${data.number}. ${data.question}</h3>`;
+        const canvas = document.createElement("canvas");
+        section.appendChild(canvas);
+        historyDiv.appendChild(section);
+
+        drawChart(canvas, data.number, data.choices);
+      });
+    });
+
+    function drawChart(canvas, questionNumber, choices) {
+      if (!canvas._chartInstance) {
+        canvas._chartInstance = new Chart(canvas, {
+          type: "bar",
+          data: {
+            labels: choices,
+            datasets: [{
+              label: "票数",
+              data: choices.map(() => 0),
+              backgroundColor: "skyblue",
+              barThickness: 10,
+              maxBarThickness: 15
+            }]
+          },
+          options: {
+            indexAxis: "y",   // 横棒グラフ
+            animation: false,
+			      responsive: false,
+			      maintainAspectRatio: false,
+            scales: {
+              x: {
+                ticks: {
+                  stepSize: 1,
+                  precision: 0
+                },
+                beginAtZero: true
+              }
+            }
+          }
+        });
+      }
+
+      const chartInstance = canvas._chartInstance;
+
+      onSnapshot(collection(db, "votes"), (snapshot) => {
+        const counts = {};
+        choices.forEach(c => counts[c] = 0);
+
+        snapshot.forEach(docSnap => {
+          const v = docSnap.data();
+          if (Number(v.questionNumber) === Number(questionNumber)) {
+            counts[v.choice] = (counts[v.choice] || 0) + 1;
+          }
+        });
+
+        chartInstance.data.labels = Object.keys(counts);
+        chartInstance.data.datasets[0].data = Object.values(counts);
+        chartInstance.update();
+      });
+    }
+  </script>
+</head>
+<body>
+  <h1>参加者ページ</h1>
+  <div id="question"></div>
+  <div id="choices"></div>
+  <div id="history"></div>
+</body>
+</html>
