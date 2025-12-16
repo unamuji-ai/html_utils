@@ -53,7 +53,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getFirestore, doc, onSnapshot, collection, addDoc, serverTimestamp } 
+    import { getFirestore, doc, onSnapshot, collection, addDoc, getDocs, serverTimestamp } 
       from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
     // Firebase設定
@@ -85,32 +85,30 @@
 		};
 
 
-    // 設問をリアルタイム監視
+		// 現在の設問は投票ボタンのみ
 		onSnapshot(doc(db, "current", "question"), (docSnap) => {
 		  const questionDiv = document.getElementById("question");
 		  const choicesDiv = document.getElementById("choices");
-			const historyDiv = document.getElementById("history");
 
 		  if (docSnap.exists()) {
 		    const data = docSnap.data();
 		    questionDiv.textContent = data.question || "";
-
 		    choicesDiv.innerHTML = "";
+
 		    if (Array.isArray(data.choices)) {
 		      data.choices.forEach(choice => {
 		        const btn = document.createElement("button");
 		        btn.textContent = choice;
 		        btn.onclick = async () => {
-		          const votedKey = `voted_${data.number}`;
-		          const votedChoiceKey = `votedChoice_${data.number}`;
-
-		          if (localStorage.getItem(votedKey)) {
-		            alert("この設問にはすでに投票済みです");
-		            return;
-		          }
+						  const votedKey = `voted_${data.number}`;
+						  const votedChoiceKey = `votedChoice_${data.number}`;
+						  // ローカルストレージで投票済みチェック
+						  if (localStorage.getItem(votedKey)) {
+						    alert("この設問にはすでに投票済みです");
+						    return;
+						  }
 
 		          const name = localStorage.getItem("playerName") || "匿名";
-
 		          await addDoc(collection(db, "votes"), {
 		            choice,
 		            questionNumber: data.number,
@@ -118,52 +116,63 @@
 		            createdAt: serverTimestamp()
 		          });
 
-		          localStorage.setItem(votedKey, "true");
-		          localStorage.setItem(votedChoiceKey, choice);
+						  // 投票済みフラグと選択肢を保存
+						  localStorage.setItem(votedKey, "true");
+						  localStorage.setItem(votedChoiceKey, choice);
 
 		          alert("投票しました: " + choice);
+
+						  // ★を即表示させるためにグラフを強制更新
+						  const canvases = document.querySelectorAll("canvas");
+						  canvases.forEach(c => {
+						    if (c._chartInstance) {
+						      c._chartInstance.update(); // ← これで afterDatasetsDraw が走り★が出る
+						    }
+						  });
 		        };
 		        choicesDiv.appendChild(btn);
 		      });
-		    } else {
-		      choicesDiv.textContent = "no questions";
 		    }
 		  } else {
-		    // ドキュメントが削除された場合 → 画面をクリア
 		    questionDiv.textContent = "";
 		    choicesDiv.innerHTML = "";
-		    historyDiv.innerHTML = ""; // ← 履歴もクリア
 		  }
 		});
 
-    // 履歴を監視して描画
-    onSnapshot(collection(db, "questionsHistory"), (snapshot) => {
-      const historyDiv = document.getElementById("history");
-      historyDiv.innerHTML = "";
+		// 履歴を監視してグラフを描画（過去設問のみ）
+		onSnapshot(collection(db, "questionsHistory"), (snapshot) => {
+		  const historyDiv = document.getElementById("history");
+		  historyDiv.innerHTML = "";
 
-      const items = [];
-      snapshot.forEach(docSnap => items.push(docSnap.data()));
-      items.sort((a, b) => (b.number ?? 0) - (a.number ?? 0));
+		  const items = [];
+		  snapshot.forEach(docSnap => items.push(docSnap.data()));
+		  items.sort((a, b) => (b.number ?? 0) - (a.number ?? 0));
 
-      items.forEach(data => {
-        const section = document.createElement("div");
-        section.innerHTML = `<h3>${data.number}. ${data.question}</h3>`;
-        const canvas = document.createElement("canvas");
-        section.appendChild(canvas);
-        historyDiv.appendChild(section);
+		  items.forEach(data => {
+		    const section = document.createElement("div");
+		    section.innerHTML = `<h3>${data.number}. ${data.question}</h3>`;
+		    const canvas = document.createElement("canvas");
+		    section.appendChild(canvas);
+		    historyDiv.appendChild(section);
 
-        drawChart(canvas, data.number, data.choices);
-      });
-    });
+		    // グラフは履歴用に votes を集計して描画
+		    drawChart(canvas, data.number, data.choices);
+		  });
+		});
 
-		function drawChart(canvas, questionNumber, choices) {
+		async function drawChart(canvas, questionNumber, choices) {
+		  // 選択肢がゼロならグラフを描画しない
+		  if (!choices || choices.length === 0) {
+		    return;
+		  }
+
 		  if (!canvas._chartInstance) {
 		    canvas._chartInstance = new Chart(canvas, {
 		      type: "bar",
 		      data: {
 		        labels: choices,
 		        datasets: [{
-		          data: choices.map(() => 0),
+		          data: choices.map(() => 0), // 初期値は0
 		          backgroundColor: "skyblue",
 		          barThickness: 10,
 		          maxBarThickness: 15
@@ -172,65 +181,58 @@
 		      options: {
 		        indexAxis: "y",
 		        animation: false,
-		        responsive: false,
+		        responsive: true,
 		        maintainAspectRatio: false,
 		        scales: {
-		          x: {
-		            ticks: {
-		              stepSize: 1,
-		              precision: 0
-		            },
-		            beginAtZero: true
-		          }
+		          x: { ticks: { stepSize: 1, precision: 0 }, beginAtZero: true }
 		        },
-		        plugins: {
-		          legend: { display: false } // 「票数」ラベルを非表示
-		        }
+		        plugins: { legend: { display: false } }
 		      },
-					plugins: [{
-					  id: "drawStar",
-					  afterDatasetsDraw(chart) {
-					    const votedChoice = localStorage.getItem(`votedChoice_${questionNumber}`);
-					    if (!votedChoice) return;
+		      plugins: [{
+		        id: "drawStar",
+		        afterDatasetsDraw(chart) {
+		          const votedChoice = localStorage.getItem(`votedChoice_${questionNumber}`);
+		          if (!votedChoice) return;
 
-					    const {ctx} = chart;
-					    const dataset = chart.getDatasetMeta(0);
-					    const labels = chart.data.labels;
+		          const { ctx } = chart;
+		          const dataset = chart.getDatasetMeta(0);
+		          const labels = chart.data.labels;
 
-					    dataset.data.forEach((bar, i) => {
-					      if (labels[i] === votedChoice) {
-					        ctx.save();
-					        ctx.fillStyle = "red";
-					        ctx.font = "16px sans-serif";
-					        ctx.textAlign = "left";
-					        ctx.textBaseline = "middle";
-					        ctx.fillText("★", bar.base - 10, bar.y); // 左端に★（少し左にずらす）
-					        ctx.restore();
-					      }
-					    });
-					  }
-					}]
+		          dataset.data.forEach((bar, i) => {
+		            if (labels[i] === votedChoice) {
+		              ctx.save();
+		              ctx.fillStyle = "red";
+		              ctx.font = "16px sans-serif";
+		              ctx.textAlign = "left";
+		              ctx.textBaseline = "middle";
+		              ctx.fillText("★", bar.base - 10, bar.y);
+		              ctx.restore();
+		            }
+		          });
+		        }
+		      }]
 		    });
 		  }
 
 		  const chartInstance = canvas._chartInstance;
 
-		  onSnapshot(collection(db, "votes"), (snapshot) => {
-		    const counts = {};
-		    choices.forEach(c => counts[c] = 0);
+		  // 設問が履歴に追加されたタイミングで票数を集計
+		  const snapshot = await getDocs(collection(db, "votes"));
+		  const counts = {};
+		  choices.forEach(c => counts[c] = 0);
 
-		    snapshot.forEach(docSnap => {
-		      const v = docSnap.data();
-		      if (Number(v.questionNumber) === Number(questionNumber)) {
-		        counts[v.choice] = (counts[v.choice] || 0) + 1;
-		      }
-		    });
-
-		    chartInstance.data.labels = Object.keys(counts);
-		    chartInstance.data.datasets[0].data = Object.values(counts);
-		    chartInstance.update();
+		  snapshot.forEach(docSnap => {
+		    const v = docSnap.data();
+		    if (Number(v.questionNumber) === Number(questionNumber)) {
+		      counts[v.choice] = (counts[v.choice] || 0) + 1;
+		    }
 		  });
+
+		  chartInstance.data.labels = Object.keys(counts);
+		  chartInstance.data.datasets[0].data = Object.values(counts);
+		  chartInstance.update();
 		}
+
 
     // リセットフラグを監視
     onSnapshot(doc(db, "current", "reset"), (docSnap) => {

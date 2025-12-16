@@ -206,6 +206,11 @@
     });
 
 		function drawChart(canvas, questionNumber, choices) {
+		  // 選択肢がゼロならグラフを描画しない
+		  if (!choices || choices.length === 0) {
+		    return;
+		  }
+
 		  if (!canvas._chartInstance) {
 		    canvas._chartInstance = new Chart(canvas, {
 		      type: "bar",
@@ -273,7 +278,7 @@
 		  const resultDiv = document.getElementById("results");
 		  resultDiv.innerHTML = "";
 
-		  Object.keys(grouped).sort((a, b) => Number(a) - Number(b)).forEach(qNum => {
+		  Object.keys(grouped).sort((a, b) => Number(b) - Number(a)).forEach(qNum => {
 		    // 設問番号の見出し
 		    const h = document.createElement("h3");
 		    h.textContent = `設問 ${qNum}`;
