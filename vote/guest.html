@@ -3,13 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <title>参加者ページ</title>
-	<style>
-	  canvas {
-	    width: 300px !important;   /* 横幅を小さく */
-	    height: 160px !important;  /* 高さを小さく */
-	  }
-	</style>
-
+  <style>
+    canvas {
+      width: 300px !important;   /* 横幅を小さく */
+      height: 160px !important;  /* 高さを小さく */
+    }
+  </style>
 
   <!-- Chart.js を CDNから読み込む（UMD版） -->
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -32,45 +31,70 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
+		//	名前入力後の画面遷移
+		document.getElementById("startBtn").onclick = () => {
+		  const name = document.getElementById("playerName").value.trim();
+		  if (!name) {
+		    alert("名前を入力してください");
+		    return;
+		  }
+		  localStorage.setItem("playerName", name);
+
+		  // 名前入力ページを隠して投票ページを表示
+		  document.getElementById("nameInputPage").style.display = "none";
+		  document.getElementById("votePage").style.display = "block";
+		};
+
+
     // 設問をリアルタイム監視
-    onSnapshot(doc(db, "current", "question"), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        document.getElementById("question").textContent = data.question || "";
+		onSnapshot(doc(db, "current", "question"), (docSnap) => {
+		  const questionDiv = document.getElementById("question");
+		  const choicesDiv = document.getElementById("choices");
 
-        const choicesDiv = document.getElementById("choices");
-        choicesDiv.innerHTML = "";
+		  if (docSnap.exists()) {
+		    const data = docSnap.data();
+		    questionDiv.textContent = data.question || "";
 
-        if (Array.isArray(data.choices)) {
-          data.choices.forEach(choice => {
-            const btn = document.createElement("button");
-            btn.textContent = choice;
-						btn.onclick = async () => {
-						  const votedKey = `voted_${data.number}`; // 設問番号ごとにキーを作る
+		    choicesDiv.innerHTML = "";
+		    if (Array.isArray(data.choices)) {
+		      data.choices.forEach(choice => {
+		        const btn = document.createElement("button");
+		        btn.textContent = choice;
+		        btn.onclick = async () => {
+		          const votedKey = `voted_${data.number}`;
+		          const votedChoiceKey = `votedChoice_${data.number}`;
 
-						  if (localStorage.getItem(votedKey)) {
-						    alert("この設問にはすでに投票済みです");
-						    return;
-						  }
+		          if (localStorage.getItem(votedKey)) {
+		            alert("この設問にはすでに投票済みです");
+		            return;
+		          }
 
-						  await addDoc(collection(db, "votes"), {
-						    choice,
-						    questionNumber: data.number,
-						    createdAt: serverTimestamp()
-						  });
+		          const name = localStorage.getItem("playerName") || "匿名";
 
-						  // 投票済みフラグを保存
-						  localStorage.setItem(votedKey, "true");
+		          await addDoc(collection(db, "votes"), {
+		            choice,
+		            questionNumber: data.number,
+		            name,
+		            createdAt: serverTimestamp()
+		          });
 
-						  alert("投票しました: " + choice);
-						};
-            choicesDiv.appendChild(btn);
-          });
-        } else {
-          choicesDiv.textContent = "no questions";
-        }
-      }
-    });
+		          localStorage.setItem(votedKey, "true");
+		          localStorage.setItem(votedChoiceKey, choice);
+
+		          alert("投票しました: " + choice);
+		        };
+		        choicesDiv.appendChild(btn);
+		      });
+		    } else {
+		      choicesDiv.textContent = "no questions";
+		    }
+		  } else {
+		    // ドキュメントが削除された場合 → 画面をクリア
+		    questionDiv.textContent = "";
+		    choicesDiv.innerHTML = "";
+		    historyDiv.innerHTML = ""; // ← 履歴もクリア
+		  }
+		});
 
     // 履歴を監視して描画
     onSnapshot(collection(db, "questionsHistory"), (snapshot) => {
@@ -79,7 +103,7 @@
 
       const items = [];
       snapshot.forEach(docSnap => items.push(docSnap.data()));
-      items.sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
+      items.sort((a, b) => (b.number ?? 0) - (a.number ?? 0));
 
       items.forEach(data => {
         const section = document.createElement("div");
@@ -92,62 +116,143 @@
       });
     });
 
-    function drawChart(canvas, questionNumber, choices) {
-      if (!canvas._chartInstance) {
-        canvas._chartInstance = new Chart(canvas, {
-          type: "bar",
-          data: {
-            labels: choices,
-            datasets: [{
-              label: "票数",
-              data: choices.map(() => 0),
-              backgroundColor: "skyblue",
-              barThickness: 10,
-              maxBarThickness: 15
-            }]
-          },
-          options: {
-            indexAxis: "y",   // 横棒グラフ
-            animation: false,
-			      responsive: false,
-			      maintainAspectRatio: false,
-            scales: {
-              x: {
-                ticks: {
-                  stepSize: 1,
-                  precision: 0
-                },
-                beginAtZero: true
-              }
-            }
-          }
-        });
+		function drawChart(canvas, questionNumber, choices) {
+		  if (!canvas._chartInstance) {
+		    canvas._chartInstance = new Chart(canvas, {
+		      type: "bar",
+		      data: {
+		        labels: choices,
+		        datasets: [{
+		          data: choices.map(() => 0),
+		          backgroundColor: "skyblue",
+		          barThickness: 10,
+		          maxBarThickness: 15
+		        }]
+		      },
+		      options: {
+		        indexAxis: "y",
+		        animation: false,
+		        responsive: false,
+		        maintainAspectRatio: false,
+		        scales: {
+		          x: {
+		            ticks: {
+		              stepSize: 1,
+		              precision: 0
+		            },
+		            beginAtZero: true
+		          }
+		        },
+		        plugins: {
+		          legend: { display: false } // 「票数」ラベルを非表示
+		        }
+		      },
+					plugins: [{
+					  id: "drawStar",
+					  afterDatasetsDraw(chart) {
+					    const votedChoice = localStorage.getItem(`votedChoice_${questionNumber}`);
+					    if (!votedChoice) return;
+
+					    const {ctx} = chart;
+					    const dataset = chart.getDatasetMeta(0);
+					    const labels = chart.data.labels;
+
+					    dataset.data.forEach((bar, i) => {
+					      if (labels[i] === votedChoice) {
+					        ctx.save();
+					        ctx.fillStyle = "red";
+					        ctx.font = "16px sans-serif";
+					        ctx.textAlign = "left";
+					        ctx.textBaseline = "middle";
+					        ctx.fillText("★", bar.base - 10, bar.y); // 左端に★（少し左にずらす）
+					        ctx.restore();
+					      }
+					    });
+					  }
+					}]
+		    });
+		  }
+
+		  const chartInstance = canvas._chartInstance;
+
+		  onSnapshot(collection(db, "votes"), (snapshot) => {
+		    const counts = {};
+		    choices.forEach(c => counts[c] = 0);
+
+		    snapshot.forEach(docSnap => {
+		      const v = docSnap.data();
+		      if (Number(v.questionNumber) === Number(questionNumber)) {
+		        counts[v.choice] = (counts[v.choice] || 0) + 1;
+		      }
+		    });
+
+		    chartInstance.data.labels = Object.keys(counts);
+		    chartInstance.data.datasets[0].data = Object.values(counts);
+		    chartInstance.update();
+		  });
+		}
+
+    // リセットフラグを監視
+    onSnapshot(doc(db, "current", "reset"), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        const clearBtnContainer = document.querySelector(".clear-btn-container");
+
+        if (data.resetFlag === true) {
+          clearBtnContainer.style.display = "block"; // 表示
+        } else {
+          clearBtnContainer.style.display = "none";  // 非表示
+        }
       }
+    });
 
-      const chartInstance = canvas._chartInstance;
-
-      onSnapshot(collection(db, "votes"), (snapshot) => {
-        const counts = {};
-        choices.forEach(c => counts[c] = 0);
-
-        snapshot.forEach(docSnap => {
-          const v = docSnap.data();
-          if (Number(v.questionNumber) === Number(questionNumber)) {
-            counts[v.choice] = (counts[v.choice] || 0) + 1;
-          }
-        });
-
-        chartInstance.data.labels = Object.keys(counts);
-        chartInstance.data.datasets[0].data = Object.values(counts);
-        chartInstance.update();
-      });
-    }
+    // ボタンクリックで localStorage をクリア
+    document.getElementById("clearStorageBtn").onclick = () => {
+      localStorage.clear();
+      alert("ローカルストレージをクリアしました");
+      location.reload();
+    };
   </script>
 </head>
+
 <body>
   <h1>参加者ページ</h1>
-  <div id="question"></div>
-  <div id="choices"></div>
-  <div id="history"></div>
+  <!-- 名前入力ページ -->
+  <div id="nameInputPage">
+    <p>あなたの名前を入力してください:</p>
+    <input type="text" id="playerName" placeholder="名前">
+    <button id="startBtn">開始</button>
+  </div>
+
+  <!-- 投票ページ（最初は非表示） -->
+  <div id="votePage" style="display:none;">
+    <div id="question"></div>
+    <div id="choices"></div>
+    <div id="history"></div>
+  </div>
+
+  <!-- ローカルストレージをクリアするボタン -->
+  <div class="clear-btn-container" style="display:none;">
+    <button id="clearStorageBtn">ローカルストレージをクリア</button>
+  </div>
 </body>
+
+<style>
+  .clear-btn-container {
+    margin-top: 80px;   /* 誤タッチ防止の余白 */
+    text-align: center;
+  }
+  #clearStorageBtn {
+    padding: 12px 24px;
+    font-size: 16px;
+    background-color: #f44336;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+  #clearStorageBtn:hover {
+    background-color: #d32f2f;
+  }
+</style>
 </html>

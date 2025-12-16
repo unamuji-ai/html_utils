@@ -38,9 +38,12 @@
   <button onclick="aggregateVotes()">集計する</button>
   <div id="results"></div>
 
+	<button id="resetBtn">ゲームをリセット</button>
+
+
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getFirestore, doc, setDoc, addDoc, collection, getDocs, onSnapshot, serverTimestamp } 
+    import { getFirestore, doc, setDoc, addDoc, collection, getDocs, deleteDoc, onSnapshot, serverTimestamp } 
       from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
     // Firebase設定
@@ -58,6 +61,27 @@
     const db = getFirestore(app);
 
     let questionsData = {};
+	  document.getElementById("resetBtn").onclick = async () => {
+	    await setDoc(doc(db, "current", "reset"), { resetFlag: true });
+
+
+
+	    // questionsHistory を削除
+	    const qSnap = await getDocs(collection(db, "questionsHistory"));
+	    const qDeletes = qSnap.docs.map(d => deleteDoc(doc(db, "questionsHistory", d.id)));
+	    await Promise.all(qDeletes);
+
+	    // votes を削除
+	    const vSnap = await getDocs(collection(db, "votes"));
+	    const vDeletes = vSnap.docs.map(d => deleteDoc(doc(db, "votes", d.id)));
+	    await Promise.all(vDeletes);
+
+		  // current/question を削除
+		  await deleteDoc(doc(db, "current", "question"));
+
+	    alert("ゲームをリセットしました");
+	  };
+
 
     async function loadQuestions() {
       const res = await fetch("questions.json");
@@ -117,6 +141,9 @@
           createdAt: serverTimestamp()
         });
 
+		   // 設問開始と同時に resetFlag を false に戻す
+		    await setDoc(doc(db, "current", "reset"), { resetFlag: false });
+
         alert("設問を出しました！");
       }
     });
@@ -127,7 +154,7 @@
 
       const items = [];
       snapshot.forEach(docSnap => items.push(docSnap.data()));
-      items.sort((a, b) => (a.number ?? 0) - (b.number ?? 0));
+      items.sort((a, b) => (b.number ?? 0) - (a.number ?? 0));
 
       items.forEach(data => {
         const section = document.createElement("div");
@@ -192,18 +219,41 @@
 		}
 
     async function aggregateVotes() {
-      const snapshot = await getDocs(collection(db, "votes"));
-      const counts = {};
-      snapshot.forEach(docSnap => {
-        const choice = docSnap.data().choice;
-        counts[choice] = (counts[choice] || 0) + 1;
-      });
+		  const snapshot = await getDocs(collection(db, "votes"));
 
-      const resultDiv = document.getElementById("results");
-      resultDiv.innerHTML = "";
-      for (const [choice, count] of Object.entries(counts)) {
-        resultDiv.innerHTML += `<p>${choice}: ${count}票</p>`;
-      }
+		  // 設問番号ごとに集計
+		  const grouped = {};
+		  snapshot.forEach(docSnap => {
+		    const v = docSnap.data();
+		    const qNum = v.questionNumber || 0;
+		    if (!grouped[qNum]) grouped[qNum] = {};
+		    if (!grouped[qNum][v.choice]) grouped[qNum][v.choice] = [];
+		    grouped[qNum][v.choice].push(v.name || "匿名");
+		  });
+
+		  // 表示用
+		  const resultDiv = document.getElementById("results");
+		  resultDiv.innerHTML = "";
+
+		  Object.keys(grouped).sort((a, b) => Number(a) - Number(b)).forEach(qNum => {
+		    // 設問番号の見出し
+		    const h = document.createElement("h3");
+		    h.textContent = `設問 ${qNum}`;
+		    resultDiv.appendChild(h);
+
+		    // 選択肢ごとの投票者名
+		    Object.keys(grouped[qNum]).forEach(choice => {
+		      const names = grouped[qNum][choice].join(", ");
+		      const p = document.createElement("p");
+		      p.textContent = `${choice}: ${names}`;
+		      resultDiv.appendChild(p);
+		    });
+
+		    // 区切り線
+		    const hr = document.createElement("hr");
+		    resultDiv.appendChild(hr);
+		  });
+
     }
 
     loadQuestions();
