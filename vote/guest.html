@@ -1,13 +1,52 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta charset="UTF-8">
   <title>参加者ページ</title>
   <style>
-    canvas {
-      width: 300px !important;   /* 横幅を小さく */
-      height: 160px !important;  /* 高さを小さく */
-    }
+		/* 全体のレイアウト */
+		body {
+		  font-family: sans-serif;
+		  margin: 10px;
+		  padding: 0;
+		}
+
+		/* 質問テキスト */
+		#question {
+		  font-size: 1.2em;
+		  margin-bottom: 12px;
+		}
+
+		/* 投票ボタン */
+		#choices button {
+		  display: block;
+		  width: 100%;          /* 横幅いっぱい */
+		  padding: 14px;
+		  margin: 8px 0;
+		  font-size: 1em;
+		  border-radius: 6px;
+		  border: 1px solid #ccc;
+		  background-color: #f0f0f0;
+		  cursor: pointer;
+		}
+
+		#choices button:hover {
+		  background-color: #e0e0e0;
+		}
+
+		/* 履歴セクション */
+		#history h3 {
+		  font-size: 1em;
+		  margin-top: 20px;
+		}
+
+		/* Chart.js キャンバス */
+		canvas {
+		  width: 100% !important;   /* 親要素に合わせる */
+		  height: auto !important;  /* 高さは自動調整 */
+		  max-height: 200px;        /* スマホで見やすい高さに制限 */
+		}
   </style>
 
   <!-- Chart.js を CDNから読み込む（UMD版） -->
@@ -50,6 +89,7 @@
 		onSnapshot(doc(db, "current", "question"), (docSnap) => {
 		  const questionDiv = document.getElementById("question");
 		  const choicesDiv = document.getElementById("choices");
+			const historyDiv = document.getElementById("history");
 
 		  if (docSnap.exists()) {
 		    const data = docSnap.data();
