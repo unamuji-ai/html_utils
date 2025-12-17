@@ -156,7 +156,7 @@
 
 		// リセット処理関数
 		async function resetGame() {
-		  // resetフラグを立てる
+		  // resetフラグを立てる（参加者側で localStorage を消すトリガー）
 		  await setDoc(doc(db, "current", "reset"), { resetFlag: true });
 
 		  // questionsHistory を削除
@@ -171,6 +171,9 @@
 
 		  // current/question を削除
 		  await deleteDoc(doc(db, "current", "question"));
+
+		  // current/category を削除
+		  await deleteDoc(doc(db, "current", "category"));
 		}
 
 		// リセットボタン
@@ -181,7 +184,7 @@
 
 		// ゲーム終了ボタン
 		document.getElementById("endGameBtn").onclick = async () => {
-			//	reset処理
+		  // reset処理
 		  await resetGame();
 
 		  // games コレクションの全ドキュメントを削除
@@ -189,7 +192,7 @@
 		  const gDeletes = gSnap.docs.map(d => deleteDoc(doc(db, "games", d.id)));
 		  await Promise.all(gDeletes);
 
-		  // 終了フラグを立てる
+		  // 終了フラグを立てる（参加者側が監視して強制終了）
 		  await setDoc(doc(db, "current", "end"), { endFlag: true });
 
 		  // QRコードとURLを消す
@@ -200,7 +203,6 @@
 
 		  alert("ゲームを終了しました");
 		};
-
 
     async function loadQuestions() {
       const res = await fetch("questions.json");

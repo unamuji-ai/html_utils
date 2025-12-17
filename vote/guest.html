@@ -96,6 +96,9 @@
 		  // 名前入力ページを隠して投票ページを表示
 		  document.getElementById("nameInputPage").style.display = "none";
 		  document.getElementById("votePage").style.display = "block";
+
+
+			console.log("投票ページ移行後のplayerName:", localStorage.getItem("playerName"));
 		};
 
 
@@ -105,6 +108,12 @@
 		  const choicesDiv = document.getElementById("choices");
 
 		  if (docSnap.exists()) {
+
+
+				console.log("投票直前のplayerName:", localStorage.getItem("playerName"));
+
+
+
 		    const data = docSnap.data();
 		    questionDiv.textContent = data.question || "";
 		    choicesDiv.innerHTML = "";
