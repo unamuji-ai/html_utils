@@ -92,8 +92,6 @@
 		    return;
 		  }
 		  localStorage.setItem("playerName", name);
-			const stored_name = localStorage.getItem("playerName")
-			alert("stored_name:"+stored_name);
 
 		  // 名前入力ページを隠して投票ページを表示
 		  document.getElementById("nameInputPage").style.display = "none";
@@ -125,6 +123,7 @@
 						  }
 
 		          const name = localStorage.getItem("playerName") || "匿名";
+							alert(name+"の名前で投票しました");
 		          await addDoc(collection(db, "votes"), {
 		            choice,
 		            questionNumber: data.number,
