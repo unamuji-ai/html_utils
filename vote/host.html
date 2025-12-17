@@ -53,6 +53,10 @@
 </head>
 <body>
   <h2>司会者用ページ</h2>
+	<button id="startGameBtn">ゲーム開始</button>
+	<div id="gameInfo"></div>
+	<button id="endGameBtn">ゲーム終了</button>
+
   <div>
     <label for="categorySelect">Category:</label>
     <select id="categorySelect">
@@ -78,10 +82,10 @@
 
 	<button id="resetBtn">ゲームをリセット</button>
 
-
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getFirestore, doc, setDoc, addDoc, collection, getDocs, deleteDoc, onSnapshot, serverTimestamp } 
+    import { getFirestore, doc, setDoc, addDoc, collection, getDocs, deleteDoc, onSnapshot, serverTimestamp, updateDoc } 
       from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
     // Firebase設定
@@ -94,31 +98,78 @@
       appId: "1:431820061710:web:c489e5f2efe30c4dd7d05f",
       measurementId: "G-N259J06NXW"
     };
-
+		
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
-
     let questionsData = {};
-	  document.getElementById("resetBtn").onclick = async () => {
-	    await setDoc(doc(db, "current", "reset"), { resetFlag: true });
+		let currentGameId = {};
 
 
+		// ランダムID生成
+		function generateGameId() {
+		  return Math.random().toString(36).substring(2, 8);
+		}
 
-	    // questionsHistory を削除
-	    const qSnap = await getDocs(collection(db, "questionsHistory"));
-	    const qDeletes = qSnap.docs.map(d => deleteDoc(doc(db, "questionsHistory", d.id)));
-	    await Promise.all(qDeletes);
+		//	ゲーム開始・QR表示
+		document.getElementById("startGameBtn").onclick = async () => {
+		  const gameId = generateGameId();
+			currentGameId = gameId;
 
-	    // votes を削除
-	    const vSnap = await getDocs(collection(db, "votes"));
-	    const vDeletes = vSnap.docs.map(d => deleteDoc(doc(db, "votes", d.id)));
-	    await Promise.all(vDeletes);
+		  // Firestoreにゲーム情報を保存
+		  await setDoc(doc(db, "games", gameId), {
+		    active: true,
+		    createdAt: serverTimestamp()
+		  });
+
+		  const url = `${location.origin}/guest.html?gameId=${gameId}`;
+
+		  // QRコード生成（例: QRCode.jsを利用）
+		  const gameInfoDiv = document.getElementById("gameInfo");
+		  gameInfoDiv.innerHTML = `
+		    <p>参加用URL: <a href="${url}" target="_blank">${url}</a></p>
+		    <div id="qrcode"></div>
+		  `;
+		  new QRCode(document.getElementById("qrcode"), url);
+		};
+
+
+		// リセット処理関数
+		async function resetGame() {
+		  // resetフラグを立てる
+		  await setDoc(doc(db, "current", "reset"), { resetFlag: true });
+
+		  // questionsHistory を削除
+		  const qSnap = await getDocs(collection(db, "questionsHistory"));
+		  const qDeletes = qSnap.docs.map(d => deleteDoc(doc(db, "questionsHistory", d.id)));
+		  await Promise.all(qDeletes);
+
+		  // votes を削除
+		  const vSnap = await getDocs(collection(db, "votes"));
+		  const vDeletes = vSnap.docs.map(d => deleteDoc(doc(db, "votes", d.id)));
+		  await Promise.all(vDeletes);
 
 		  // current/question を削除
 		  await deleteDoc(doc(db, "current", "question"));
+		}
 
-	    alert("ゲームをリセットしました");
-	  };
+		// リセットボタン
+		document.getElementById("resetBtn").onclick = async () => {
+		  await resetGame();
+		  alert("ゲームをリセットしました");
+		};
+
+		// ゲーム終了ボタン
+		document.getElementById("endGameBtn").onclick = async () => {
+		  await resetGame();
+		  // ゲームIDを無効化
+		  await updateDoc(doc(db, "games", currentGameId), { active: false });
+
+		  // QRコードとURLを消す
+		  const gameInfoDiv = document.getElementById("gameInfo");
+		  gameInfoDiv.innerHTML = "";
+
+		  alert("ゲームを終了しました");
+		};
 
 
     async function loadQuestions() {

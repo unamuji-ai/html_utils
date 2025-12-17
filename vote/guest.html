@@ -53,7 +53,7 @@
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getFirestore, doc, onSnapshot, collection, addDoc, getDocs, serverTimestamp } 
+    import { getFirestore, doc, onSnapshot, collection, addDoc, getDoc, getDocs, serverTimestamp } 
       from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
     // Firebase設定
@@ -69,6 +69,21 @@
 
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
+
+
+		const params = new URLSearchParams(location.search);
+		const gameId = params.get("gameId");
+
+		if (!gameId) {
+		  alert("ゲームIDが指定されていません");
+		  location.href = "end.html";
+		}
+
+		const gameDoc = await getDoc(doc(db, "games", gameId));
+		if (!gameDoc.exists() || !gameDoc.data().active) {
+		  alert("このゲームは終了しています");
+		  location.href = "end.html";
+		}
 
 		//	名前入力後の画面遷移
 		document.getElementById("startBtn").onclick = () => {
@@ -233,20 +248,39 @@
 		  chartInstance.update();
 		}
 
+		function updateClearButtonVisibility(resetFlag) {
+		  const clearBtnContainer = document.querySelector(".clear-btn-container");
+
+		  // ローカルストレージに投票関連データがあるかチェック
+		  let hasVoteData = false;
+		  for (let i = 0; i < localStorage.length; i++) {
+		    const key = localStorage.key(i);
+		    if (key.startsWith("voted_") || key.startsWith("votedChoice_") || key === "playerName") {
+		      hasVoteData = true;
+		      break;
+		    }
+		  }
+
+		  // 両方の条件で表示/非表示を決定
+		  if (resetFlag && hasVoteData) {
+		    clearBtnContainer.style.display = "block";
+		  } else {
+		    clearBtnContainer.style.display = "none";
+		  }
+		}
 
     // リセットフラグを監視
-    onSnapshot(doc(db, "current", "reset"), (docSnap) => {
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        const clearBtnContainer = document.querySelector(".clear-btn-container");
+		onSnapshot(doc(db, "current", "reset"), (docSnap) => {
+		  if (docSnap.exists()) {
+		    const data = docSnap.data();
+		    updateClearButtonVisibility(data.resetFlag);
+		  }
+		});
 
-        if (data.resetFlag === true) {
-          clearBtnContainer.style.display = "block"; // 表示
-        } else {
-          clearBtnContainer.style.display = "none";  // 非表示
-        }
-      }
-    });
+		// ページ読み込み時にもチェック
+		window.addEventListener("DOMContentLoaded", () => {
+		  updateClearButtonVisibility(false); // 初期状態は resetFlag=false として判定
+		});
 
     // ボタンクリックで localStorage をクリア
     document.getElementById("clearStorageBtn").onclick = () => {
