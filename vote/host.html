@@ -47,7 +47,7 @@
 		canvas {
 		  width: 100% !important;   /* 親要素に合わせる */
 		  height: auto !important;  /* 高さは自動調整 */
-		  max-height: 160px;        /* スマホで見やすい高さに制限 */
+		  max-height: 260px;        /* スマホで見やすい高さに制限 */
 		}
 	</style>
 </head>
@@ -285,9 +285,6 @@
 					answer: questionObj.answer,
           createdAt: serverTimestamp()
         });
-
-		   // 設問開始と同時に resetFlag を false に戻す
-		    await setDoc(doc(db, "current", "reset"), { resetFlag: false });
 
         alert("設問を出しました！");
       }

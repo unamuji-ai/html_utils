@@ -45,7 +45,7 @@
 		canvas {
 		  width: 100% !important;   /* 親要素に合わせる */
 		  height: auto !important;  /* 高さは自動調整 */
-		  max-height: 200px;        /* スマホで見やすい高さに制限 */
+		  max-height: 300px;        /* スマホで見やすい高さに制限 */
 		}
   </style>
 
@@ -93,74 +93,75 @@
 		  }
 		  localStorage.setItem("playerName", name);
 
-			const sname = localStorage.getItem("playerName");
-			alert(sname);
-
-
 		  // 名前入力ページを隠して投票ページを表示
 		  document.getElementById("nameInputPage").style.display = "none";
 		  document.getElementById("votePage").style.display = "block";
+
+		  // 投票監視を開始する
+		  startVoteListener();
 		};
 
+		function startVoteListener() {
 
-		// 現在の設問は投票ボタンのみ
-		onSnapshot(doc(db, "current", "question"), (docSnap) => {
-		  const questionDiv = document.getElementById("question");
-		  const choicesDiv = document.getElementById("choices");
+			// 現在の設問は投票ボタンのみ
+			onSnapshot(doc(db, "current", "question"), (docSnap) => {
+			  const questionDiv = document.getElementById("question");
+			  const choicesDiv = document.getElementById("choices");
 
-		  if (docSnap.exists()) {
-		    const data = docSnap.data();
-		    questionDiv.textContent = data.question || "";
-		    choicesDiv.innerHTML = "";
+			  if (docSnap.exists()) {
+			    const data = docSnap.data();
+			    questionDiv.textContent = data.question || "";
+			    choicesDiv.innerHTML = "";
 
-		    if (Array.isArray(data.choices)) {
-		      data.choices.forEach(choice => {
-		        const btn = document.createElement("button");
-		        btn.textContent = choice;
-		        btn.onclick = async () => {
-						  const votedKey = `voted_${data.number}`;
-						  const votedChoiceKey = `votedChoice_${data.number}`;
-						  // ローカルストレージで投票済みチェック
-						  if (localStorage.getItem(votedKey)) {
-						    alert("この設問にはすでに投票済みです");
-						    return;
-						  }
+			    if (Array.isArray(data.choices)) {
+			      data.choices.forEach(choice => {
+			        const btn = document.createElement("button");
+			        btn.textContent = choice;
+			        btn.onclick = async () => {
+							  const votedKey = `voted_${data.number}`;
+							  const votedChoiceKey = `votedChoice_${data.number}`;
+							  // ローカルストレージで投票済みチェック
+							  if (localStorage.getItem(votedKey)) {
+							    alert("この設問にはすでに投票済みです");
+							    return;
+							  }
 
-						  const name = localStorage.getItem("playerName");
-						  if (!name) {
-						    alert("名前が未設定です");
-						    return;
-						  }
+							  const name = localStorage.getItem("playerName");
+							  if (!name) {
+							    alert("名前が未設定です");
+							    return;
+							  }
 
-		          await addDoc(collection(db, "votes"), {
-		            choice,
-		            questionNumber: data.number,
-		            name: name,
-		            createdAt: serverTimestamp()
-		          });
+			          await addDoc(collection(db, "votes"), {
+			            choice,
+			            questionNumber: data.number,
+			            name: name,
+			            createdAt: serverTimestamp()
+			          });
 
-						  // 投票済みフラグと選択肢を保存
-						  localStorage.setItem(votedKey, "true");
-						  localStorage.setItem(votedChoiceKey, choice);
+							  // 投票済みフラグと選択肢を保存
+							  localStorage.setItem(votedKey, "true");
+							  localStorage.setItem(votedChoiceKey, choice);
 
-						  alert("投票しました: " + choice + "（名前: " + name + "）");
+							  alert("投票しました: " + choice + "（名前: " + name + "）");
 
-						  // ★を即表示させるためにグラフを強制更新
-						  const canvases = document.querySelectorAll("canvas");
-						  canvases.forEach(c => {
-						    if (c._chartInstance) {
-						      c._chartInstance.update(); // ← これで afterDatasetsDraw が走り★が出る
-						    }
-						  });
-		        };
-		        choicesDiv.appendChild(btn);
-		      });
-		    }
-		  } else {
-		    questionDiv.textContent = "";
-		    choicesDiv.innerHTML = "";
-		  }
-		});
+							  // ★を即表示させるためにグラフを強制更新
+							  const canvases = document.querySelectorAll("canvas");
+							  canvases.forEach(c => {
+							    if (c._chartInstance) {
+							      c._chartInstance.update(); // ← これで afterDatasetsDraw が走り★が出る
+							    }
+							  });
+			        };
+			        choicesDiv.appendChild(btn);
+			      });
+			    }
+			  } else {
+			    questionDiv.textContent = "";
+			    choicesDiv.innerHTML = "";
+			  }
+			});
+		}
 
 		// 履歴を監視してグラフを描画（過去設問のみ）
 		onSnapshot(collection(db, "questionsHistory"), (snapshot) => {
