@@ -141,11 +141,8 @@
 		    createdAt: serverTimestamp()
 		  });
 
-			// 現在のページのパスからディレクトリ部分を取得
-			const basePath = location.pathname.substring(0, location.pathname.lastIndexOf("/") + 1);
-
 			// guest.html のURLを生成
-			const url = `${location.origin}${basePath}guest.html?gameId=${gameId}`;
+			const url = `guest.html?gameId=${gameId}`;
 
 		  // QRコード生成（例: QRCode.jsを利用）
 		  const gameInfoDiv = document.getElementById("gameInfo");
