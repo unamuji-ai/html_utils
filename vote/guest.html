@@ -98,7 +98,7 @@
 		  document.getElementById("votePage").style.display = "block";
 
 
-			console.log("投票ページ移行後のplayerName:", localStorage.getItem("playerName"));
+			alert("投票ページ移行後のplayerName:", localStorage.getItem("playerName"));
 		};
 
 
@@ -110,7 +110,7 @@
 		  if (docSnap.exists()) {
 
 
-				console.log("投票直前のplayerName:", localStorage.getItem("playerName"));
+				alert("投票直前のplayerName:", localStorage.getItem("playerName"));
 
 
 
@@ -132,7 +132,6 @@
 						  }
 
 		          const name = localStorage.getItem("playerName") || "匿名";
-							alert(name+"の名前で投票しました");
 		          await addDoc(collection(db, "votes"), {
 		            choice,
 		            questionNumber: data.number,
