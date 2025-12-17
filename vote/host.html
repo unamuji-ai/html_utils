@@ -47,15 +47,23 @@
 		canvas {
 		  width: 100% !important;   /* 親要素に合わせる */
 		  height: auto !important;  /* 高さは自動調整 */
-		  max-height: 200px;        /* スマホで見やすい高さに制限 */
+		  max-height: 160px;        /* スマホで見やすい高さに制限 */
 		}
 	</style>
 </head>
 <body>
-  <h2>司会者用ページ</h2>
+  <h2>出題者用ページ</h2>
+	<hr>
+	ゲームを開始する際に押してください。<br>
+	表示されたQRを参加者に読ませてください。<br>
 	<button id="startGameBtn">ゲーム開始</button>
 	<div id="gameInfo"></div>
+
+	<hr>
+	ゲームが終了したら押してください。<br>
+	参加者は解散されます。<br>
 	<button id="endGameBtn">ゲーム終了</button>
+	<hr>
 
   <div>
     <label for="categorySelect">Category:</label>
@@ -71,21 +79,23 @@
     </select>
   </div>
 
+	QRコードを参加者が読み込み終わったらここから設問を選びます。<br>
   <button id="setQuestion">この設問を出す</button>
-
+	<hr>
   <div id="history"></div>
 
   <!-- 集計ボタン -->
-  <h2>集計</h2>
-  <button onclick="aggregateVotes()">集計する</button>
+	終了時や途中、いつでも投票結果の内訳が確認できます。<br>
+  <button onclick="aggregateVotes()">集計</button>
   <div id="results"></div>
-
+	<hr>
+	同じ参加者で最初から行う場合はリセットを押してください。<br>
 	<button id="resetBtn">ゲームをリセット</button>
 
 	<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
-    import { getFirestore, doc, setDoc, addDoc, collection, getDocs, deleteDoc, onSnapshot, serverTimestamp, updateDoc } 
+    import { getFirestore, doc, setDoc, addDoc, collection, getDocs, deleteDoc, onSnapshot, serverTimestamp } 
       from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
     // Firebase設定
@@ -102,7 +112,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     let questionsData = {};
-		let currentGameId = {};
 
 
 		// ランダムID生成
@@ -110,10 +119,21 @@
 		  return Math.random().toString(36).substring(2, 8);
 		}
 
+		function saveGameId(gameId) {
+		  let ids = JSON.parse(localStorage.getItem("gameIds") || "[]");
+		  if (!ids.includes(gameId)) {
+		    ids.push(gameId);
+		  }
+		}
+
 		//	ゲーム開始・QR表示
 		document.getElementById("startGameBtn").onclick = async () => {
 		  const gameId = generateGameId();
-			currentGameId = gameId;
+			saveGameId(gameId);
+
+			//	終了およびリセットを削除
+		  await deleteDoc(doc(db, "current", "reset"));
+		  await deleteDoc(doc(db, "current", "end"));
 
 		  // Firestoreにゲーム情報を保存
 		  await setDoc(doc(db, "games", gameId), {
@@ -160,9 +180,16 @@
 
 		// ゲーム終了ボタン
 		document.getElementById("endGameBtn").onclick = async () => {
+			//	reset処理
 		  await resetGame();
-		  // ゲームIDを無効化
-		  await updateDoc(doc(db, "games", currentGameId), { active: false });
+
+		  // games コレクションの全ドキュメントを削除
+		  const gSnap = await getDocs(collection(db, "games"));
+		  const gDeletes = gSnap.docs.map(d => deleteDoc(doc(db, "games", d.id)));
+		  await Promise.all(gDeletes);
+
+		  // 終了フラグを立てる
+		  await setDoc(doc(db, "current", "end"), { endFlag: true });
 
 		  // QRコードとURLを消す
 		  const gameInfoDiv = document.getElementById("gameInfo");
@@ -227,6 +254,7 @@
           number,
           question: questionObj.question,
           choices: questionObj.choices,
+					answer: questionObj.answer,
           createdAt: serverTimestamp()
         });
 
@@ -237,24 +265,26 @@
       }
     });
 
-    onSnapshot(collection(db, "questionsHistory"), (snapshot) => {
-      const historyDiv = document.getElementById("history");
-      historyDiv.innerHTML = "";
+		onSnapshot(collection(db, "questionsHistory"), (snapshot) => {
+		  const historyDiv = document.getElementById("history");
+		  historyDiv.innerHTML = "";
 
-      const items = [];
-      snapshot.forEach(docSnap => items.push(docSnap.data()));
-      items.sort((a, b) => (b.number ?? 0) - (a.number ?? 0));
+		  const items = [];
+		  snapshot.forEach(docSnap => items.push(docSnap.data()));
+		  items.sort((a, b) => (b.number ?? 0) - (a.number ?? 0));
 
-      items.forEach(data => {
-        const section = document.createElement("div");
-        section.innerHTML = `<h3>${data.number}. ${data.question}</h3>`;
-        const canvas = document.createElement("canvas");
-        section.appendChild(canvas);
-        historyDiv.appendChild(section);
+		  items.forEach(data => {
+		    const section = document.createElement("div");
+		    // 設問と答えを横並びで表示
+		    section.innerHTML = `<h3>${data.number}. ${data.question} <span style="color:green;">答え: ${data.answer || ""}</span></h3>`;
+		    const canvas = document.createElement("canvas");
+		    section.appendChild(canvas);
+		    historyDiv.appendChild(section);
 
-        drawChart(canvas, data.number, data.choices);
-      });
-    });
+		    // グラフ描画
+		    drawChart(canvas, data.number, data.choices);
+		  });
+		});
 
 		function drawChart(canvas, questionNumber, choices) {
 		  // 選択肢がゼロならグラフを描画しない
@@ -268,7 +298,6 @@
 		      data: {
 		        labels: choices,
 		        datasets: [{
-		          label: "票数",
 		          data: choices.map(() => 0),
 		          backgroundColor: "skyblue",
 		          barThickness: 10,       // 棒を細く
@@ -278,7 +307,6 @@
 		      options: {
 		        indexAxis: "y",           // 横棒グラフにする
 		        animation: false,
-			      responsive: false,
 			      maintainAspectRatio: false,
 		        scales: {
 		          x: {
@@ -288,7 +316,11 @@
 		            },
 		            beginAtZero: true
 		          }
-		        }
+		        },
+			      plugins: {
+			        legend: { display: false }, // 凡例を消す
+			        title: { display: false }   // タイトルも消す
+			      }
 		      }
 		    });
 		  }

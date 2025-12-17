@@ -70,7 +70,6 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
 
-
 		const params = new URLSearchParams(location.search);
 		const gameId = params.get("gameId");
 
@@ -248,46 +247,29 @@
 		  chartInstance.update();
 		}
 
-		function updateClearButtonVisibility(resetFlag) {
-		  const clearBtnContainer = document.querySelector(".clear-btn-container");
+		//	終了フラグを監視
+		onSnapshot(doc(db, "current", "end"), (docSnap) => {
+		  if (docSnap.exists()) {
+		    const data = docSnap.data();
+		    if (data.endFlag === true) {
+		      // ローカルストレージを削除
+		      localStorage.clear();
 
-		  // ローカルストレージに投票関連データがあるかチェック
-		  let hasVoteData = false;
-		  for (let i = 0; i < localStorage.length; i++) {
-		    const key = localStorage.key(i);
-		    if (key.startsWith("voted_") || key.startsWith("votedChoice_") || key === "playerName") {
-		      hasVoteData = true;
-		      break;
+		      // 終了画面へ遷移
+		      alert("ゲームは終了しました。保存データを削除します。");
+		      location.href = "end.html";
 		    }
 		  }
-
-		  // 両方の条件で表示/非表示を決定
-		  if (resetFlag && hasVoteData) {
-		    clearBtnContainer.style.display = "block";
-		  } else {
-		    clearBtnContainer.style.display = "none";
-		  }
-		}
+		});
 
     // リセットフラグを監視
 		onSnapshot(doc(db, "current", "reset"), (docSnap) => {
 		  if (docSnap.exists()) {
 		    const data = docSnap.data();
-		    updateClearButtonVisibility(data.resetFlag);
+	      // ローカルストレージを削除
+	      localStorage.clear();
 		  }
 		});
-
-		// ページ読み込み時にもチェック
-		window.addEventListener("DOMContentLoaded", () => {
-		  updateClearButtonVisibility(false); // 初期状態は resetFlag=false として判定
-		});
-
-    // ボタンクリックで localStorage をクリア
-    document.getElementById("clearStorageBtn").onclick = () => {
-      localStorage.clear();
-      alert("ローカルストレージをクリアしました");
-      location.reload();
-    };
   </script>
 </head>
 
@@ -306,29 +288,5 @@
     <div id="choices"></div>
     <div id="history"></div>
   </div>
-
-  <!-- ローカルストレージをクリアするボタン -->
-  <div class="clear-btn-container" style="display:none;">
-    <button id="clearStorageBtn">ローカルストレージをクリア</button>
-  </div>
 </body>
-
-<style>
-  .clear-btn-container {
-    margin-top: 80px;   /* 誤タッチ防止の余白 */
-    text-align: center;
-  }
-  #clearStorageBtn {
-    padding: 12px 24px;
-    font-size: 16px;
-    background-color: #f44336;
-    color: white;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-  }
-  #clearStorageBtn:hover {
-    background-color: #d32f2f;
-  }
-</style>
 </html>
