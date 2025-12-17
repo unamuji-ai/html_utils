@@ -92,7 +92,8 @@
 		    return;
 		  }
 		  localStorage.setItem("playerName", name);
-			alert(name);
+			const stored_name = localStorage.getItem("playerName")
+			alert(stored_name);
 
 		  // 名前入力ページを隠して投票ページを表示
 		  document.getElementById("nameInputPage").style.display = "none";
