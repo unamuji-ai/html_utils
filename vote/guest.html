@@ -93,6 +93,10 @@
 		  }
 		  localStorage.setItem("playerName", name);
 
+			const sname = localStorage.getItem("playerName");
+			alert(sname);
+
+
 		  // 名前入力ページを隠して投票ページを表示
 		  document.getElementById("nameInputPage").style.display = "none";
 		  document.getElementById("votePage").style.display = "block";
@@ -123,7 +127,6 @@
 						  }
 
 						  const name = localStorage.getItem("playerName");
-							alert(name);
 						  if (!name) {
 						    alert("名前が未設定です");
 						    return;
