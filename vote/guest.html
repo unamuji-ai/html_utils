@@ -122,6 +122,7 @@
 						    return;
 						  }
 
+						  const name = localStorage.getItem("playerName");
 						  if (!name) {
 						    alert("名前が未設定です");
 						    return;
@@ -137,6 +138,8 @@
 						  // 投票済みフラグと選択肢を保存
 						  localStorage.setItem(votedKey, "true");
 						  localStorage.setItem(votedChoiceKey, choice);
+
+						  alert("投票しました: " + choice + "（名前: " + name + "）");
 
 						  // ★を即表示させるためにグラフを強制更新
 						  const canvases = document.querySelectorAll("canvas");
