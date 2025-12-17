@@ -201,6 +201,29 @@
 		  const resultDiv = document.getElementById("results");
 		  resultDiv.innerHTML = "";
 
+			//	ドロップダウンリストのリセット
+      const category = document.getElementById("categorySelect");
+      const question = document.getElementById("questionSelect");
+			// 中身をクリア
+			categorySelect.innerHTML = "";
+			questionSelect.innerHTML = "";
+
+			// 初期状態の option を追加
+			const optCategory = document.createElement("option");
+			optCategory.textContent = "--選択してください--";
+			optCategory.value = "";
+			categorySelect.appendChild(optCategory);
+			categorySelect.selectedIndex = 0;
+
+			const optQuestion = document.createElement("option");
+			optQuestion.textContent = "--選択してください--";
+			optQuestion.value = "";
+			questionSelect.appendChild(optQuestion);
+			questionSelect.selectedIndex = 0;
+
+		  // 再度リストを構築
+		  await loadQuestions();
+
 		  alert("ゲームを終了しました");
 		};
 

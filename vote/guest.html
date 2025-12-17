@@ -96,9 +96,6 @@
 		  // 名前入力ページを隠して投票ページを表示
 		  document.getElementById("nameInputPage").style.display = "none";
 		  document.getElementById("votePage").style.display = "block";
-
-
-			alert("投票ページ移行後のplayerName:", localStorage.getItem("playerName"));
 		};
 
 
@@ -108,12 +105,6 @@
 		  const choicesDiv = document.getElementById("choices");
 
 		  if (docSnap.exists()) {
-
-
-				alert("投票直前のplayerName:", localStorage.getItem("playerName"));
-
-
-
 		    const data = docSnap.data();
 		    questionDiv.textContent = data.question || "";
 		    choicesDiv.innerHTML = "";
@@ -131,19 +122,21 @@
 						    return;
 						  }
 
-		          const name = localStorage.getItem("playerName") || "匿名";
+						  if (!name) {
+						    alert("名前が未設定です");
+						    return;
+						  }
+
 		          await addDoc(collection(db, "votes"), {
 		            choice,
 		            questionNumber: data.number,
-		            name,
+		            name: name,
 		            createdAt: serverTimestamp()
 		          });
 
 						  // 投票済みフラグと選択肢を保存
 						  localStorage.setItem(votedKey, "true");
 						  localStorage.setItem(votedChoiceKey, choice);
-
-		          alert("投票しました: " + choice);
 
 						  // ★を即表示させるためにグラフを強制更新
 						  const canvases = document.querySelectorAll("canvas");
