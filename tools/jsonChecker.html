@@ -6,28 +6,21 @@
   <style>
     body { font-family: sans-serif; margin: 2em; }
     #dropZone {
-      border: 2px dashed #888;
-      padding: 20px;
-      text-align: center;
-      color: #666;
-      margin-bottom: 1em;
+      border: 2px dashed #888; padding: 20px; text-align: center;
+      color: #666; margin-bottom: 1em;
     }
     textarea {
-      width: 100%; height: 200px;
-      font-family: monospace;
+      width: 100%; height: 150px; font-family: monospace;
       margin-bottom: 1em;
     }
     #editor {
-      width: 100%; height: 300px;
-      font-family: monospace;
-      white-space: pre;
-      overflow: auto;
-      border: 1px solid #ccc;
-      padding: 5px;
+      width: 100%; height: 300px; font-family: monospace;
+      white-space: pre; overflow: auto; border: 1px solid #ccc; padding: 5px;
     }
     .line { display: flex; }
     .lineNumber { width: 40px; text-align: right; padding-right: 10px; color: #888; }
     .lineContent { flex: 1; }
+    .line.error { background: #ffe8e8; }
     .result { margin-top: 1em; font-weight: bold; }
     .error { color: red; }
     .success { color: green; }
@@ -47,15 +40,11 @@
     const editor = document.getElementById("editor");
     const result = document.getElementById("result");
 
-    // ドラッグ＆ドロップ処理
-    dropZone.addEventListener("dragover", e => {
-      e.preventDefault();
-      dropZone.style.background = "#eef";
-    });
-    dropZone.addEventListener("dragleave", () => dropZone.style.background = "");
+    // ドラッグ＆ドロップ
+    dropZone.addEventListener("dragover", e => { e.preventDefault(); dropZone.style.background="#eef"; });
+    dropZone.addEventListener("dragleave", () => dropZone.style.background="");
     dropZone.addEventListener("drop", e => {
-      e.preventDefault();
-      dropZone.style.background = "";
+      e.preventDefault(); dropZone.style.background="";
       const file = e.dataTransfer.files[0];
       if (file) {
         const reader = new FileReader();
@@ -94,12 +83,29 @@
       const text = Array.from(editor.querySelectorAll(".lineContent"))
                         .map(div => div.textContent)
                         .join("\n");
+      editor.querySelectorAll(".line").forEach(l => l.classList.remove("error"));
+
       try {
         JSON.parse(text);
         result.textContent = "✅ 正しいJSONです";
         result.className = "result success";
       } catch (e) {
-        result.textContent = "❌ エラー: " + e.message;
+        let lineNumber = null;
+        // Chrome系: position がある場合
+        const m = e.message.match(/position\s+(\d+)/i);
+        if (m) {
+          const pos = parseInt(m[1], 10);
+          const before = text.slice(0, pos);
+          lineNumber = before.split("\n").length;
+        }
+
+        if (lineNumber) {
+          const target = editor.querySelectorAll(".line")[lineNumber-1];
+          if (target) target.classList.add("error");
+          result.textContent = `❌ エラー: ${e.message} (行: ${lineNumber})`;
+        } else {
+          result.textContent = `❌ エラー: ${e.message}`;
+        }
         result.className = "result error";
       }
     }
