@@ -277,7 +277,9 @@
 		  if (docSnap.exists()) {
 		    const data = docSnap.data();
 	      // ローカルストレージを削除
+			  const name = localStorage.getItem("playerName");	//	名前だけは退避
 	      localStorage.clear();
+			  localStorage.setItem("playerName", name);
 		  }
 		});
   </script>
