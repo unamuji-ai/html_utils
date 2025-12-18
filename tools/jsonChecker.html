@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>JSON構文チェッカー</title>
+  <style>
+    body { font-family: sans-serif; margin: 2em; }
+    #dropZone {
+      border: 2px dashed #888;
+      padding: 20px;
+      text-align: center;
+      color: #666;
+      margin-bottom: 1em;
+    }
+    textarea {
+      width: 100%; height: 200px;
+      font-family: monospace;
+      margin-bottom: 1em;
+    }
+    #editor {
+      width: 100%; height: 300px;
+      font-family: monospace;
+      white-space: pre;
+      overflow: auto;
+      border: 1px solid #ccc;
+      padding: 5px;
+    }
+    .line { display: flex; }
+    .lineNumber { width: 40px; text-align: right; padding-right: 10px; color: #888; }
+    .lineContent { flex: 1; }
+    .result { margin-top: 1em; font-weight: bold; }
+    .error { color: red; }
+    .success { color: green; }
+  </style>
+</head>
+<body>
+  <h1>JSON構文チェッカー</h1>
+  <div id="dropZone">ここにJSONファイルをドラッグ＆ドロップ</div>
+  <textarea id="jsonInput" placeholder="ここにJSONをコピペしてもOK"></textarea>
+  <button onclick="loadFromTextarea()">テキストエリアから読み込む</button>
+  <div id="editor"></div>
+  <button onclick="checkJSON()">検証する</button>
+  <div id="result" class="result"></div>
+
+  <script>
+    const dropZone = document.getElementById("dropZone");
+    const editor = document.getElementById("editor");
+    const result = document.getElementById("result");
+
+    // ドラッグ＆ドロップ処理
+    dropZone.addEventListener("dragover", e => {
+      e.preventDefault();
+      dropZone.style.background = "#eef";
+    });
+    dropZone.addEventListener("dragleave", () => dropZone.style.background = "");
+    dropZone.addEventListener("drop", e => {
+      e.preventDefault();
+      dropZone.style.background = "";
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => displayWithLineNumbers(reader.result);
+        reader.readAsText(file);
+      }
+    });
+
+    // テキストエリアから読み込み
+    function loadFromTextarea() {
+      const text = document.getElementById("jsonInput").value;
+      displayWithLineNumbers(text);
+    }
+
+    // 行番号付き表示
+    function displayWithLineNumbers(text) {
+      editor.innerHTML = "";
+      const lines = text.split("\n");
+      lines.forEach((line, i) => {
+        const div = document.createElement("div");
+        div.className = "line";
+        const num = document.createElement("div");
+        num.className = "lineNumber";
+        num.textContent = i + 1;
+        const content = document.createElement("div");
+        content.className = "lineContent";
+        content.textContent = line;
+        div.appendChild(num);
+        div.appendChild(content);
+        editor.appendChild(div);
+      });
+    }
+
+    // JSON検証
+    function checkJSON() {
+      const text = Array.from(editor.querySelectorAll(".lineContent"))
+                        .map(div => div.textContent)
+                        .join("\n");
+      try {
+        JSON.parse(text);
+        result.textContent = "✅ 正しいJSONです";
+        result.className = "result success";
+      } catch (e) {
+        result.textContent = "❌ エラー: " + e.message;
+        result.className = "result error";
+      }
+    }
+  </script>
+</body>
+</html>
