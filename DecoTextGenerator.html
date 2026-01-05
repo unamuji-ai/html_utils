@@ -41,6 +41,8 @@
         <option value="semi_letter">濁点、半濁点</option>
         <option value="correction" selected>ノイズ(アルファベット用)</option>
         <option value="all">混合</option>
+				<option value="cuneiform">楔形文字(混入)</option>
+   			<option value="zalgo">深淵(Zalgo)</option>
       </select>
     </label>
     <label class="inline">濃さ
@@ -85,6 +87,9 @@
 	const SEMI_LETTER=["\u3099","\u309A"]
 	const CORRECTIONS=["\u0304","\u0305","\u0331","\u0307"]
   const SAFE_JAPANESE = ["\u0488","\u0489","\u3099","\u309A"]; // ҈ ҉ ゙ ゚
+	const CUNEIFORM = ["\u{12462}", "\u{1209D}", "\u{12152}", "\u{12031}"]; // 𒄆, 𒂝, 𒅒, 𒀱
+	const ZALGO_UP = ["\u030d", "\u030e", "\u0304", "\u0305", "\u033f", "\u0311", "\u0306", "\u0310", "\u0352", "\u0357", "\u0351"];
+	const ZALGO_DOWN = ["\u0316", "\u0317", "\u0318", "\u0319", "\u031c", "\u031d", "\u031e", "\u031f", "\u0320", "\u0324", "\u0330"];
 
   const inputEl = document.getElementById('input');
   const outputEl = document.getElementById('output');
@@ -140,6 +145,19 @@
 	        marks.push(m);
 	      }
 	      break;
+
+			case "cuneiform":
+			  // 文字の直後にランダムで楔形文字を1つ挿入する
+			  marks.push(pick(CUNEIFORM));
+			  break;
+
+			case "zalgo":
+			  // 上下に突き抜ける結合文字を密に配置する
+			  for (let i = 0; i < dens * 2; i++) {
+			    marks.push(pick(ZALGO_UP));
+			    marks.push(pick(ZALGO_DOWN));
+			  }
+			  break;
 
 	    default:
 	      return base;
