@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>Base64 ⇄ UTF-8 変換ツール</title>
+  <style>
+    body {
+      font-family: system-ui, sans-serif;
+      margin: 0;
+      padding: 16px;
+      background: #f5f5f5;
+    }
+    h1 {
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+    .container {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    textarea {
+      width: 100%;
+      height: 320px;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 12px;
+      padding: 8px;
+      box-sizing: border-box;
+      border-radius: 4px;
+      border: 1px solid #ccc;
+      resize: vertical;
+    }
+    .column {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    .label {
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+    .local-buttons {
+      margin-top: 6px;
+      display: flex;
+      gap: 8px;
+    }
+    #status {
+      font-size: 12px;
+      min-height: 18px;
+    }
+    #status.ok {
+      color: #2e7d32;
+    }
+    #status.error {
+      color: #c62828;
+      white-space: pre-wrap;
+    }
+    .drop-target {
+      border: 2px dashed #888;
+      border-radius: 6px;
+      padding: 10px;
+      text-align: center;
+      margin-bottom: 10px;
+      background: #fafafa;
+    }
+    .drop-target.dragover {
+      background: #e0f7fa;
+      border-color: #00796b;
+    }
+  </style>
+</head>
+<body>
+  <h1>Base64 ⇄ UTF-8 変換ツール</h1>
+
+  <div class="drop-target" id="dropZone">
+    ここに .txt / .b64 ファイルをドラッグ＆ドロップ
+  </div>
+
+  <div class="container">
+    <div class="column">
+      <div class="label">UTF-8 テキスト</div>
+      <textarea id="utf8Input" placeholder="ここに UTF-8 テキストを入力"></textarea>
+
+      <div class="local-buttons">
+        <button id="utf8ToBase64Btn">UTF-8 → Base64</button>
+        <button id="copyUtf8Btn">UTF-8 をコピー</button>
+      </div>
+    </div>
+
+    <div class="column">
+      <div class="label">Base64</div>
+      <textarea id="base64Input" placeholder="ここに Base64 を入力"></textarea>
+
+      <div class="local-buttons">
+        <button id="base64ToUtf8Btn">Base64 → UTF-8</button>
+        <button id="copyBase64Btn">Base64 をコピー</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="status"></div>
+
+  <script>
+    const utf8Input = document.getElementById('utf8Input');
+    const base64Input = document.getElementById('base64Input');
+    const statusEl = document.getElementById('status');
+    const dropZone = document.getElementById('dropZone');
+
+    function setStatusOk(msg) {
+      statusEl.className = 'ok';
+      statusEl.textContent = msg;
+    }
+    function setStatusError(msg) {
+      statusEl.className = 'error';
+      statusEl.textContent = msg;
+    }
+
+    // UTF-8 → Base64
+    document.getElementById('utf8ToBase64Btn').addEventListener('click', () => {
+      try {
+        const text = utf8Input.value;
+        const encoded = btoa(unescape(encodeURIComponent(text)));
+        base64Input.value = encoded;
+        setStatusOk('UTF-8 → Base64 変換成功');
+      } catch (e) {
+        setStatusError('変換エラー: ' + e.message);
+      }
+    });
+
+    // Base64 → UTF-8
+    document.getElementById('base64ToUtf8Btn').addEventListener('click', () => {
+      try {
+        const b64 = base64Input.value.trim();
+        const decoded = decodeURIComponent(escape(atob(b64)));
+        utf8Input.value = decoded;
+        setStatusOk('Base64 → UTF-8 変換成功');
+      } catch (e) {
+        setStatusError('Base64 デコードエラー: ' + e.message);
+      }
+    });
+
+    // コピー機能
+    document.getElementById('copyUtf8Btn').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(utf8Input.value);
+        setStatusOk('UTF-8 をコピーしました');
+      } catch (e) {
+        setStatusError('コピー失敗: ' + e.message);
+      }
+    });
+
+    document.getElementById('copyBase64Btn').addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(base64Input.value);
+        setStatusOk('Base64 をコピーしました');
+      } catch (e) {
+        setStatusError('コピー失敗: ' + e.message);
+      }
+    });
+
+    // ドラッグ＆ドロップ
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('dragover');
+    });
+
+    dropZone.addEventListener('dragleave', () => {
+      dropZone.classList.remove('dragover');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('dragover');
+
+      const file = e.dataTransfer.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = reader.result;
+
+        if (file.name.endsWith('.b64')) {
+          base64Input.value = text.trim();
+          setStatusOk(`Base64 ファイルを読み込みました: ${file.name}`);
+        } else if (file.name.endsWith('.txt')) {
+          utf8Input.value = text;
+          setStatusOk(`UTF-8 テキストを読み込みました: ${file.name}`);
+        } else {
+          setStatusError('対応しているのは .txt / .b64 のみです');
+        }
+      };
+      reader.readAsText(file);
+    });
+  </script>
+</body>
+</html>
