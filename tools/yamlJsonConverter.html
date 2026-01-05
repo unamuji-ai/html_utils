@@ -84,22 +84,27 @@
     ここに YAML / JSON ファイルをドラッグ＆ドロップ
   </div>
 
-  <div class="buttons">
-    <button id="yamlToJsonBtn">YAML → JSON</button>
-    <button id="jsonToYamlBtn">JSON → YAML</button>
-  </div>
+	<div class="container">
+	  <div class="column">
+	    <div class="label">YAML</div>
+	    <textarea id="yamlInput" placeholder="ここに YAML を書く"></textarea>
 
-  <div class="container">
-    <div class="column">
-      <div class="label">YAML</div>
-      <textarea id="yamlInput" placeholder="ここに YAML を書く"></textarea>
-    </div>
-    <div class="column">
-      <div class="label">JSON</div>
-      <textarea id="jsonInput" placeholder="ここに JSON を書く"></textarea>
-    </div>
-  </div>
+	    <div class="local-buttons">
+	      <button id="yamlToJsonBtn">YAML → JSON</button>
+	      <button id="copyYamlBtn">YAML をコピー</button>
+	    </div>
+	  </div>
 
+	  <div class="column">
+	    <div class="label">JSON</div>
+	    <textarea id="jsonInput" placeholder="ここに JSON を書く"></textarea>
+
+	    <div class="local-buttons">
+	      <button id="jsonToYamlBtn">JSON → YAML</button>
+	      <button id="copyJsonBtn">JSON をコピー</button>
+	    </div>
+	  </div>
+	</div>
   <div id="status"></div>
 
   <script>
@@ -187,6 +192,26 @@
       };
       reader.readAsText(file);
     });
+
+	  // YAML コピー
+	  document.getElementById('copyYamlBtn').addEventListener('click', async () => {
+	    try {
+	      await navigator.clipboard.writeText(yamlInput.value);
+	      setStatusOk('YAML をクリップボードにコピーしました');
+	    } catch (e) {
+	      setStatusError('コピーに失敗しました: ' + e.message);
+	    }
+	  });
+
+	  // JSON コピー
+	  document.getElementById('copyJsonBtn').addEventListener('click', async () => {
+	    try {
+	      await navigator.clipboard.writeText(jsonInput.value);
+	      setStatusOk('JSON をクリップボードにコピーしました');
+	    } catch (e) {
+	      setStatusError('コピーに失敗しました: ' + e.message);
+	    }
+	  });
   </script>
 </body>
 </html>
