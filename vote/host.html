@@ -128,11 +128,13 @@
 
 		//	セーフデリート
 		async function safeDelete(path, id) {
-		  const ref = doc(db, path, id);
-		  const snap = await getDoc(ref);
-		  if (snap.exists()) {
-		    await deleteDoc(ref);
-		  }
+
+			await(doc(db, path, id));
+//		  const ref = doc(db, path, id);
+//		  const snap = await getDoc(ref);
+//		  if (snap.exists()) {
+//		    await deleteDoc(ref);
+//		  }
 		}
 
 		//	ゲーム開始・QR表示
