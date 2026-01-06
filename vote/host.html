@@ -128,8 +128,9 @@
 
 		//	セーフデリート
 		async function safeDelete(path, id) {
+			await deleteDoc(doc(db, path, id));
 
-			await(doc(db, path, id));
+
 //		  const ref = doc(db, path, id);
 //		  const snap = await getDoc(ref);
 //		  if (snap.exists()) {
