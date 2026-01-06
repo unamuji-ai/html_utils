@@ -140,10 +140,6 @@
 		  const gameId = generateGameId();
 			saveGameId(gameId);
 
-			await setDoc(doc(db, "current", "reset"), { resetFlag: true });
-			await setDoc(doc(db, "current", "end"), { endFlag: true });
-
-
 			//	終了およびリセットを削除
 		  await safeDelete("current", "reset");
 		  await safeDelete("current", "end");
