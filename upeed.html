@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<style>
+  body { margin: 0; background: #222; color: white; font-family: sans-serif; overflow: hidden; }
+  .game-board { height: 100vh; display: flex; flex-direction: column; justify-content: space-between; padding: 20px 0; box-sizing: border-box; }
+  
+  /* カードの共通スタイル */
+  .card {
+    width: 60px; height: 90px; border-radius: 8px; border: 2px solid #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 24px; font-weight: bold; background: white; color: black;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: transform 0.2s;
+  }
+  .card.red { background: #ff4d4d; color: white; }
+  .card.blue { background: #4d94ff; color: white; }
+  .card.yellow { background: #ffd11a; color: black; }
+  .card.green { background: #2eb82e; color: white; }
+
+  /* プレイヤーエリア */
+  .player-area { display: flex; justify-content: center; gap: 10px; height: 100px; }
+  #player2 { transform: rotate(180deg); } /* 相手側は反転 */
+
+	/* もしくは、Player 2側の deck-info クラスに直接指定 */
+	#player2-container .deck-info {
+	  transform: rotate(180deg);
+	}
+
+  /* 中央の場 */
+  .field-area { display: flex; justify-content: center; gap: 20px; border: 1px dashed #555; padding: 20px; margin: 20px 0; }
+  .deck-info { font-size: 12px; text-align: center; color: #888; }
+
+	/* 6と9にアンダーバーを表示するためのクラス */
+	.underline {
+	  text-decoration: underline;
+	  text-underline-offset: 4px; /* 線と数字の間隔 */
+	  border-bottom: 3px solid currentColor; /* よりはっきりした線にする場合 */
+	  line-height: 0.8;
+	}
+
+	/* 中央の場のカードのうち、2番目（右側）をPlayer 2に向ける */
+	#field .card:nth-child(2) {
+	  transform: rotate(180deg);
+	}
+</style>
+</head>
+<body>
+
+<div class="game-board">
+	<div id="player2-container">
+	  <div id="player2" class="player-area"></div>
+	  <div class="deck-info" style="transform: rotate(180deg);">
+	    P2 Deck: <span id="p2-count">0</span>
+	  </div>
+	</div>
+
+	<div id="field-wrapper" style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+	  <div class="field-area" id="field" style="margin: 0;"></div>
+	  
+	  <div id="refresh-container" style="width: 50px;">
+	    <button id="refresh-btn" style="display: none; transform: rotate(90deg); white-space: nowrap; padding: 10px 15px; font-size: 14px; border-radius: 10px; border: 1px solid #888; background: #333; color: #fff; cursor: pointer; transform-origin: center;">
+	      REFRESH
+	    </button>
+	  </div>
+	</div>
+
+  <div>
+    <div class="deck-info">P1 Deck: <span id="p1-count">0</span></div>
+    <div id="player1" class="player-area"></div>
+  </div>
+</div>
+
+<script>
+const COLORS = ['red', 'blue', 'yellow', 'green'];
+const VALUES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+
+class Game {
+  constructor() {
+    this.deck = [];
+    this.player1 = { hand: [], open: [] };
+    this.player2 = { hand: [], open: [] };
+    this.field = [];
+    this.initGame();
+  }
+
+  initGame() {
+    this.deck = [];
+    COLORS.forEach(color => {
+      VALUES.forEach(value => {
+        this.deck.push({ color, value });
+      });
+    });
+    for (let i = this.deck.length - 1; i > 0; i--) {
+      const r = Math.floor(Math.random() * (i + 1));
+      [this.deck[i], this.deck[r]] = [this.deck[r], this.deck[i]];
+    }
+    this.deal();
+  }
+
+  deal() {
+    this.player1.hand = this.deck.slice(0, 20);
+    this.player2.hand = this.deck.slice(20, 40);
+    this.player1.open = this.player1.hand.splice(0, 4);
+    this.player2.open = this.player2.hand.splice(0, 4);
+    this.field.push(this.player1.hand.shift());
+    this.field.push(this.player2.hand.shift());
+  }
+}
+
+class GameUI extends Game {
+	constructor() {
+    super();
+    // ★フラグを確実に初期化
+    this.p1Forced = false;
+    this.p2Forced = false;
+    
+    this.updateUI();
+    document.getElementById('refresh-btn').onclick = () => this.handleRefresh();
+  }
+  // ★重要：追加（判定ロジック）
+  canPlay(myCard, fieldCard) {
+    if (!myCard || !fieldCard) return false;
+    return (myCard.value === fieldCard.value) || 
+           (myCard.color === fieldCard.color && myCard.value > fieldCard.value);
+  }
+
+	addDragListeners(el, playerNum, index) {
+    let isDragging = false;
+    let dragClone = null;
+    let startX, startY;
+
+    // ハンドラを関数として定義
+    const onMove = (e) => {
+      if (!isDragging || !dragClone) return;
+      // スマホのスクロールを防止
+      if (e.cancelable) e.preventDefault();
+      
+      const clientX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
+      const clientY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+
+      dragClone.style.left = (clientX - startX) + 'px';
+      dragClone.style.top = (clientY - startY) + 'px';
+    };
+
+    const onEnd = (e) => {
+      if (!isDragging) return;
+      isDragging = false;
+      
+      const clientX = (e.changedTouches ? e.changedTouches[0].clientX : e.clientX);
+      const clientY = (e.changedTouches ? e.changedTouches[0].clientY : e.clientY);
+
+      this.checkDrop(clientX, clientY, playerNum, index);
+
+      if (dragClone) {
+        dragClone.remove();
+        dragClone = null;
+      }
+      el.style.opacity = "1";
+
+      // イベントリスナーを解除（windowを汚さないため）
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onEnd);
+      window.removeEventListener('touchmove', onMove);
+      window.removeEventListener('touchend', onEnd);
+
+      this.updateUI(); 
+    };
+
+		const onStart = (e) => {
+      if (e.touches && e.touches.length > 1) return;
+
+      isDragging = true;
+      const clientX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
+      const clientY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+      
+      const rect = el.getBoundingClientRect();
+      startX = clientX - rect.left;
+      startY = clientY - rect.top;
+
+      dragClone = el.cloneNode(true);
+      dragClone.style.position = 'fixed';
+      dragClone.style.left = rect.left + 'px';
+      dragClone.style.top = rect.top + 'px';
+      dragClone.style.width = rect.width + 'px';
+      dragClone.style.height = rect.height + 'px';
+      dragClone.style.zIndex = "1000";
+      dragClone.style.pointerEvents = "none";
+      dragClone.style.opacity = "0.8";
+
+      // ★ここがポイント：Player 2(上側)のカードなら180度回転させたままにする
+      if (playerNum === 2) {
+        dragClone.style.transform = "rotate(180deg)";
+      } else {
+        dragClone.style.transform = "rotate(0deg)";
+      }
+
+      document.body.appendChild(dragClone);
+      el.style.opacity = "0.3";
+
+      window.addEventListener('mousemove', onMove, { passive: false });
+      window.addEventListener('mouseup', onEnd);
+      window.addEventListener('touchmove', onMove, { passive: false });
+      window.addEventListener('touchend', onEnd);
+    };
+    // 要素自体にはstartイベントのみ登録
+    el.addEventListener('mousedown', onStart);
+    el.addEventListener('touchstart', onStart, { passive: false });
+  }
+
+  checkDrop(x, y, playerNum, index) {
+    const fieldElements = document.querySelectorAll('.field-card');
+    fieldElements.forEach((fieldEl, fIndex) => {
+      const rect = fieldEl.getBoundingClientRect();
+      if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+        this.playCard(playerNum, index, fIndex);
+      }
+    });
+  }
+
+  checkWin(playerNum) {
+    const player = (playerNum === 1) ? this.player1 : this.player2;
+    if (player.open.length === 0 && player.hand.length === 0) {
+      setTimeout(() => {
+        alert(`プレイヤー ${playerNum} の勝利です！`);
+        location.reload();
+      }, 100);
+    }
+  }
+
+	createCardElement(card, playerNum, index, isField = false) {
+    const div = document.createElement('div');
+    div.className = `card ${card.color} ${isField ? 'field-card' : ''}`;
+    
+    // 数字を表示する要素を作成
+    const span = document.createElement('span');
+    span.textContent = card.value;
+    
+    // 6または9の場合にアンダーバー用クラスを付与
+    if (card.value === 6 || card.value === 9) {
+      span.className = 'underline';
+    }
+    
+    div.appendChild(span);
+    
+    if (!isField) {
+      this.addDragListeners(div, playerNum, index);
+    }
+    return div;
+  }
+
+	// 強制モードの判定を含めた playCard
+  playCard(playerNum, openIndex, targetFieldIndex) {
+    const player = (playerNum === 1) ? this.player1 : this.player2;
+    const isMyForcedMode = (playerNum === 1) ? this.p1Forced : this.p2Forced;
+    
+    const myCard = player.open[openIndex];
+    const targetFieldCard = this.field[targetFieldIndex];
+
+    // 「通常のルールに合致」または「自分が強制モード中」なら受理
+    if (isMyForcedMode || this.canPlay(myCard, targetFieldCard)) {
+      this.field[targetFieldIndex] = myCard;
+
+      if (player.hand.length > 0) {
+        player.open[openIndex] = player.hand.shift();
+      } else {
+        player.open.splice(openIndex, 1);
+      }
+
+      // 自分の強制モードを解除
+      if (playerNum === 1) this.p1Forced = false;
+      if (playerNum === 2) this.p2Forced = false;
+
+      // 両方の強制モードが終了したらボタンの色を戻す
+      if (!this.p1Forced && !this.p2Forced) {
+        document.getElementById('refresh-btn').style.background = "#333";
+      }
+
+      this.checkWin(playerNum);
+      this.updateUI();
+    } else {
+      console.log("出せません。通常ルールに合致しないか、強制モードではありません。");
+    }
+  }
+
+  handleRefresh() {
+    let msg = "";
+
+    // P1の処理
+    if (this.player1.hand.length > 0) {
+      this.field[0] = this.player1.hand.shift();
+      this.p1Forced = false;
+      msg += "P1: 手札から補充しました。\n";
+    } else {
+      this.p1Forced = true;
+      msg += "P1: 手札なし。好きなカードを出せます。\n";
+    }
+
+    // P2の処理
+    if (this.player2.hand.length > 0) {
+      this.field[1] = this.player2.hand.shift();
+      this.p2Forced = false;
+      msg += "P2: 手札から補充しました。\n";
+    } else {
+      this.p2Forced = true;
+      msg += "P2: 手札なし。好きなカードを出せます。\n";
+    }
+
+    if (this.p1Forced || this.p2Forced) {
+      document.getElementById('refresh-btn').style.background = "#ff4d4d";
+    }
+    
+    alert(msg);
+    this.updateUI();
+  }
+
+  // checkStalemateもフラグを考慮
+  checkStalemate() {
+    // どちらかが「好きなの選べるモード」ならボタンは出したままにする
+    if (this.p1Forced || this.p2Forced) {
+      document.getElementById('refresh-btn').style.display = 'block';
+      return;
+    }
+
+    const p1CanPlay = this.player1.open.some(card => 
+      this.canPlay(card, this.field[0]) || this.canPlay(card, this.field[1])
+    );
+    const p2CanPlay = this.player2.open.some(card => 
+      this.canPlay(card, this.field[0]) || this.canPlay(card, this.field[1])
+    );
+
+    const refreshBtn = document.getElementById('refresh-btn');
+    refreshBtn.style.display = (!p1CanPlay && !p2CanPlay) ? 'block' : 'none';
+  }
+
+
+  updateUI() {
+    const p1Area = document.getElementById('player1');
+    const p2Area = document.getElementById('player2');
+    const fieldArea = document.getElementById('field');
+
+    p1Area.innerHTML = '';
+    p2Area.innerHTML = '';
+    fieldArea.innerHTML = '';
+
+    this.player1.open.forEach((c, i) => p1Area.appendChild(this.createCardElement(c, 1, i)));
+    this.player2.open.forEach((c, i) => p2Area.appendChild(this.createCardElement(c, 2, i)));
+    this.field.forEach(c => fieldArea.appendChild(this.createCardElement(c, 0, 0, true)));
+    
+    document.getElementById('p1-count').textContent = this.player1.hand.length;
+    document.getElementById('p2-count').textContent = this.player2.hand.length;
+
+		// ★再描画のたびに、詰んでいないかチェック
+    this.checkStalemate();
+  }
+}
+
+const game = new GameUI();
+</script>
