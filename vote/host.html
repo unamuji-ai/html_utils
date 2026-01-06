@@ -142,7 +142,10 @@
 		  });
 
 			// guest.html のURLを生成
-			const url = `guest.html?gameId=${gameId}`;
+			const baseUrl = `${location.origin}${location.pathname.replace(/\/[^\/]*$/, '/')}`;
+
+			// guest.html の絶対URLを生成
+			const url = `${baseUrl}guest.html?gameId=${gameId}`;
 
 		  // QRコード生成（例: QRCode.jsを利用）
 		  const gameInfoDiv = document.getElementById("gameInfo");
