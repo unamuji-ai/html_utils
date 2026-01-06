@@ -4,69 +4,136 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <style>
-  body { margin: 0; background: #222; color: white; font-family: sans-serif; overflow: hidden; }
-  .game-board { height: 100vh; display: flex; flex-direction: column; justify-content: space-between; padding: 20px 0; box-sizing: border-box; }
-  
-  /* カードの共通スタイル */
-  .card {
-    width: 60px; height: 90px; border-radius: 8px; border: 2px solid #fff;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 24px; font-weight: bold; background: white; color: black;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.3); transition: transform 0.2s;
+  /* 画面全体の固定 */
+  body { 
+    margin: 0; 
+    background: #222; 
+    color: white; 
+    font-family: sans-serif; 
+    overflow: hidden; 
+    position: fixed; 
+    width: 100%; 
+    height: 100%; 
   }
+
+  /* ゲーム盤全体を100%に収める */
+  .game-board { 
+    height: 100vh; 
+    display: flex; 
+    flex-direction: column; 
+    justify-content: space-between; 
+    padding: 10px 0; 
+    box-sizing: border-box; 
+  }
+
+  /* カードのレスポンシブ化 */
+  .card {
+    /* 画面幅に応じてサイズを決定（5枚並んでも余裕があるサイズ） */
+    width: 15vw; 
+    max-width: 65px; 
+    height: 22.5vw; 
+    max-height: 95px;
+    
+    border-radius: 8px; 
+    border: 1.5px solid #fff;
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center;
+    font-size: 5vw; /* 数字も画面幅に比例 */
+    font-weight: bold; 
+    background: white; 
+    color: black;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3); 
+    transition: transform 0.2s;
+    user-select: none;
+  }
+
+  /* 各エリアの調整 */
+  .player-area { 
+    display: flex; 
+    justify-content: center; 
+    gap: 2vw; 
+    height: 25vw; /* カードの高さに合わせる */
+    max-height: 100px;
+  }
+
+  #player2 { transform: rotate(180deg); }
+
+  /* 中央の場とリフレッシュボタンのコンテナ */
+  #field-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3vw;
+  }
+
+  .field-area { 
+    display: flex; 
+    justify-content: center; 
+    gap: 3vw; 
+    border: 1px dashed #555; 
+    padding: 10px; 
+    background: rgba(255,255,255,0.05);
+    border-radius: 10px;
+  }
+
+  /* 枚数表示 */
+  .deck-info { 
+    font-size: 12px; 
+    text-align: center; 
+    color: #888; 
+    margin: 5px 0;
+  }
+
+  /* カードの色 */
   .card.red { background: #ff4d4d; color: white; }
   .card.blue { background: #4d94ff; color: white; }
   .card.yellow { background: #ffd11a; color: black; }
   .card.green { background: #2eb82e; color: white; }
 
-  /* プレイヤーエリア */
-  .player-area { display: flex; justify-content: center; gap: 10px; height: 100px; }
-  #player2 { transform: rotate(180deg); } /* 相手側は反転 */
+  /* アンダーバー */
+  .underline {
+    border-bottom: 3px solid currentColor;
+    line-height: 0.9;
+    display: inline-block;
+  }
 
-	/* もしくは、Player 2側の deck-info クラスに直接指定 */
-	#player2-container .deck-info {
-	  transform: rotate(180deg);
-	}
+  /* P2側のカードを逆さにする */
+  #field .card:nth-child(2) {
+    transform: rotate(180deg);
+  }
 
-  /* 中央の場 */
-  .field-area { display: flex; justify-content: center; gap: 20px; border: 1px dashed #555; padding: 20px; margin: 20px 0; }
-  .deck-info { font-size: 12px; text-align: center; color: #888; }
-
-	/* 6と9にアンダーバーを表示するためのクラス */
-	.underline {
-	  text-decoration: underline;
-	  text-underline-offset: 4px; /* 線と数字の間隔 */
-	  border-bottom: 3px solid currentColor; /* よりはっきりした線にする場合 */
-	  line-height: 0.8;
-	}
-
-	/* 中央の場のカードのうち、2番目（右側）をPlayer 2に向ける */
-	#field .card:nth-child(2) {
-	  transform: rotate(180deg);
-	}
-</style>
-</head>
+  /* リフレッシュボタンのスタイル（横向き） */
+  #refresh-btn {
+    display: none;
+    transform: rotate(90deg);
+    white-space: nowrap;
+    padding: 8px 15px;
+    font-size: 12px;
+    border-radius: 5px;
+    border: 1px solid #fff;
+    background: #444;
+    color: #fff;
+    cursor: pointer;
+  }
+</style></head>
 <body>
 
 <div class="game-board">
-	<div id="player2-container">
-	  <div id="player2" class="player-area"></div>
-	  <div class="deck-info" style="transform: rotate(180deg);">
-	    P2 Deck: <span id="p2-count">0</span>
-	  </div>
-	</div>
+  <div id="p2-side">
+    <div id="player2" class="player-area"></div>
+    <div class="deck-info" style="transform: rotate(180deg);">P2 Deck: <span id="p2-count">0</span></div>
+  </div>
 
-	<div id="field-wrapper" style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-	  <div class="field-area" id="field" style="margin: 0;"></div>
-	  
-	  <div id="refresh-container" style="width: 50px;">
-	    <button id="refresh-btn" style="display: none; transform: rotate(90deg); white-space: nowrap; padding: 10px 15px; font-size: 14px; border-radius: 10px; border: 1px solid #888; background: #333; color: #fff; cursor: pointer; transform-origin: center;">
-	      REFRESH
-	    </button>
-	  </div>
-	</div>
+  <div id="field-wrapper" style="display: flex; align-items: center; justify-content: center;">
+    <div class="field-area" id="field"></div>
+    <div id="refresh-container">
+      <button id="refresh-btn">REFRESH</button>
+    </div>
+  </div>
 
-  <div>
+  <div id="p1-side">
     <div class="deck-info">P1 Deck: <span id="p1-count">0</span></div>
     <div id="player1" class="player-area"></div>
   </div>
@@ -169,41 +236,46 @@ class GameUI extends Game {
     };
 
 		const onStart = (e) => {
-      if (e.touches && e.touches.length > 1) return;
+	    // 複数指のタッチは無視
+	    if (e.touches && e.touches.length > 1) return;
 
-      isDragging = true;
-      const clientX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
-      const clientY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
-      
-      const rect = el.getBoundingClientRect();
-      startX = clientX - rect.left;
-      startY = clientY - rect.top;
+	    // ★重要：クリックした「その瞬間」に、そのカードの位置を取得する
+	    const rect = el.getBoundingClientRect(); 
+	    
+	    isDragging = true;
+	    const clientX = e.clientX || (e.touches ? e.touches[0].clientX : 0);
+	    const clientY = e.clientY || (e.touches ? e.touches[0].clientY : 0);
+	    
+	    // 指の位置とカードの左上端との距離を計算
+	    startX = clientX - rect.left;
+	    startY = clientY - rect.top;
 
-      dragClone = el.cloneNode(true);
-      dragClone.style.position = 'fixed';
-      dragClone.style.left = rect.left + 'px';
-      dragClone.style.top = rect.top + 'px';
-      dragClone.style.width = rect.width + 'px';
-      dragClone.style.height = rect.height + 'px';
-      dragClone.style.zIndex = "1000";
-      dragClone.style.pointerEvents = "none";
-      dragClone.style.opacity = "0.8";
+	    // クローン（身代わり）を作成
+	    dragClone = el.cloneNode(true);
+	    dragClone.style.position = 'fixed';
+	    dragClone.style.left = rect.left + 'px';
+	    dragClone.style.top = rect.top + 'px';
+	    dragClone.style.width = rect.width + 'px';
+	    dragClone.style.height = rect.height + 'px';
+	    dragClone.style.zIndex = "1000";
+	    dragClone.style.pointerEvents = "none";
+	    dragClone.style.opacity = "0.8";
 
-      // ★ここがポイント：Player 2(上側)のカードなら180度回転させたままにする
-      if (playerNum === 2) {
-        dragClone.style.transform = "rotate(180deg)";
-      } else {
-        dragClone.style.transform = "rotate(0deg)";
-      }
+	    // Player 2側のカードなら逆さまを維持
+	    if (playerNum === 2) {
+	      dragClone.style.transform = "rotate(180deg)";
+	    } else {
+	      dragClone.style.transform = "rotate(0deg)";
+	    }
 
-      document.body.appendChild(dragClone);
-      el.style.opacity = "0.3";
+	    document.body.appendChild(dragClone);
+	    el.style.opacity = "0.3";
 
-      window.addEventListener('mousemove', onMove, { passive: false });
-      window.addEventListener('mouseup', onEnd);
-      window.addEventListener('touchmove', onMove, { passive: false });
-      window.addEventListener('touchend', onEnd);
-    };
+	    window.addEventListener('mousemove', onMove, { passive: false });
+	    window.addEventListener('mouseup', onEnd);
+	    window.addEventListener('touchmove', onMove, { passive: false });
+	    window.addEventListener('touchend', onEnd);
+	  };
     // 要素自体にはstartイベントのみ登録
     el.addEventListener('mousedown', onStart);
     el.addEventListener('touchstart', onStart, { passive: false });
