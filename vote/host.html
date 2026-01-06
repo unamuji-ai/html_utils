@@ -126,14 +126,23 @@
 		  }
 		}
 
+		//	セーフデリート
+		async function safeDelete(path, id) {
+		  const ref = doc(db, path, id);
+		  const snap = await getDoc(ref);
+		  if (snap.exists()) {
+		    await deleteDoc(ref);
+		  }
+		}
+
 		//	ゲーム開始・QR表示
 		document.getElementById("startGameBtn").onclick = async () => {
 		  const gameId = generateGameId();
 			saveGameId(gameId);
 
 			//	終了およびリセットを削除
-		  await deleteDoc(doc(db, "current", "reset"));
-		  await deleteDoc(doc(db, "current", "end"));
+		  await safeDelete("current", "reset");
+		  await safeDelete("current", "end");
 
 		  // Firestoreにゲーム情報を保存
 		  await setDoc(doc(db, "games", gameId), {
@@ -164,19 +173,19 @@
 
 		  // questionsHistory を削除
 		  const qSnap = await getDocs(collection(db, "questionsHistory"));
-		  const qDeletes = qSnap.docs.map(d => deleteDoc(doc(db, "questionsHistory", d.id)));
+		  const qDeletes = qSnap.docs.map(d => safeDelete("questionsHistory", d.id));
 		  await Promise.all(qDeletes);
 
 		  // votes を削除
 		  const vSnap = await getDocs(collection(db, "votes"));
-		  const vDeletes = vSnap.docs.map(d => deleteDoc(doc(db, "votes", d.id)));
+		  const vDeletes = vSnap.docs.map(d => safeDelete("votes", d.id));
 		  await Promise.all(vDeletes);
 
 		  // current/question を削除
-		  await deleteDoc(doc(db, "current", "question"));
+		  await safeDelete("current", "question");
 
 		  // current/category を削除
-		  await deleteDoc(doc(db, "current", "category"));
+		  await safeDelete("current", "category");
 		}
 
 		// リセットボタン
@@ -192,7 +201,7 @@
 
 		  // games コレクションの全ドキュメントを削除
 		  const gSnap = await getDocs(collection(db, "games"));
-		  const gDeletes = gSnap.docs.map(d => deleteDoc(doc(db, "games", d.id)));
+		  const gDeletes = gSnap.docs.map(d => safeDelete("games", d.id));
 		  await Promise.all(gDeletes);
 
 		  // 終了フラグを立てる（参加者側が監視して強制終了）
