@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hybrid P2P Debugger</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <style>
+        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 15px; }
+        .box { background: #2a2a2a; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #444; }
+        #status { color: #ffd11a; font-weight: bold; font-size: 1.2em; }
+        #v-wrapper { position: relative; width: 100%; max-width: 320px; margin: 10px auto; display: none; }
+        video { width: 100%; border-radius: 8px; border: 2px solid #555; }
+        #qrcode { background: white; padding: 15px; display: inline-block; margin: 15px auto; border-radius: 8px; }
+        textarea { width: 90%; height: 60px; margin-top: 10px; background: #000; color: #0f0; border: 1px solid #555; font-family: monospace; font-size: 10px; }
+        .btn { padding: 12px 20px; font-size: 14px; margin: 8px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .host-btn { background: #e63946; color: white; }
+        .guest-btn { background: #457b9d; color: white; }
+        .sub-btn { background: #a8dadc; color: #1d3557; }
+        #qr-canvas { display: none; }
+        .debug-area { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #555; }
+    </style>
+</head>
+<body>
+
+    <h2>P2P Hybrid Connector</h2>
+    <div class="box">
+        Status: <span id="status">Ready</span>
+    </div>
+
+    <div id="setup-ui">
+        <button class="btn host-btn" onclick="initP2P(true)">1. HOSTとして開始</button>
+        <button class="btn guest-btn" onclick="initP2P(false)">2. GUESTとして開始</button>
+    </div>
+
+    <div id="p2p-ui" style="display:none;">
+        <div id="qr-display-area">
+            <p id="qr-label" style="font-weight:bold;"></p>
+            <div id="qrcode"></div>
+            
+            <div class="debug-area">
+                <p style="font-size:12px; margin-bottom:5px;">[Debug] 手動コピペ用コード:</p>
+                <textarea id="localSdpText" readonly onclick="this.select()"></textarea>
+                <button class="btn sub-btn" onclick="copyToClipboard()">コードをコピー</button>
+            </div>
+        </div>
+
+        <div class="box" style="margin-top:20px;">
+            <p>相手のコードをスキャンまたは入力:</p>
+            <button class="btn" id="scan-start-btn" onclick="startScan()">カメラを起動してスキャン</button>
+            
+            <div id="v-wrapper">
+                <video id="video" playsinline></video>
+                <canvas id="qr-canvas"></canvas>
+                <button class="btn" onclick="stopScan()" style="background:#555; color:white;">スキャン中止</button>
+            </div>
+
+            <div class="debug-area">
+                <textarea id="remoteSdpText" placeholder="相手のコードをここにペースト"></textarea>
+                <button class="btn sub-btn" onclick="handleManualInput()">手動で適用して次へ</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    let pc;
+    let dataChannel;
+    let isHost = false;
+    const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+
+    async function initP2P(hostMode) {
+        isHost = hostMode;
+        document.getElementById('setup-ui').style.display = 'none';
+        document.getElementById('p2p-ui').style.display = 'block';
+        document.getElementById('qr-label').innerText = isHost ? "【STEP 1】このQRをゲストに見せてください" : "【STEP 2】ホストをスキャン後、このQRを見せてください";
+        
+        pc = new RTCPeerConnection(config);
+
+        if (isHost) {
+            dataChannel = pc.createDataChannel("gameChannel");
+            setupDataEvents();
+            const offer = await pc.createOffer();
+            await pc.setLocalDescription(offer);
+            pc.onicecandidate = e => {
+                if (!e.candidate) displayMySdp(pc.localDescription);
+            };
+        } else {
+            pc.ondatachannel = e => {
+                dataChannel = e.channel;
+                setupDataEvents();
+            };
+            document.getElementById('qr-display-area').style.opacity = "0.3"; // 最初は非表示に近い状態
+        }
+    }
+
+    // SDP（接続情報）を表示（QRとテキスト両方）
+    function displayMySdp(sdp) {
+        const sdpString = btoa(JSON.stringify(sdp));
+        // QRコード生成
+        document.getElementById('qrcode').innerHTML = "";
+        new QRCode(document.getElementById("qrcode"), {
+            text: sdpString,
+            width: 200,
+            height: 200,
+            correctLevel : QRCode.CorrectLevel.L
+        });
+        // テキストエリアにもセット
+        document.getElementById('localSdpText').value = sdpString;
+        document.getElementById('qr-display-area').style.opacity = "1";
+    }
+
+    // 手動入力の処理
+    function handleManualInput() {
+        const val = document.getElementById('remoteSdpText').value;
+        if (val) handleScannedCode(val);
+    }
+
+    async function handleScannedCode(data) {
+        try {
+            const remoteDesc = new RTCSessionDescription(JSON.parse(atob(data)));
+            await pc.setRemoteDescription(remoteDesc);
+            
+            if (!isHost && !pc.localDescription) {
+                const answer = await pc.createAnswer();
+                await pc.setLocalDescription(answer);
+                pc.onicecandidate = e => {
+                    if (!e.candidate) displayMySdp(pc.localDescription);
+                };
+            } else if (isHost) {
+                document.getElementById('status').innerText = "Connecting...";
+            }
+        } catch (e) {
+            alert("コードが正しくありません");
+        }
+    }
+
+    // --- カメラ・スキャンロジック ---
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("qr-canvas");
+    const ctx = canvas.getContext("2d");
+    let scanReq;
+
+    async function startScan() {
+        document.getElementById('v-wrapper').style.display = 'block';
+        document.getElementById('scan-start-btn').style.display = 'none';
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+        video.srcObject = stream;
+        video.setAttribute("playsinline", true);
+        video.play();
+        scanReq = requestAnimationFrame(tick);
+    }
+
+    function stopScan() {
+        if (video.srcObject) {
+            video.srcObject.getTracks().forEach(track => track.stop());
+        }
+        document.getElementById('v-wrapper').style.display = 'none';
+        document.getElementById('scan-start-btn').style.display = 'inline-block';
+        cancelAnimationFrame(scanReq);
+    }
+
+    function tick() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+            canvas.height = video.videoHeight;
+            canvas.width = video.videoWidth;
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const code = jsQR(imageData.data, imageData.width, imageData.height);
+            if (code) {
+                stopScan();
+                handleScannedCode(code.data);
+                return;
+            }
+        }
+        scanReq = requestAnimationFrame(tick);
+    }
+
+    function setupDataEvents() {
+        dataChannel.onopen = () => {
+            document.getElementById('status').innerText = "CONNECTED!";
+            document.getElementById('status').style.color = "#0f0";
+            // 接続完了後、少し待ってからアラート（デバッグ用）
+            setTimeout(() => dataChannel.send(JSON.stringify({msg: "Hi!"})), 500);
+        };
+        dataChannel.onmessage = e => {
+            const data = JSON.parse(e.data);
+            console.log("Data Received:", data);
+            document.getElementById('status').innerText = "Received: " + JSON.stringify(data);
+        };
+    }
+
+    function copyToClipboard() {
+        const copyText = document.getElementById("localSdpText");
+        copyText.select();
+        document.execCommand("copy");
+        alert("コードをコピーしました");
+    }
+</script>
+</body>
+</html>
