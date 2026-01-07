@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Speed - Color Fix</title>
+  <title>Speed - Final Version</title>
   <style>
     html, body {
       margin: 0; padding: 0; width: 100%; height: 100%;
@@ -33,12 +33,7 @@
       z-index: 10; cursor: grab; position: relative;
     }
     
-    /* グレーアウト設定 */
-    .card.stuck { 
-      filter: grayscale(100%) brightness(0.6); 
-      opacity: 0.7; 
-    }
-
+    .card.stuck { filter: grayscale(100%) brightness(0.6); opacity: 0.7; }
     .card.dragging { position: fixed !important; z-index: 99999 !important; cursor: grabbing; pointer-events: none; margin: 0 !important; }
     .card.red { background: #ff4d4d; color: white; }
     .card.blue { background: #4d94ff; color: white; }
@@ -51,8 +46,15 @@
     #field .card:nth-child(2) { transform: rotate(180deg); }
     
     .deck-info { font-size: 12px; color: #888; margin-top: 5px; font-weight: bold; }
-    #status-msg { position: absolute; width: 100%; text-align: center; top: -35px; color: #ffd11a; font-weight: bold; font-size: 16px; }
-    #refresh-btn { display: none; position: absolute; right: 5%; padding: 15px 10px; background: #444; color: white; border: 2px solid #fff; border-radius: 5px; font-weight: bold; cursor: pointer; transform: rotate(90deg); z-index: 100; }
+    #status-msg { position: absolute; width: 100%; text-align: center; top: -35px; color: #ffd11a; font-weight: bold; font-size: 16px; z-index: 200; }
+    
+    .action-btn {
+      display: none; position: absolute; right: 5%; 
+      padding: 15px 10px; background: #444; color: white; 
+      border: 2px solid #fff; border-radius: 5px; font-weight: bold; 
+      cursor: pointer; transform: rotate(90deg); z-index: 100;
+    }
+    #new-game-btn { background: #ff4d4d; top: 40%; transform: rotate(0deg); right: auto; left: 50%; transform: translate(-50%, -50%); padding: 20px 40px; font-size: 20px; }
   </style>
 </head>
 <body>
@@ -65,7 +67,8 @@
 
   <div id="field-wrapper">
     <div id="status-msg"></div>
-    <button id="refresh-btn" onclick="game.startRefreshProcess()">REFRESH</button>
+    <button id="refresh-btn" class="action-btn" onclick="game.startRefreshProcess()">REFRESH</button>
+    <button id="new-game-btn" class="action-btn" onclick="game.startNewGame()">NEW GAME</button>
     <div class="field-area" id="field"></div>
   </div>
 
@@ -81,12 +84,20 @@ class SpeedGame {
     this.colors = ['red', 'blue', 'yellow', 'green'];
     this.activePointers = new Map();
     this.isLocked = false;
+    this.isGameOver = false;
     this.waitingForP1 = false;
     this.waitingForP2 = false;
     this.startNewGame();
   }
 
   startNewGame() {
+    this.isGameOver = false;
+    this.isLocked = false;
+    this.waitingForP1 = false;
+    this.waitingForP2 = false;
+    document.getElementById('new-game-btn').style.display = 'none';
+    document.getElementById('status-msg').textContent = "";
+
     let masterDeck = [];
     this.colors.forEach(color => {
       for (let i = 0; i <= 9; i++) masterDeck.push({ color, num: i });
@@ -109,7 +120,7 @@ class SpeedGame {
     this.renderField();
     document.getElementById('p1-count').textContent = this.p1Deck.length;
     document.getElementById('p2-count').textContent = this.p2Deck.length;
-    this.checkStalemate();
+    if (!this.isGameOver) this.checkStalemate();
   }
 
   renderPlayer(id, cards) {
@@ -132,13 +143,8 @@ class SpeedGame {
       const el = this.createCardEl(card);
       el.id = `target-${idx}`;
       
-      // 基本ルール: ロック中やスタルメイト時はグレー
       let shouldGray = (this.isLocked || document.getElementById('refresh-btn').style.display === 'block');
-      
-      // 特殊ルール: すでに補充されたカード(colorFixed)はグレーにしない
-      if (card.colorFixed) {
-        shouldGray = false;
-      }
+      if (card.colorFixed || this.isGameOver) shouldGray = false;
 
       if (shouldGray) el.classList.add('stuck');
       area.appendChild(el);
@@ -157,6 +163,8 @@ class SpeedGame {
 
   makeDraggable(el) {
     el.addEventListener('pointerdown', (e) => {
+      if (this.isGameOver) return; // ゲーム終了後は何もしない
+      
       const owner = el.dataset.owner;
       if (this.isLocked) {
         if (!((owner === 'player1' && this.waitingForP1) || (owner === 'player2' && this.waitingForP2))) return;
@@ -206,7 +214,7 @@ class SpeedGame {
   }
 
   checkStalemate() {
-    if (this.isLocked) return; 
+    if (this.isLocked || this.isGameOver) return; 
     const p1Valid = this.player1Open.filter(c => c !== null);
     const p2Valid = this.player2Open.filter(c => c !== null);
     const anyPlayable = [...p1Valid, ...p2Valid].some(card => 
@@ -232,15 +240,8 @@ class SpeedGame {
     const p1HasDeck = this.p1Deck.length > 0;
     const p2HasDeck = this.p2Deck.length > 0;
 
-    // 自動補充（山札がある場合）
-    if (p1HasDeck) {
-      this.field[0] = this.p1Deck.pop();
-      this.field[0].colorFixed = true; // 自動補充分も即座に色をつける
-    }
-    if (p2HasDeck) {
-      this.field[1] = this.p2Deck.pop();
-      this.field[1].colorFixed = true;
-    }
+    if (p1HasDeck) { this.field[0] = this.p1Deck.pop(); this.field[0].colorFixed = true; }
+    if (p2HasDeck) { this.field[1] = this.p2Deck.pop(); this.field[1].colorFixed = true; }
 
     this.waitingForP1 = !p1HasDeck;
     this.waitingForP2 = !p2HasDeck;
@@ -249,16 +250,13 @@ class SpeedGame {
       msg.textContent = "READY...";
       setTimeout(() => this.finishRefresh(), 1000);
     } else {
-      let notice = "";
-      if (this.waitingForP1 && this.waitingForP2) notice = "BOTH PLAYERS: CHOOSE A CARD";
-      else if (this.waitingForP1) notice = "P1: CHOOSE A CARD";
-      else notice = "P2: CHOOSE A CARD";
-      msg.textContent = notice;
+      msg.textContent = (this.waitingForP1 && this.waitingForP2) ? "BOTH PLAYERS: CHOOSE A CARD" : (this.waitingForP1 ? "P1: CHOOSE A CARD" : "P2: CHOOSE A CARD");
       this.updateUI();
     }
   }
 
   finishRefresh() {
+    if (this.isGameOver) return;
     const msg = document.getElementById('status-msg');
     msg.textContent = "GO!";
     setTimeout(() => {
@@ -266,13 +264,12 @@ class SpeedGame {
       this.waitingForP1 = false;
       this.waitingForP2 = false;
       msg.textContent = "";
-      // 全ての色の固定フラグを解除して通常描画へ
       this.field.forEach(c => delete c.colorFixed);
       this.updateUI();
     }, 600);
   }
 
-	handleDrop(el, dropX, dropY, originalParent) {
+  handleDrop(el, dropX, dropY, originalParent) {
     const owner = el.dataset.owner;
     const idx = parseInt(el.dataset.index);
     const openCards = (owner === 'player1') ? this.player1Open : this.player2Open;
@@ -283,32 +280,20 @@ class SpeedGame {
       const rect = targetEl.getBoundingClientRect();
 
       if (dropX >= rect.left && dropX <= rect.right && dropY >= rect.top && dropY <= rect.bottom) {
-        
-        // --- 補充モードの修正 ---
         if ((owner === 'player1' && this.waitingForP1) || (owner === 'player2' && this.waitingForP2)) {
-          
-          // ★ 追加：すでにこのスロットが「補充済み(colorFixed)」なら置かせない
-          if (this.field[i].colorFixed) {
-            continue; 
-          }
-
-          cardData.colorFixed = true; 
+          if (this.field[i].colorFixed) continue; 
+          cardData.colorFixed = true; // 色を固定
           this.field[i] = cardData;
-          
           if (owner === 'player1') this.waitingForP1 = false;
           if (owner === 'player2') this.waitingForP2 = false;
           this.refillHand(owner, idx);
-          
-          if (!this.waitingForP1 && !this.waitingForP2) {
-            this.finishRefresh();
-          } else {
+          if (!this.waitingForP1 && !this.waitingForP2) this.finishRefresh();
+          else {
             document.getElementById('status-msg').textContent = "WAITING FOR OTHER...";
             this.updateUI(); 
           }
           return;
         } 
-        
-        // --- 通常モード ---
         else if (!this.isLocked && this.canPlay(cardData, this.field[i])) {
           this.field[i] = cardData;
           this.refillHand(owner, idx);
@@ -325,7 +310,15 @@ class SpeedGame {
     const open = (player === 'player1') ? this.player1Open : this.player2Open;
     if (deck.length > 0) open[idx] = deck.pop();
     else open[idx] = null;
-    if (open.every(c => c === null)) setTimeout(() => alert(player.toUpperCase() + " WIN!"), 100);
+    
+    if (open.every(c => c === null)) {
+      this.isGameOver = true;
+      const msg = document.getElementById('status-msg');
+      msg.textContent = player.toUpperCase() + " WIN!";
+      document.getElementById('new-game-btn').style.display = 'block';
+      document.getElementById('refresh-btn').style.display = 'none';
+      this.renderField(); // 最後のカードの色を確定させる
+    }
   }
 }
 const game = new SpeedGame();
