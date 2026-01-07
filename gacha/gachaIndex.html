@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Gacha Math Hub</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --primary: #38bdf8;
+            --accent-single: #fbbf24;
+            --accent-partial: #a855f7;
+            --accent-complete: #f43f5e;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100dvh;
+        }
+
+        .hub-container {
+            width: 90%;
+            max-width: 450px;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin: 0;
+            background: linear-gradient(135deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-top: 5px;
+        }
+
+        .tool-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .tool-card {
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 18px;
+            text-decoration: none;
+            color: inherit;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: all 0.2s ease;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .tool-card:active { transform: scale(0.97); background: #243347; }
+
+        .icon {
+            font-size: 2rem;
+            min-width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.03);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 12px;
+        }
+
+        .tool-info h2 { margin: 0; font-size: 1.1rem; }
+        .tool-info p { margin: 4px 0 0; font-size: 0.75rem; color: var(--text-dim); line-height: 1.4; }
+
+        /* カラーバリエーション */
+        .single h2 { color: var(--accent-single); }
+        .partial h2 { color: var(--accent-partial); }
+        .complete h2 { color: var(--accent-complete); }
+    </style>
+</head>
+<body>
+
+<div class="hub-container">
+    <header>
+        <h1>PROBABILITY LAB</h1>
+        <p class="subtitle">ガチャの期待値とコンプ率の計算</p>
+    </header>
+
+    <div class="tool-list">
+        <a href="gachaRatio00.html" class="tool-card single">
+            <div class="icon">🎯</div>
+            <div class="tool-info">
+                <h2>1点狙い計算</h2>
+                <p>出現率R%のアイテムを1つ以上引く基本の確率を算出します。</p>
+            </div>
+        </a>
+
+        <a href="gachaRatio01.html" class="tool-card complete">
+            <div class="icon">💎</div>
+            <div class="tool-info">
+                <h2>全種類コンプ計算</h2>
+                <p>全V種類をすべて揃えるための確率と平均回数を算出します。</p>
+            </div>
+        </a>
+
+        <a href="gachaRatio02.html" class="tool-card partial">
+            <div class="icon">📦</div>
+            <div class="tool-info">
+                <h2>V種中 M種 収集計算</h2>
+                <p>全V種の中から「特定のM種だけ」をコンプしたい時の確率です。</p>
+            </div>
+        </a>
+
+    </div>
+</div>
+
+</body>
+</html>

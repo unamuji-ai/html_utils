@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ガチャ確率計算機</title>
+    <style>
+        body { background: #222; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .calc-card { background: #333; padding: 25px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.5); width: 300px; text-align: center; }
+        h2 { margin-top: 0; font-size: 1.2rem; color: #4d94ff; }
+        .input-group { margin: 15px 0; text-align: left; }
+        label { display: block; font-size: 0.8rem; color: #888; margin-bottom: 5px; }
+        input { width: 100%; padding: 10px; border-radius: 5px; border: none; background: #444; color: #fff; font-size: 1rem; box-sizing: border-box; }
+        .result-area { margin-top: 25px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 10px; }
+        .result-val { font-size: 2rem; font-weight: bold; color: #ffd11a; }
+        .result-unit { font-size: 1rem; color: #ffd11a; margin-left: 5px; }
+    </style>
+</head>
+<body>
+
+<div class="calc-card">
+    <h2>出現確率R%をT回まわしたときのガチャ当選確率</h2>
+    
+    <div class="input-group">
+        <label>出現率 R (%)</label>
+        <input type="number" id="rate" value="1.0" step="0.1" oninput="calculate()">
+    </div>
+
+    <div class="input-group">
+        <label>試行回数 T (回)</label>
+        <input type="number" id="trials" value="30" oninput="calculate()">
+    </div>
+
+    <div class="result-area">
+        <label>1回以上当たる確率</label>
+        <div id="result" class="result-val">63.40</div><span class="result-unit">%</span>
+    </div>
+</div>
+
+<script>
+function calculate() {
+    const R = parseFloat(document.getElementById('rate').value);
+    const T = parseInt(document.getElementById('trials').value);
+    const resDiv = document.getElementById('result');
+
+    if (isNaN(R) || isNaN(T) || R <= 0 || T <= 0) {
+        resDiv.textContent = "0.00";
+        return;
+    }
+
+    // 計算式: 1 - (ハズレ確率)^試行回数
+    const loseRate = 1 - (R / 100);
+    const probAtLeastOne = 1 - Math.pow(loseRate, T);
+    
+    // 結果をパーセント表示（小数点第2位まで）
+    resDiv.textContent = (probAtLeastOne * 100).toFixed(2);
+}
+
+// 初期実行
+calculate();
+</script>
+
+</body>
+</html>
