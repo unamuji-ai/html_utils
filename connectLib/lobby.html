@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hybrid P2P Debugger</title>
+    <title>P2P Game Lobby</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 15px; }
+        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 15px; overflow-x: hidden; }
         .box { background: #2a2a2a; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #444; }
         #status { color: #ffd11a; font-weight: bold; font-size: 1.2em; }
         #v-wrapper { position: relative; width: 100%; max-width: 320px; margin: 10px auto; display: none; }
@@ -19,98 +19,87 @@
         .guest-btn { background: #457b9d; color: white; }
         .sub-btn { background: #a8dadc; color: #1d3557; }
         #qr-canvas { display: none; }
-        .debug-area { margin-top: 15px; padding-top: 15px; border-top: 1px dashed #555; }
+        /* ゲーム画面用iframe */
+        #game-frame {
+            display: none; width: 100%; height: 80vh; border: none; margin-top: 10px; border-radius: 12px; background: #fff;
+        }
+        .lobby-ui { max-width: 500px; margin: 0 auto; }
     </style>
 </head>
 <body>
 
-    <h2>P2P Hybrid Connector</h2>
-    <div class="box">
-        Status: <span id="status">Ready</span>
-    </div>
-
-    <div id="setup-ui">
-        <button class="btn host-btn" onclick="initP2P(true)">1. HOSTとして開始</button>
-        <button class="btn guest-btn" onclick="initP2P(false)">2. GUESTとして開始</button>
-    </div>
-
-    <div id="p2p-ui" style="display:none;">
-        <div id="qr-display-area">
-            <p id="qr-label" style="font-weight:bold;"></p>
-            <div id="qrcode"></div>
-            
-            <div class="debug-area">
-                <p style="font-size:12px; margin-bottom:5px;">[Debug] 手動コピペ用コード:</p>
-                <textarea id="localSdpText" readonly onclick="this.select()"></textarea>
-                <button class="btn sub-btn" onclick="copyToClipboard()">コードをコピー</button>
-            </div>
+    <h2>P2P Game Lobby</h2>
+    
+    <div class="lobby-ui" id="lobby-ui">
+        <div class="box">
+            Status: <span id="status">Ready</span>
         </div>
 
-        <div class="box" style="margin-top:20px;">
-            <p>相手のコードをスキャンまたは入力:</p>
-            <button class="btn" id="scan-start-btn" onclick="startScan()">カメラを起動してスキャン</button>
-            
-            <div id="v-wrapper">
-                <video id="video" playsinline></video>
-                <canvas id="qr-canvas"></canvas>
-                <button class="btn" onclick="stopScan()" style="background:#555; color:white;">スキャン中止</button>
+        <div id="setup-ui">
+            <button class="btn host-btn" onclick="initP2P(true)">1. HOSTとして開始</button>
+            <button class="btn guest-btn" onclick="initP2P(false)">2. GUESTとして開始</button>
+        </div>
+
+        <div id="p2p-ui" style="display:none;">
+            <div id="qr-display-area">
+                <p id="qr-label" style="font-weight:bold; font-size: 14px;"></p>
+                <div id="qrcode"></div>
+                <div style="margin-top:10px;">
+                    <textarea id="localSdpText" readonly onclick="this.select()"></textarea>
+                    <button class="btn sub-btn" onclick="copyToClipboard()">自分のコードをコピー</button>
+                </div>
             </div>
 
-            <div class="debug-area">
-                <textarea id="remoteSdpText" placeholder="相手のコードをここにペースト"></textarea>
+            <div class="box" style="margin-top:20px;">
+                <p style="font-size: 14px;">相手のコードをスキャンまたは入力:</p>
+                <button class="btn" id="scan-start-btn" onclick="startScan()">カメラでスキャン</button>
+                <div id="v-wrapper">
+                    <video id="video" playsinline></video>
+                    <canvas id="qr-canvas"></canvas>
+                    <button class="btn" onclick="stopScan()" style="background:#555; color:white;">中止</button>
+                </div>
+                <textarea id="remoteSdpText" placeholder="相手のコードをペースト"></textarea>
                 <button class="btn sub-btn" onclick="handleManualInput()">手動で適用して次へ</button>
             </div>
         </div>
     </div>
+
+    <iframe id="game-frame"></iframe>
 
 <script>
     let pc;
     let dataChannel;
     let isHost = false;
     const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+    const gameFrame = document.getElementById('game-frame');
 
     async function initP2P(hostMode) {
         isHost = hostMode;
         document.getElementById('setup-ui').style.display = 'none';
         document.getElementById('p2p-ui').style.display = 'block';
-        document.getElementById('qr-label').innerText = isHost ? "【STEP 1】このQRをゲストに見せてください" : "【STEP 2】ホストをスキャン後、このQRを見せてください";
+        document.getElementById('qr-label').innerText = isHost ? "【STEP 1】このQRをゲストに見せてください" : "【STEP 2】ホストスキャン後にこれを見せてください";
         
         pc = new RTCPeerConnection(config);
-
         if (isHost) {
             dataChannel = pc.createDataChannel("gameChannel");
             setupDataEvents();
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-            pc.onicecandidate = e => {
-                if (!e.candidate) displayMySdp(pc.localDescription);
-            };
+            pc.onicecandidate = e => { if (!e.candidate) displayMySdp(pc.localDescription); };
         } else {
-            pc.ondatachannel = e => {
-                dataChannel = e.channel;
-                setupDataEvents();
-            };
-            document.getElementById('qr-display-area').style.opacity = "0.3"; // 最初は非表示に近い状態
+            pc.ondatachannel = e => { dataChannel = e.channel; setupDataEvents(); };
+            document.getElementById('qr-display-area').style.opacity = "0.3";
         }
     }
 
-    // SDP（接続情報）を表示（QRとテキスト両方）
     function displayMySdp(sdp) {
         const sdpString = btoa(JSON.stringify(sdp));
-        // QRコード生成
         document.getElementById('qrcode').innerHTML = "";
-        new QRCode(document.getElementById("qrcode"), {
-            text: sdpString,
-            width: 200,
-            height: 200,
-            correctLevel : QRCode.CorrectLevel.L
-        });
-        // テキストエリアにもセット
+        new QRCode(document.getElementById("qrcode"), { text: sdpString, width: 200, height: 200, correctLevel : QRCode.CorrectLevel.L });
         document.getElementById('localSdpText').value = sdpString;
         document.getElementById('qr-display-area').style.opacity = "1";
     }
 
-    // 手動入力の処理
     function handleManualInput() {
         const val = document.getElementById('remoteSdpText').value;
         if (val) handleScannedCode(val);
@@ -120,27 +109,46 @@
         try {
             const remoteDesc = new RTCSessionDescription(JSON.parse(atob(data)));
             await pc.setRemoteDescription(remoteDesc);
-            
             if (!isHost && !pc.localDescription) {
                 const answer = await pc.createAnswer();
                 await pc.setLocalDescription(answer);
-                pc.onicecandidate = e => {
-                    if (!e.candidate) displayMySdp(pc.localDescription);
-                };
+                pc.onicecandidate = e => { if (!e.candidate) displayMySdp(pc.localDescription); };
             } else if (isHost) {
                 document.getElementById('status').innerText = "Connecting...";
             }
-        } catch (e) {
-            alert("コードが正しくありません");
-        }
+        } catch (e) { alert("コードが正しくありません"); }
     }
 
-    // --- カメラ・スキャンロジック ---
+    // --- 中継ロジック ---
+    function setupDataEvents() {
+        dataChannel.onopen = () => {
+            document.getElementById('status').innerText = "CONNECTED!";
+            document.getElementById('lobby-ui').style.display = "none"; // ロビーUIを隠す
+            
+            // ゲーム画面をロード (ホスト情報をクエリで渡す)
+            gameFrame.src = "hitnblow.html?role=" + (isHost ? "host" : "guest");
+            gameFrame.style.display = "block";
+        };
+
+        // 1. 相手からのデータをiframeへ転送
+        dataChannel.onmessage = e => {
+            const data = JSON.parse(e.data);
+            gameFrame.contentWindow.postMessage(data, "*");
+        };
+    }
+
+    // 2. iframe(ゲーム)から「送って」と言われたデータを相手へ送信
+    window.addEventListener("message", (e) => {
+        if (dataChannel && dataChannel.readyState === "open") {
+            dataChannel.send(JSON.stringify(e.data));
+        }
+    });
+
+    // --- カメラロジック (変更なし) ---
     const video = document.getElementById("video");
     const canvas = document.getElementById("qr-canvas");
     const ctx = canvas.getContext("2d");
     let scanReq;
-
     async function startScan() {
         document.getElementById('v-wrapper').style.display = 'block';
         document.getElementById('scan-start-btn').style.display = 'none';
@@ -150,51 +158,26 @@
         video.play();
         scanReq = requestAnimationFrame(tick);
     }
-
     function stopScan() {
-        if (video.srcObject) {
-            video.srcObject.getTracks().forEach(track => track.stop());
-        }
+        if (video.srcObject) video.srcObject.getTracks().forEach(track => track.stop());
         document.getElementById('v-wrapper').style.display = 'none';
         document.getElementById('scan-start-btn').style.display = 'inline-block';
         cancelAnimationFrame(scanReq);
     }
-
     function tick() {
         if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            canvas.height = video.videoHeight;
-            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight; canvas.width = video.videoWidth;
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
             const code = jsQR(imageData.data, imageData.width, imageData.height);
-            if (code) {
-                stopScan();
-                handleScannedCode(code.data);
-                return;
-            }
+            if (code) { stopScan(); handleScannedCode(code.data); return; }
         }
         scanReq = requestAnimationFrame(tick);
     }
-
-    function setupDataEvents() {
-        dataChannel.onopen = () => {
-            document.getElementById('status').innerText = "CONNECTED!";
-            document.getElementById('status').style.color = "#0f0";
-            // 接続完了後、少し待ってからアラート（デバッグ用）
-            setTimeout(() => dataChannel.send(JSON.stringify({msg: "Hi!"})), 500);
-        };
-        dataChannel.onmessage = e => {
-            const data = JSON.parse(e.data);
-            console.log("Data Received:", data);
-            document.getElementById('status').innerText = "Received: " + JSON.stringify(data);
-        };
-    }
-
     function copyToClipboard() {
         const copyText = document.getElementById("localSdpText");
         copyText.select();
         document.execCommand("copy");
-        alert("コードをコピーしました");
     }
 </script>
 </body>

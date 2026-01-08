@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hit & Blow Online - Pro</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f9; margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); padding: 20px; width: 100%; max-width: 350px; text-align: center; }
+        .status-bar { font-weight: bold; padding: 8px; margin-bottom: 15px; border-radius: 5px; width: 100%; transition: 0.3s; }
+        .my-turn { background: #e63946; color: white; }
+        .waiting { background: #ddd; color: #666; }
+        .finished { background: #1d3557; color: white; }
+        
+        input[type="number"] { font-size: 24px; width: 140px; padding: 10px; text-align: center; border: 2px solid #ccc; border-radius: 8px; margin: 10px 0; }
+        .error-msg { color: #e63946; font-size: 12px; height: 18px; font-weight: bold; }
+        
+        .btn { background: #1d3557; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+        .restart-btn { background: #2a9d8f; margin-top: 20px; display: none; }
+
+        .logs-container { display: flex; gap: 10px; margin-top: 20px; width: 100%; }
+        .log-box { flex: 1; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; height: 200px; overflow-y: auto; font-size: 13px; text-align: left; }
+        .log-title { font-weight: bold; font-size: 11px; color: #777; margin-bottom: 5px; border-bottom: 1px solid #eee; }
+        .log-item { margin-bottom: 4px; border-bottom: 1px dashed #eee; padding-bottom: 2px; }
+
+    </style>
+</head>
+<body>
+
+<div class="card">
+    <div id="status" class="status-bar waiting">接続中...</div>
+
+    <div id="setup-ui">
+        <p>相手に当てる4桁の数字を決めてください</p>
+        <div class="error-msg" id="setup-error"></div>
+        <input type="number" id="secretInput" placeholder="1234" oninput="validateInput('secretInput', 'setup-error', 'confirmBtn')">
+        <br>
+        <button id="confirmBtn" class="btn" onclick="confirmSecret()" disabled>決定</button>
+    </div>
+
+    <div id="game-ui" style="display:none;">
+        <div id="input-area">
+            <p id="instruction">相手の数字を予想してください</p>
+            <div class="error-msg" id="guess-error"></div>
+						<div id="skill-memo" style="display: flex; justify-content: center; gap: 5px; width: 100%; max-width: 200px; height: 45px; margin: 10px auto; font-family: 'Courier New', monospace; font-weight: bold;">
+						    <div id="memo-pos-0" style="flex: 1; border: 2px solid #2a9d8f; border-radius: 4px; background: #f0fdfa; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; color: #2a9d8f;"></div>
+						    <div id="memo-pos-1" style="flex: 1; border: 2px solid #2a9d8f; border-radius: 4px; background: #f0fdfa; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; color: #2a9d8f;"></div>
+						    <div id="memo-pos-2" style="flex: 1; border: 2px solid #2a9d8f; border-radius: 4px; background: #f0fdfa; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; color: #2a9d8f;"></div>
+						    <div id="memo-pos-3" style="flex: 1; border: 2px solid #2a9d8f; border-radius: 4px; background: #f0fdfa; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; color: #2a9d8f;"></div>
+						</div>
+
+						<div style="display: flex; flex-direction: column; align-items: center;">
+								<input type="number" id="guessInput" placeholder="????" oninput="validateInput('guessInput', 'guess-error', 'guessBtn')" style="margin-top: 5px; letter-spacing: 8px; padding-left: 20px;">
+						</div>
+
+            <br>
+            <button id="guessBtn" class="btn" onclick="onGuessSubmit()" disabled>予想を送信</button>
+        </div>
+
+        <div class="logs-container">
+            <div class="log-box">
+                <div class="log-title">相手の予想 (自分)</div>
+                <div id="my-defend-log"></div>
+            </div>
+            <div class="log-box">
+                <div class="log-title">自分の予想 (相手)</div>
+                <div id="my-attack-log"></div>
+            </div>
+        </div>
+
+				<div id="sp-container" style="width: 100%; margin-bottom: 10px; display: none;">
+				    <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px;">
+				        <span>Skill Points</span>
+				        <span id="sp-value">0 / 10</span>
+				    </div>
+				    <div style="width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden;">
+				        <div id="sp-bar" style="width: 0%; height: 100%; background: #2a9d8f; transition: 0.3s;"></div>
+				    </div>
+				</div>
+
+				<div id="skill-area" style="margin-top: 15px;">
+				    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+				        <button id="skill-0" class="btn skill-btn" onclick="useSkill(0)" disabled style="font-size: 12px; padding: 8px;">Skill 1</button>
+				        <button id="skill-1" class="btn skill-btn" onclick="useSkill(1)" disabled style="font-size: 12px; padding: 8px;">Skill 2</button>
+				        <button id="skill-2" class="btn skill-btn" onclick="useSkill(2)" disabled style="font-size: 12px; padding: 8px;">Skill 3</button>
+				        <button id="skill-3" class="btn skill-btn" onclick="useSkill(3)" disabled style="font-size: 12px; padding: 8px;">Skill 4</button>
+				    </div>
+				</div>
+
+        <button id="restartBtn" class="btn restart-btn" onclick="requestRestart()">もう一度対戦する</button>
+    </div>
+</div>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const role = params.get('role');
+    
+    let mySecret = "";
+    let isMyTurn = false;
+    let opponentReady = false;
+    let opponentWantsRestart = false;
+
+		let mySP = 0;
+		const MAX_SP = 10;
+		let skillStock = []; // ストックされたスキルの種類を保存 ['HL', 'OE', ...]
+		let revealedInfo = {
+		    HL: [false, false, false, false], // 各桁の Hi/Lo 判明フラグ
+		    OE: [false, false, false, false]  // 各桁の Odd/Even 判明フラグ
+		};
+		// 追加：自分の過去の予想を保存する配列
+		let attackHistory = [];
+		let revealedPositions = []; // 正解が判明した桁
+
+
+		// メッセージ受信部にスキル関係を追加
+		window.addEventListener("message", (e) => {
+		    const data = e.data;
+		    if (data.type === "READY") {
+		        opponentReady = true;
+		        checkStart();
+		    } else if (data.type === "GUESS") {
+		        handleOpponentGuess(data.value);
+		    } else if (data.type === "RESULT") {
+		        handleResult(data);
+		    } else if (data.type === "RESTART") {
+		        opponentWantsRestart = true;
+		        checkRestart();
+		    } else if (data.type === "SKILL_REQ") {
+		        handleSkillRequest(data);
+		    } else if (data.type === "SKILL_RES") {
+		        updateSkillMemo(data);
+		    }
+		});
+
+
+		// --- 入力バリデーション (4桁判定 ＋ 既出チェック) ---
+		function validateInput(inputId, errorId, btnId) {
+		    const val = document.getElementById(inputId).value;
+		    const errorEl = document.getElementById(errorId);
+		    const inputEl = document.getElementById(inputId);
+		    const btn = document.getElementById(btnId);
+		    
+		    // 初期状態
+		    errorEl.innerText = "";
+		    inputEl.style.borderColor = "#ccc";
+		    btn.disabled = true;
+
+		    if (val.length !== 4) {
+		        if (val.length > 0) errorEl.innerText = "4桁で入力してください";
+		        return;
+		    }
+
+		    // 既出チェック（予想入力時のみ）
+		    if (inputId === 'guessInput') {
+		        if (attackHistory.includes(val)) {
+		            errorEl.innerText = "警告：この数字は既に入力済みです！";
+		            errorEl.style.color = "#ff9800"; // 警告色はオレンジ
+		            inputEl.style.borderColor = "#ff9800";
+		            // 送信自体は禁止しない（あえてもう一度送りたい場合もあるため）
+		            if (isMyTurn) btn.disabled = false;
+		            return;
+		        }
+		    }
+
+		    // 正常時
+		    if (inputId === 'guessInput') {
+		        if (isMyTurn) btn.disabled = false;
+		    } else {
+		        btn.disabled = false; // 設定画面用
+		    }
+		}
+
+		// 1. 数字決定時にSPゲージを表示させる
+		function confirmSecret() {
+		    mySecret = document.getElementById('secretInput').value;
+		    document.getElementById('setup-ui').style.display = 'none';
+		    document.getElementById('game-ui').style.display = 'block';
+		    
+		    // ここでSPゲージを表示！
+		    document.getElementById('sp-container').style.display = 'block'; 
+		    
+		    updateStatus("相手の準備を待っています...");
+		    send({ type: "READY" });
+		    checkStart();
+		    updateSPUI(); // 初期表示更新
+		}
+
+		function checkStart() {
+		    if (mySecret && opponentReady) {
+		        // ホスト（先にURLを開いた側）が先攻、ゲストが後攻
+		        if (role === "host") {
+		            setTurn(true);
+		        } else {
+		            setTurn(false);
+		        }
+		    }
+		}
+
+		// 予想送信時に履歴に追加
+		function onGuessSubmit() {
+		    const val = document.getElementById('guessInput').value;
+		    if (val.length !== 4) return;
+		    
+		    attackHistory.push(val);
+		    send({ type: "GUESS", value: val });
+		    
+		    document.getElementById('guessInput').value = "";
+		    
+		    // 送信直後に即座にターンを終了させる
+		    setTurn(false);
+		}
+
+    function handleOpponentGuess(guessValue) {
+        let hit = 0, blow = 0;
+        const gArr = guessValue.split("");
+        const sArr = mySecret.split("");
+        for (let i = 0; i < 4; i++) {
+            if (gArr[i] === sArr[i]) hit++;
+            else if (sArr.includes(gArr[i])) blow++;
+        }
+        const isWin = (hit === 4);
+        addLog("my-defend-log", `${guessValue} : ${hit}H ${blow}B`);
+        send({ type: "RESULT", value: guessValue, hit, blow, win: isWin });
+
+        if (isWin) {
+            endGame("あなたの負けです...");
+        } else {
+            setTurn(true);
+        }
+    }
+
+		// 3. 判定結果(RESULT)が届いた時にSPを加算する
+		function handleResult(data) {
+		    addLog("my-attack-log", `${data.value} : ${data.hit}H ${data.blow}B`);
+		    
+		    // SP計算
+		    const hitPenalty = parseInt(data.hit) * 2;
+		    const blowPenalty = parseInt(data.blow) * 1;
+		    const earnedSP = 8 - hitPenalty - blowPenalty;
+		    
+		    if (earnedSP > 0) {
+		        addSP(earnedSP); // ここで10pt超えたらスキルに変換される
+		    }
+
+		    if (data.win) {
+		        endGame("あなたの勝ち！");
+		    } else {
+		        // 勝ちでないなら、自分にターンを戻す
+		        // これによって setTurn(true) 内の updateSPUI が実行され、
+		        // 溜まったばかりのスキルが「使える状態（緑）」になります
+		        setTurn(false); 
+		    }
+		}
+
+		// 4. ターン切り替え時にもボタン状態を更新
+		function setTurn(myTurn) {
+		    isMyTurn = myTurn;
+		    const btn = document.getElementById('guessBtn');
+		    const status = document.getElementById('status');
+		    const input = document.getElementById('guessInput');
+		    
+		    if (myTurn) {
+		        status.innerText = "あなたのターン";
+		        status.className = "status-bar my-turn";
+		        // 自分のターンになった時だけバリデーションしてボタンを活性化
+		        validateInput('guessInput', 'guess-error', 'guessBtn');
+		    } else {
+		        // 相手のターンの時は強制的にボタンを無効化
+		        btn.disabled = true;
+		        status.innerText = "相手のターン...";
+		        status.className = "status-bar waiting";
+		    }
+		    
+		    // スキルボタンなどの表示も現在のターン状態に合わせて更新
+		    updateSPUI(); 
+		}
+
+    function endGame(msg) {
+        updateStatus(msg);
+        document.getElementById('status').className = "status-bar finished";
+        document.getElementById('input-area').style.opacity = "0.5";
+        document.getElementById('guessBtn').disabled = true;
+        document.getElementById('restartBtn').style.display = "inline-block";
+    }
+
+		// 1. SP加算と自動スキルの分岐
+		function addSP(amount) {
+		    if (revealedPositions.length >= 4) return;
+
+		    mySP += amount;
+
+		    // SPが10以上に達した時のループ処理（一気に20溜まった場合なども考慮）
+		    while (mySP >= MAX_SP) {
+		        if (skillStock.length >= 4) {
+		            // 【究極スキル発動】ストック4 ＋ ゲージ10到達
+		            let available = [0, 1, 2, 3].filter(p => !revealedPositions.includes(p));
+		            if (available.length > 0) {
+		                const chosenPos = available[Math.floor(Math.random() * available.length)];
+		                send({ type: "SKILL_REQ", skillType: 'FULL', pos: chosenPos });
+		                
+		                skillStock = []; // ストック全消費
+		                mySP = 0;        // 究極スキルは例外的にゲージも0にする（繰り越しなしの強力な技として設定）
+		                addLog("my-attack-log", "🔥究極スキル発動！全SPを捧げて正解を1桁解読！");
+		            } else {
+		                mySP = MAX_SP;
+		            }
+		            break; // 究極スキル発動後はループ終了
+		        } else {
+		            // 【通常ルール】ストックを1つ増やし、10だけ消費（繰り越し）
+		            const newSkill = Math.random() > 0.5 ? 'HL' : 'OE';
+		            skillStock.push(newSkill);
+		            mySP -= MAX_SP; // 10だけ引いて余りは残す
+		            addLog("my-attack-log", `🎁スキル獲得: ${newSkill === 'HL' ? 'Hi/Lo' : 'Odd/Even'}`);
+		        }
+		    }
+		    updateSPUI();
+		}
+
+		// 2. UI更新 (スキルストックの表示)
+		function updateSPUI() {
+		    const percent = Math.min((mySP / MAX_SP) * 100, 100);
+		    const barEl = document.getElementById('sp-bar');
+		    const valEl = document.getElementById('sp-value');
+		    if (barEl) barEl.style.width = percent + "%";
+		    if (valEl) valEl.innerText = `${Math.floor(mySP)} / ${MAX_SP}`;
+
+		    for (let i = 0; i < 4; i++) {
+		        const btn = document.getElementById(`skill-${i}`);
+		        if (!btn) continue;
+
+		        if (skillStock && skillStock[i]) {
+		            const typeName = skillStock[i] === 'HL' ? "Hi / Low" : "Odd / Even";
+		            btn.innerText = typeName;
+		            
+		            if (isMyTurn) {
+		                // 有効時：緑背景に白文字
+		                btn.disabled = false;
+		                btn.style.background = "#2a9d8f";
+		                btn.style.color = "#ffffff"; // 文字色を白に
+		                btn.style.fontWeight = "bold";
+		                btn.style.cursor = "pointer";
+		                btn.style.boxShadow = "0 2px 4px rgba(0,0,0,0.2)";
+		            } else {
+		                // 相手のターン：グレー背景
+		                btn.disabled = true;
+		                btn.style.background = "#ccc";
+		                btn.style.color = "#888"; // 文字色を薄く
+		                btn.style.fontWeight = "normal";
+		                btn.style.cursor = "not-allowed";
+		                btn.style.boxShadow = "none";
+		            }
+		        } else {
+		            // 空きスロット
+		            btn.innerText = "(空き)";
+		            btn.disabled = true;
+		            btn.style.background = "#eee";
+		            btn.style.color = "#bbb";
+		            btn.style.fontWeight = "normal";
+		            btn.style.boxShadow = "none";
+		        }
+		    }
+		}
+
+		// 3. スキル使用処理 (ランダムな桁を選択)
+		function useSkill(index) {
+		    if (!isMyTurn || !skillStock[index]) return;
+
+		    const type = skillStock[index]; // 'HL' か 'OE'
+		    
+		    // まだ「正解(FULL)」がわかっておらず、かつ「その種類の情報」が出ていない桁を探す
+		    let targetPos = [];
+		    for (let i = 0; i < 4; i++) {
+		        const isFullRevealed = revealedPositions.includes(i);
+		        const isTypeRevealed = (type === 'HL' ? revealedInfo.HL[i] : revealedInfo.OE[i]);
+		        
+		        if (!isFullRevealed && !isTypeRevealed) {
+		            targetPos.push(i);
+		        }
+		    }
+
+		    // もし全ての桁でその情報が判明済みなら、適当な未解読の桁に送る（無駄撃ち回避）
+		    if (targetPos.length === 0) {
+		        targetPos = [0, 1, 2, 3].filter(p => !revealedPositions.includes(p));
+		    }
+
+		    if (targetPos.length === 0) return; // 全桁正解済みなら何もしない
+
+		    const chosenPos = targetPos[Math.floor(Math.random() * targetPos.length)];
+		    
+		    send({ type: "SKILL_REQ", skillType: type, pos: chosenPos });
+		    skillStock.splice(index, 1);
+		    updateSPUI();
+		}
+
+		// 4. 相手側での回答生成
+		function handleSkillRequest(data) {
+		    const sArr = mySecret.split("").map(Number);
+		    const val = sArr[data.pos];
+
+		    if (data.skillType === 'FULL') {
+		        // 1桁の正解そのものを返す
+		        send({ type: "SKILL_RES", resType: 'FULL', pos: data.pos, value: val });
+		    } else {
+		        // 従来のHi/Lo または Odd/Even
+		        let mark = "";
+		        if (data.skillType === 'HL') mark = val >= 5 ? "Hi↑" : "Lo↓";
+		        else mark = val % 2 === 0 ? "Evn" : "Odd";
+		        send({ type: "SKILL_RES", resType: 'PARTIAL', pos: data.pos, mark: mark });
+		    }
+		}
+
+		// 5. 自分の画面にマークを反映
+		function updateSkillMemo(data) {
+		    const memoEl = document.getElementById(`memo-pos-${data.pos}`);
+		    if (!memoEl) return;
+
+		    if (data.resType === 'FULL') {
+		        memoEl.innerText = data.value;
+		        memoEl.style.fontSize = "24px";
+		        memoEl.style.color = "#e63946";
+		        memoEl.style.background = "#fff1f2";
+		        memoEl.style.borderColor = "#e63946";
+		        if (!revealedPositions.includes(data.pos)) revealedPositions.push(data.pos);
+		    } else {
+		        // --- 判明フラグを更新 ---
+		        if (data.mark.includes("Hi") || data.mark.includes("Lo")) revealedInfo.HL[data.pos] = true;
+		        if (data.mark.includes("Odd") || data.mark.includes("Evn")) revealedInfo.OE[data.pos] = true;
+
+		        // --- 重複表示の防止とデザイン調整 ---
+		        let currentHTML = memoEl.innerHTML;
+		        if (!currentHTML.includes(data.mark)) {
+		            const newDiv = document.createElement('div');
+		            newDiv.innerText = data.mark;
+		            newDiv.style.fontSize = "10px";
+		            newDiv.style.lineHeight = "1.1";
+		            
+		            // 初めての情報なら中身をクリアして追加
+		            if (memoEl.innerText === "" || memoEl.innerText === "?") {
+		                memoEl.innerHTML = "";
+		            } else {
+		                newDiv.style.borderTop = "1px solid #eee";
+		                newDiv.style.marginTop = "2px";
+		            }
+		            memoEl.appendChild(newDiv);
+		        }
+		    }
+		    updateSPUI();
+		}
+
+    // --- リスタート処理 ---
+    function requestRestart() {
+        send({ type: "RESTART" });
+        document.getElementById('restartBtn').disabled = true;
+        document.getElementById('restartBtn').innerText = "相手の同意待ち...";
+        checkRestart();
+    }
+
+    function checkRestart() {
+        // 自分もボタンを押している（disabledになっている）かつ相手もRESTARTを送ってきた
+        if (document.getElementById('restartBtn').disabled && opponentWantsRestart) {
+					location.reload();
+        }
+    }
+
+
+    function updateStatus(msg) { document.getElementById('status').innerText = msg; }
+    function send(data) { window.parent.postMessage(data, "*"); }
+    function addLog(id, msg) {
+        const el = document.getElementById(id);
+        const div = document.createElement('div');
+        div.className = "log-item";
+        div.innerText = msg;
+        el.prepend(div);
+    }
+</script>
+</body>
+</html>
