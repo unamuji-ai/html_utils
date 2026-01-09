@@ -2,48 +2,108 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>P2P Online Lobby</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 20px; }
-        .box { background: #2a2a2a; border-radius: 12px; padding: 20px; margin: 10px auto; max-width: 400px; border: 1px solid #444; }
+        /* 全体：スマホで文字が勝手に拡大されないように調整 */
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 15px;
+            touch-action: manipulation;
+        }
+        
+        h2 { font-size: 1.5rem; margin-top: 10px; color: #fff; }
+
+        .box { 
+            background: #2a2a2a; border-radius: 16px; padding: 20px; 
+            margin: 10px auto; max-width: 400px; border: 1px solid #444;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+
         #status { color: #ffd11a; font-weight: bold; }
-        .btn { padding: 15px; font-size: 16px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 80%; transition: 0.2s; }
-        .host-btn { background: #e63946; color: white; }
-        .guest-btn { background: #457b9d; color: white; }
-        .btn:disabled { background: #555; cursor: not-allowed; }
-        #qrcode { background: white; padding: 15px; display: inline-block; margin: 15px auto; border-radius: 8px; }
-        video { width: 100%; max-width: 300px; border-radius: 8px; border: 2px solid #555; display: none; }
-        #game-frame { display: none; width: 100%; height: 90vh; border: none; border-radius: 12px; background: #fff; margin-top: 10px; }
+
+        /* ボタン：スマホの親指で押しやすいサイズ(最小44px以上) */
+        .btn { 
+            padding: 18px; font-size: 18px; margin: 10px 0; border: none; 
+            border-radius: 12px; cursor: pointer; font-weight: bold; 
+            width: 100%; display: block;
+            box-shadow: 0 3px 0 #8d2630;
+        }
+        .host-btn { background: #e63946; color: white; box-shadow: 0 4px 0 #b32d38; }
+        .host-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #b32d38; }
+        
+        .guest-btn { background: #457b9d; color: white; box-shadow: 0 4px 0 #1d3557; }
+        .guest-btn:active { transform: translateY(2px); box-shadow: 0 2px 0 #1d3557; }
+
+        /* QRコード：スマホ画面で見やすい白背景 */
+        #qrcode { 
+            background: white; padding: 10px; display: inline-block; 
+            margin: 15px auto; border-radius: 12px; 
+        }
+        #qrcode img { width: 200px !important; height: 200px !important; }
+
+        /* ビデオ：スマホカメラのアスペクト比を維持 */
+        #v-container { 
+            position: relative; width: 100%; max-width: 320px; 
+            margin: 0 auto; overflow: hidden; border-radius: 16px; 
+            background: #000; display: none;
+        }
+        video { width: 100%; height: auto; display: block; }
+        
+        /* 手入力エリア */
+        #manual-id { 
+            padding: 15px; border-radius: 8px; border: 2px solid #457b9d; 
+            width: 80%; background: #000; color: #fff; font-size: 20px; 
+            text-align: center; margin-bottom: 10px;
+        }
+
+        /* ゲーム画面：スマホの全画面を活用 */
+        #game-frame { 
+            display: none; width: 100vw; height: 100vh; 
+            position: fixed; top: 0; left: 0; border: none; 
+            background: #fff; z-index: 9999;
+        }
+
+        .room-id-text {
+            font-size: 32px; font-weight: bold; color: #ffd11a;
+            margin: 10px 0; letter-spacing: 5px;
+        }
     </style>
 </head>
 <body>
 
     <div id="lobby-ui">
-        <h2>P2P Online Lobby</h2>
-        <div class="box">Status: <span id="status">Ready</span></div>
+        <h2>Hit & Blow Online</h2>
+        
+        <div class="box">
+            Status: <span id="status">準備完了</span>
+        </div>
 
         <div id="setup-ui">
-            <button class="btn host-btn" onclick="initP2P(true)">1. ホストとして部屋を作る</button>
-            <button class="btn guest-btn" onclick="initP2P(false)">2. ゲストとして参加する</button>
+            <button class="btn host-btn" onclick="initP2P(true)">部屋を作る (HOST)</button>
+            <button class="btn guest-btn" onclick="initP2P(false)">参加する (GUEST)</button>
         </div>
 
         <div id="host-ui" style="display:none;">
-            <p>ゲストにこのQRを読ませてください</p>
-            <div id="qrcode"></div>
-            <p id="room-id-display" style="font-size: 24px; font-weight: bold; letter-spacing: 4px;"></p>
+            <div class="box">
+                <p>相手にこのQRを読ませるか、<br>5桁のIDを教えてください</p>
+                <div id="qrcode"></div>
+                <div class="room-id-text" id="room-id-display"></div>
+            </div>
         </div>
 
         <div id="guest-ui" style="display:none;">
-            <p>ホストのQRをスキャンしてください</p>
-            <video id="video" playsinline></video>
-            <canvas id="qr-canvas" style="display:none;"></canvas>
-            <div id="manual-entry">
-                <p>またはIDを手入力：</p>
-                <input type="text" id="manual-id" style="padding: 10px; border-radius: 4px; border: none; width: 100px; text-align: center;">
-                <button class="btn guest-btn" style="width: auto; padding: 10px;" onclick="handleManualInput()">接続</button>
+            <div id="v-container">
+                <video id="video" playsinline></video>
+                <canvas id="qr-canvas" style="display:none;"></canvas>
+            </div>
+            
+            <div class="box" id="input-area">
+                <p>IDを手入力して接続：</p>
+                <input type="number" pattern="\d*" id="manual-id" placeholder="12345">
+                <button class="btn guest-btn" onclick="handleManualInput()">接続する</button>
             </div>
         </div>
     </div>
@@ -54,7 +114,6 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // --- あなたのFirebase Configをここに貼り付け ---
 				// For Firebase JS SDK v7.20.0 and later, measurementId is optional
 				const firebaseConfig = {
 				  apiKey: "AIzaSyBghe53eweW5j3zPe55skV8YXFMPpRwdjc",
@@ -72,68 +131,54 @@
         
         let pc, dataChannel, isHost, roomRef;
         const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-        const gameFrame = document.getElementById('game-frame');
 
-        // --- 初期化 ---
         window.initP2P = async (hostMode) => {
             isHost = hostMode;
             document.getElementById('setup-ui').style.display = 'none';
             pc = new RTCPeerConnection(config);
 
             if (isHost) {
-                startHost();
+                document.getElementById('host-ui').style.display = 'block';
+                const roomId = Math.floor(10000 + Math.random() * 90000).toString();
+                document.getElementById('room-id-display').innerText = roomId;
+                roomRef = ref(db, 'rooms/' + roomId);
+
+                new QRCode(document.getElementById("qrcode"), {
+                    text: roomId, width: 200, height: 200, correctLevel: QRCode.CorrectLevel.L
+                });
+
+                dataChannel = pc.createDataChannel("gameChannel");
+                setupDataEvents();
+
+                const offer = await pc.createOffer();
+                await pc.setLocalDescription(offer);
+
+                pc.onicecandidate = e => {
+                    if (!e.candidate) {
+                        set(roomRef, { offer: { type: pc.localDescription.type, sdp: pc.localDescription.sdp } });
+                        document.getElementById('status').innerText = "ゲスト待機中...";
+                    }
+                };
+
+                onValue(roomRef, (snapshot) => {
+                    const data = snapshot.val();
+                    if (data && data.answer && !pc.remoteDescription) {
+                        pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                    }
+                });
+
             } else {
-                startGuest();
+                document.getElementById('guest-ui').style.display = 'block';
+                pc.ondatachannel = e => { dataChannel = e.channel; setupDataEvents(); };
+                startScan();
             }
         };
 
-        // --- ホストロジック ---
-        async function startHost() {
-            document.getElementById('host-ui').style.display = 'block';
-            const roomId = Math.floor(10000 + Math.random() * 90000).toString();
-            document.getElementById('room-id-display').innerText = roomId;
-            roomRef = ref(db, 'rooms/' + roomId);
-
-            // 非常に粗くて読みやすいQRを生成
-            new QRCode(document.getElementById("qrcode"), {
-                text: roomId,
-                width: 180, height: 180,
-                correctLevel: QRCode.CorrectLevel.L
-            });
-
-            dataChannel = pc.createDataChannel("gameChannel");
-            setupDataEvents();
-
-            const offer = await pc.createOffer();
-            await pc.setLocalDescription(offer);
-
-            pc.onicecandidate = e => {
-                if (!e.candidate) {
-                    set(roomRef, { offer: { type: pc.localDescription.type, sdp: pc.localDescription.sdp } });
-                    document.getElementById('status').innerText = "ゲスト待機中...";
-                }
-            };
-
-            // Answerを監視
-            onValue(roomRef, (snapshot) => {
-                const data = snapshot.val();
-                if (data && data.answer && !pc.remoteDescription) {
-                    pc.setRemoteDescription(new RTCSessionDescription(data.answer));
-                }
-            });
-        }
-
-        // --- ゲストロジック ---
-        function startGuest() {
-            document.getElementById('guest-ui').style.display = 'block';
-            pc.ondatachannel = e => { dataChannel = e.channel; setupDataEvents(); };
-            startScan();
-        }
-
         async function connectByRoomId(id) {
             stopScan();
-            document.getElementById('guest-ui').style.display = 'none';
-            document.getElementById('status').innerText = `部屋 ${id} に接続中...`;
+            document.getElementById('v-container').style.display = 'none';
+            document.getElementById('input-area').style.display = 'none';
+            document.getElementById('status').innerText = `ID:${id} に接続中...`;
             roomRef = ref(db, 'rooms/' + id);
 
             onValue(roomRef, async (snapshot) => {
@@ -152,19 +197,19 @@
             });
         }
 
-        // --- 共通：データ通信設定 ---
         function setupDataEvents() {
             dataChannel.onopen = () => {
-                document.getElementById('status').innerText = "CONNECTED!";
-                remove(roomRef); // 掃除
+                document.getElementById('status').innerText = "接続成功！";
+                remove(roomRef);
                 setTimeout(() => {
                     document.getElementById('lobby-ui').style.display = "none";
-                    gameFrame.src = "hitnblow.html?role=" + (isHost ? "host" : "guest");
-                    gameFrame.style.display = "block";
-                }, 800);
+                    const frame = document.getElementById('game-frame');
+                    frame.src = "hitnblow.html?role=" + (isHost ? "host" : "guest");
+                    frame.style.display = "block";
+                }, 500);
             };
             dataChannel.onmessage = e => {
-                gameFrame.contentWindow.postMessage(JSON.parse(e.data), "*");
+                document.getElementById('game-frame').contentWindow.postMessage(JSON.parse(e.data), "*");
             };
         }
 
@@ -174,18 +219,22 @@
             }
         });
 
-        // --- ゲスト用：QRスキャンロジック ---
+        // カメラ制御
         const video = document.getElementById("video");
         const canvas = document.getElementById("qr-canvas");
         const ctx = canvas.getContext("2d");
         let scanReq;
 
         async function startScan() {
-            video.style.display = 'inline-block';
-            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-            video.srcObject = stream;
-            video.play();
-            scanReq = requestAnimationFrame(tick);
+            document.getElementById('v-container').style.display = 'block';
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                video.srcObject = stream;
+                video.play();
+                scanReq = requestAnimationFrame(tick);
+            } catch (e) {
+                document.getElementById('status').innerText = "カメラが使えません。IDを手入力してください。";
+            }
         }
 
         function stopScan() {
