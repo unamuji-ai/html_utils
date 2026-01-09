@@ -3,182 +3,211 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P Game Lobby</title>
+    <title>P2P Online Lobby</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 15px; overflow-x: hidden; }
-        .box { background: #2a2a2a; border-radius: 12px; padding: 20px; margin-bottom: 20px; border: 1px solid #444; }
-        #status { color: #ffd11a; font-weight: bold; font-size: 1.2em; }
-        #v-wrapper { position: relative; width: 100%; max-width: 320px; margin: 10px auto; display: none; }
-        video { width: 100%; border-radius: 8px; border: 2px solid #555; }
-        #qrcode { background: white; padding: 15px; display: inline-block; margin: 15px auto; border-radius: 8px; }
-        textarea { width: 90%; height: 60px; margin-top: 10px; background: #000; color: #0f0; border: 1px solid #555; font-family: monospace; font-size: 10px; }
-        .btn { padding: 12px 20px; font-size: 14px; margin: 8px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        body { font-family: sans-serif; text-align: center; background: #1a1a1a; color: #eee; margin: 0; padding: 20px; }
+        .box { background: #2a2a2a; border-radius: 12px; padding: 20px; margin: 10px auto; max-width: 400px; border: 1px solid #444; }
+        #status { color: #ffd11a; font-weight: bold; }
+        .btn { padding: 15px; font-size: 16px; margin: 10px; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 80%; transition: 0.2s; }
         .host-btn { background: #e63946; color: white; }
         .guest-btn { background: #457b9d; color: white; }
-        .sub-btn { background: #a8dadc; color: #1d3557; }
-        #qr-canvas { display: none; }
-        /* ゲーム画面用iframe */
-        #game-frame {
-            display: none; width: 100%; height: 80vh; border: none; margin-top: 10px; border-radius: 12px; background: #fff;
-        }
-        .lobby-ui { max-width: 500px; margin: 0 auto; }
+        .btn:disabled { background: #555; cursor: not-allowed; }
+        #qrcode { background: white; padding: 15px; display: inline-block; margin: 15px auto; border-radius: 8px; }
+        video { width: 100%; max-width: 300px; border-radius: 8px; border: 2px solid #555; display: none; }
+        #game-frame { display: none; width: 100%; height: 90vh; border: none; border-radius: 12px; background: #fff; margin-top: 10px; }
     </style>
 </head>
 <body>
 
-    <h2>P2P Game Lobby</h2>
-    
-    <div class="lobby-ui" id="lobby-ui">
-        <div class="box">
-            Status: <span id="status">Ready</span>
-        </div>
+    <div id="lobby-ui">
+        <h2>P2P Online Lobby</h2>
+        <div class="box">Status: <span id="status">Ready</span></div>
 
         <div id="setup-ui">
-            <button class="btn host-btn" onclick="initP2P(true)">1. HOSTとして開始</button>
-            <button class="btn guest-btn" onclick="initP2P(false)">2. GUESTとして開始</button>
+            <button class="btn host-btn" onclick="initP2P(true)">1. ホストとして部屋を作る</button>
+            <button class="btn guest-btn" onclick="initP2P(false)">2. ゲストとして参加する</button>
         </div>
 
-        <div id="p2p-ui" style="display:none;">
-            <div id="qr-display-area">
-                <p id="qr-label" style="font-weight:bold; font-size: 14px;"></p>
-                <div id="qrcode"></div>
-                <div style="margin-top:10px;">
-                    <textarea id="localSdpText" readonly onclick="this.select()"></textarea>
-                    <button class="btn sub-btn" onclick="copyToClipboard()">自分のコードをコピー</button>
-                </div>
-            </div>
+        <div id="host-ui" style="display:none;">
+            <p>ゲストにこのQRを読ませてください</p>
+            <div id="qrcode"></div>
+            <p id="room-id-display" style="font-size: 24px; font-weight: bold; letter-spacing: 4px;"></p>
+        </div>
 
-            <div class="box" style="margin-top:20px;">
-                <p style="font-size: 14px;">相手のコードをスキャンまたは入力:</p>
-                <button class="btn" id="scan-start-btn" onclick="startScan()">カメラでスキャン</button>
-                <div id="v-wrapper">
-                    <video id="video" playsinline></video>
-                    <canvas id="qr-canvas"></canvas>
-                    <button class="btn" onclick="stopScan()" style="background:#555; color:white;">中止</button>
-                </div>
-                <textarea id="remoteSdpText" placeholder="相手のコードをペースト"></textarea>
-                <button class="btn sub-btn" onclick="handleManualInput()">手動で適用して次へ</button>
+        <div id="guest-ui" style="display:none;">
+            <p>ホストのQRをスキャンしてください</p>
+            <video id="video" playsinline></video>
+            <canvas id="qr-canvas" style="display:none;"></canvas>
+            <div id="manual-entry">
+                <p>またはIDを手入力：</p>
+                <input type="text" id="manual-id" style="padding: 10px; border-radius: 4px; border: none; width: 100px; text-align: center;">
+                <button class="btn guest-btn" style="width: auto; padding: 10px;" onclick="handleManualInput()">接続</button>
             </div>
         </div>
     </div>
 
     <iframe id="game-frame"></iframe>
 
-<script>
-    let pc;
-    let dataChannel;
-    let isHost = false;
-    const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
-    const gameFrame = document.getElementById('game-frame');
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, set, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-    async function initP2P(hostMode) {
-        isHost = hostMode;
-        document.getElementById('setup-ui').style.display = 'none';
-        document.getElementById('p2p-ui').style.display = 'block';
-        document.getElementById('qr-label').innerText = isHost ? "【STEP 1】このQRをゲストに見せてください" : "【STEP 2】ホストスキャン後にこれを見せてください";
+        // --- あなたのFirebase Configをここに貼り付け ---
+				// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+				const firebaseConfig = {
+				  apiKey: "AIzaSyBghe53eweW5j3zPe55skV8YXFMPpRwdjc",
+				  authDomain: "connectp2p-1ba54.firebaseapp.com",
+				  databaseURL: "https://connectp2p-1ba54-default-rtdb.firebaseio.com",
+				  projectId: "connectp2p-1ba54",
+				  storageBucket: "connectp2p-1ba54.firebasestorage.app",
+				  messagingSenderId: "34700692828",
+				  appId: "1:34700692828:web:b20ce75b17862e849f4599",
+				  measurementId: "G-DZ6TVZBKBG"
+				};
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
         
-        pc = new RTCPeerConnection(config);
-        if (isHost) {
+        let pc, dataChannel, isHost, roomRef;
+        const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+        const gameFrame = document.getElementById('game-frame');
+
+        // --- 初期化 ---
+        window.initP2P = async (hostMode) => {
+            isHost = hostMode;
+            document.getElementById('setup-ui').style.display = 'none';
+            pc = new RTCPeerConnection(config);
+
+            if (isHost) {
+                startHost();
+            } else {
+                startGuest();
+            }
+        };
+
+        // --- ホストロジック ---
+        async function startHost() {
+            document.getElementById('host-ui').style.display = 'block';
+            const roomId = Math.floor(10000 + Math.random() * 90000).toString();
+            document.getElementById('room-id-display').innerText = roomId;
+            roomRef = ref(db, 'rooms/' + roomId);
+
+            // 非常に粗くて読みやすいQRを生成
+            new QRCode(document.getElementById("qrcode"), {
+                text: roomId,
+                width: 180, height: 180,
+                correctLevel: QRCode.CorrectLevel.L
+            });
+
             dataChannel = pc.createDataChannel("gameChannel");
             setupDataEvents();
+
             const offer = await pc.createOffer();
             await pc.setLocalDescription(offer);
-            pc.onicecandidate = e => { if (!e.candidate) displayMySdp(pc.localDescription); };
-        } else {
+
+            pc.onicecandidate = e => {
+                if (!e.candidate) {
+                    set(roomRef, { offer: { type: pc.localDescription.type, sdp: pc.localDescription.sdp } });
+                    document.getElementById('status').innerText = "ゲスト待機中...";
+                }
+            };
+
+            // Answerを監視
+            onValue(roomRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.answer && !pc.remoteDescription) {
+                    pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+                }
+            });
+        }
+
+        // --- ゲストロジック ---
+        function startGuest() {
+            document.getElementById('guest-ui').style.display = 'block';
             pc.ondatachannel = e => { dataChannel = e.channel; setupDataEvents(); };
-            document.getElementById('qr-display-area').style.opacity = "0.3";
+            startScan();
         }
-    }
 
-    function displayMySdp(sdp) {
-        const sdpString = btoa(JSON.stringify(sdp));
-        document.getElementById('qrcode').innerHTML = "";
-        new QRCode(document.getElementById("qrcode"), { text: sdpString, width: 200, height: 200, correctLevel : QRCode.CorrectLevel.L });
-        document.getElementById('localSdpText').value = sdpString;
-        document.getElementById('qr-display-area').style.opacity = "1";
-    }
+        async function connectByRoomId(id) {
+            stopScan();
+            document.getElementById('guest-ui').style.display = 'none';
+            document.getElementById('status').innerText = `部屋 ${id} に接続中...`;
+            roomRef = ref(db, 'rooms/' + id);
 
-    function handleManualInput() {
-        const val = document.getElementById('remoteSdpText').value;
-        if (val) handleScannedCode(val);
-    }
+            onValue(roomRef, async (snapshot) => {
+                const data = snapshot.val();
+                if (data && data.offer && !pc.remoteDescription) {
+                    await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+                    const answer = await pc.createAnswer();
+                    await pc.setLocalDescription(answer);
 
-    async function handleScannedCode(data) {
-        try {
-            const remoteDesc = new RTCSessionDescription(JSON.parse(atob(data)));
-            await pc.setRemoteDescription(remoteDesc);
-            if (!isHost && !pc.localDescription) {
-                const answer = await pc.createAnswer();
-                await pc.setLocalDescription(answer);
-                pc.onicecandidate = e => { if (!e.candidate) displayMySdp(pc.localDescription); };
-            } else if (isHost) {
-                document.getElementById('status').innerText = "Connecting...";
+                    pc.onicecandidate = e => {
+                        if (!e.candidate) {
+                            update(roomRef, { answer: { type: pc.localDescription.type, sdp: pc.localDescription.sdp } });
+                        }
+                    };
+                }
+            });
+        }
+
+        // --- 共通：データ通信設定 ---
+        function setupDataEvents() {
+            dataChannel.onopen = () => {
+                document.getElementById('status').innerText = "CONNECTED!";
+                remove(roomRef); // 掃除
+                setTimeout(() => {
+                    document.getElementById('lobby-ui').style.display = "none";
+                    gameFrame.src = "hitnblow.html?role=" + (isHost ? "host" : "guest");
+                    gameFrame.style.display = "block";
+                }, 800);
+            };
+            dataChannel.onmessage = e => {
+                gameFrame.contentWindow.postMessage(JSON.parse(e.data), "*");
+            };
+        }
+
+        window.addEventListener("message", (e) => {
+            if (dataChannel && dataChannel.readyState === "open") {
+                dataChannel.send(JSON.stringify(e.data));
             }
-        } catch (e) { alert("コードが正しくありません"); }
-    }
+        });
 
-    // --- 中継ロジック ---
-    function setupDataEvents() {
-        dataChannel.onopen = () => {
-            document.getElementById('status').innerText = "CONNECTED!";
-            document.getElementById('lobby-ui').style.display = "none"; // ロビーUIを隠す
-            
-            // ゲーム画面をロード (ホスト情報をクエリで渡す)
-            gameFrame.src = "hitnblow.html?role=" + (isHost ? "host" : "guest");
-            gameFrame.style.display = "block";
-        };
+        // --- ゲスト用：QRスキャンロジック ---
+        const video = document.getElementById("video");
+        const canvas = document.getElementById("qr-canvas");
+        const ctx = canvas.getContext("2d");
+        let scanReq;
 
-        // 1. 相手からのデータをiframeへ転送
-        dataChannel.onmessage = e => {
-            const data = JSON.parse(e.data);
-            gameFrame.contentWindow.postMessage(data, "*");
-        };
-    }
-
-    // 2. iframe(ゲーム)から「送って」と言われたデータを相手へ送信
-    window.addEventListener("message", (e) => {
-        if (dataChannel && dataChannel.readyState === "open") {
-            dataChannel.send(JSON.stringify(e.data));
+        async function startScan() {
+            video.style.display = 'inline-block';
+            const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+            video.srcObject = stream;
+            video.play();
+            scanReq = requestAnimationFrame(tick);
         }
-    });
 
-    // --- カメラロジック (変更なし) ---
-    const video = document.getElementById("video");
-    const canvas = document.getElementById("qr-canvas");
-    const ctx = canvas.getContext("2d");
-    let scanReq;
-    async function startScan() {
-        document.getElementById('v-wrapper').style.display = 'block';
-        document.getElementById('scan-start-btn').style.display = 'none';
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-        video.srcObject = stream;
-        video.setAttribute("playsinline", true);
-        video.play();
-        scanReq = requestAnimationFrame(tick);
-    }
-    function stopScan() {
-        if (video.srcObject) video.srcObject.getTracks().forEach(track => track.stop());
-        document.getElementById('v-wrapper').style.display = 'none';
-        document.getElementById('scan-start-btn').style.display = 'inline-block';
-        cancelAnimationFrame(scanReq);
-    }
-    function tick() {
-        if (video.readyState === video.HAVE_ENOUGH_DATA) {
-            canvas.height = video.videoHeight; canvas.width = video.videoWidth;
-            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            const code = jsQR(imageData.data, imageData.width, imageData.height);
-            if (code) { stopScan(); handleScannedCode(code.data); return; }
+        function stopScan() {
+            if (video.srcObject) video.srcObject.getTracks().forEach(t => t.stop());
+            cancelAnimationFrame(scanReq);
         }
-        scanReq = requestAnimationFrame(tick);
-    }
-    function copyToClipboard() {
-        const copyText = document.getElementById("localSdpText");
-        copyText.select();
-        document.execCommand("copy");
-    }
-</script>
+
+        function tick() {
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                canvas.height = video.videoHeight; canvas.width = video.videoWidth;
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(imageData.data, imageData.width, imageData.height);
+                if (code) { connectByRoomId(code.data); return; }
+            }
+            scanReq = requestAnimationFrame(tick);
+        }
+
+        window.handleManualInput = () => {
+            const id = document.getElementById('manual-id').value;
+            if (id) connectByRoomId(id);
+        };
+    </script>
 </body>
 </html>
