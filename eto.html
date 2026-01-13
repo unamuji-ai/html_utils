@@ -72,7 +72,7 @@
 </head>
 <body>
   <div class="card">
-    <h1>年齢 → 干支・西暦・年号</h1>
+    <h1>年齢と干支（生まれ年）計算</h1>
     <label for="age">年齢</label>
     <input id="age" type="number" min="0" max="130" placeholder="例: 20" inputmode="numeric">
 
@@ -90,6 +90,17 @@
         <div class="key">干支</div><div class="val" id="eto"></div>
       </div>
     </div>
+		<hr>
+		<label for="etoSel">干支から逆算</label>
+		<select id="etoSel">
+		  <option value="">干支を選択してください</option>
+		</select>
+		<button id="calcEto">干支から年齢候補</button>
+
+		<div class="out" id="out2" hidden>
+		  <div class="key">年齢候補</div>
+		  <div class="val" id="ageCandidates"></div>
+		</div>
   </div>
 
 <script>
@@ -111,6 +122,38 @@
   const eraEl = document.getElementById('era');
   const etoEl = document.getElementById('eto');
 
+
+	// ▼ 干支セレクトを初期化
+	const etoSel = document.getElementById('etoSel');
+	etoList.forEach((e, i) => {
+	  const op = document.createElement('option');
+	  op.value = i;
+	  op.textContent = e;
+	  etoSel.appendChild(op);
+	});
+
+	const calcEtoBtn = document.getElementById('calcEto');
+	const out2 = document.getElementById('out2');
+	const ageCandidatesEl = document.getElementById('ageCandidates');
+
+	function calcFromEto() {
+	  const nowYear = new Date().getFullYear();
+	  const idx = Number(etoSel.value);
+	  if (!Number.isFinite(idx)) { out2.hidden = true; return; }
+
+	  const candidates = [];
+	  for (let y = nowYear - 100; y <= nowYear; y++) {
+	    if (etoFromYear(y) === etoList[idx]) {
+	      candidates.push(`${nowYear - y}歳（${y}年生）`);
+	    }
+	  }
+
+	  ageCandidatesEl.textContent = candidates.join("、");
+	  out2.hidden = false;
+	}
+
+	calcEtoBtn.addEventListener('click', calcFromEto);
+
   function calc(){
     const nowYear = new Date().getFullYear();
     const age = Number(ageEl.value);
@@ -124,6 +167,8 @@
   }
   calcBtn.addEventListener('click', calc);
 })();
+
+
 </script>
 </body>
 </html>
