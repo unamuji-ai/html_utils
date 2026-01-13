@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>ガイスター - 完全同期版</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a2e; color: white; text-align: center; margin: 0; padding: 0; overflow: hidden; }
+        #game-layout { display: flex; align-items: center; justify-content: center; gap: 30px; min-height: 100vh; }
+        
+        /* 盤面の設定 */
+        .rotated { transform: rotate(180deg); }
+        #board { 
+            display: grid; grid-template-columns: repeat(6, 1fr); 
+            width: 360px; height: 360px; border: 5px solid #16213e; 
+            background: #0f3460; box-shadow: 0 0 30px rgba(0,0,0,0.6);
+        }
+        
+        #status { font-size: 1.2rem; margin-bottom: 20px; color: #f1c40f; font-weight: bold; height: 1.5em; }
+
+        .cell { 
+            width: 60px; height: 60px; border: 1px solid #1a1a2e; 
+            display: flex; align-items: center; justify-content: center; 
+            position: relative; cursor: pointer;
+        }
+        .cell:hover { background: rgba(255, 255, 255, 0.1); }
+        .selected-cell { background: rgba(241, 196, 15, 0.4) !important; outline: 3px solid #f1c40f; z-index: 5; }
+
+        /* 出口マーカー */
+        .exit-marker { 
+            width: 24px; height: 24px; border-radius: 50%; 
+            border: 2px solid #fff; position: absolute; z-index: 2;
+            opacity: 0.8; pointer-events: none;
+        }
+        .blue-goal { background: #3498db; box-shadow: 0 0 10px #3498db; } /* 進むべき青 */
+        .red-goal { background: #e94560; box-shadow: 0 0 10px #e94560; }   /* 守るべき赤 */
+
+        /* 駒のデザイン */
+        .piece { 
+            width: 46px; height: 46px; border-radius: 40% 40% 10% 10%; 
+            position: relative; z-index: 10; pointer-events: none;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.4);
+        }
+        .mine { background: #ecf0f1; border: 2px solid #ffffff; }
+        .opponent { background: #34495e; border: 2px solid #2c3e50; }
+        .rotated .piece { transform: rotate(180deg); }
+
+        .blue::after { content: ""; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 12px; height: 12px; background: #3498db; border-radius: 50%; border: 2px solid #fff; }
+        .red::after { content: ""; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); width: 12px; height: 12px; background: #e74c3c; border-radius: 50%; border: 2px solid #fff; }
+
+        /* サイドバー */
+        .sidebar { width: 100px; background: rgba(255,255,255,0.05); padding: 15px; border-radius: 15px; border: 1px solid rgba(255,255,255,0.1); }
+        .sidebar h3 { font-size: 0.8rem; margin-top: 0; color: #aaa; }
+        .mini-piece-container { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; min-height: 60px; margin-top: 10px; }
+        .mini-piece { width: 20px; height: 20px; border-radius: 50%; border: 1px solid #fff; margin: 0 auto; }
+        .mini-blue { background: #3498db; }
+        .mini-red { background: #e94560; }
+
+        .setup-btn { background: #f1c40f; color: #1a1a2e; border: none; padding: 12px 40px; font-weight: bold; border-radius: 5px; cursor: pointer; margin-top: 20px; font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+<div id="game-layout">
+    <div class="sidebar">
+        <h3>相手が取った<br>(自分損害)</h3>
+        <div id="lost-pieces" class="mini-piece-container"></div>
+    </div>
+
+    <div id="game-view">
+        <div id="status">配置を決めてください</div>
+        <div id="board"></div>
+        <button id="ready-btn" class="setup-btn" onclick="confirmSetup()">配置完了</button>
+    </div>
+
+    <div class="sidebar">
+        <h3>自分が取った<br>(相手損害)</h3>
+        <div id="captured-pieces" class="mini-piece-container"></div>
+    </div>
+</div>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const role = params.get('role') || 'host';
+    const isHost = (role === "host");
+
+    let phase = 'setup'; 
+    let board = Array(36).fill(null);
+    let isMyTurn = isHost;
+    let selectedIdx = null;
+    let opponentReady = false;
+
+    let capturedByMe = { blue: 0, red: 0 };
+    let capturedByOpponent = { blue: 0, red: 0 };
+
+    function send(data) { window.parent.postMessage(data, "*"); }
+
+		function createBoard() {
+        const boardEl = document.getElementById('board');
+        if (!isHost) boardEl.classList.add('rotated');
+
+        // 自分の陣地のインデックスを取得
+        // ホスト：25-30(前列), 31-35(後列)
+        // ゲスト：7-10(前列), 1-4(後列)
+        const myPositions = isHost ? [25,26,27,28, 31,32,33,34] : [7,8,9,10, 1,2,3,4];
+        
+        myPositions.forEach((pos, i) => {
+            // 前列(i < 4)を青、後列(i >= 4)を赤に設定
+            // これで両者から見て「前が青、後ろが赤」になります
+            board[pos] = { type: (i < 4 ? 'blue' : 'red'), owner: role };
+        });
+
+        render();
+    }
+
+    function render() {
+        const boardEl = document.getElementById('board');
+        boardEl.innerHTML = '';
+        
+        board.forEach((piece, i) => {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            if (selectedIdx === i) cell.classList.add('selected-cell');
+
+            // 出口の色分け：相手側を青（目標）、自分側を赤（警告）
+            if ([0, 5].includes(i)) {
+                const m = document.createElement('div');
+                m.className = `exit-marker ${isHost ? 'blue-goal' : 'red-goal'}`;
+                cell.appendChild(m);
+            }
+            if ([30, 35].includes(i)) {
+                const m = document.createElement('div');
+                m.className = `exit-marker ${isHost ? 'red-goal' : 'blue-goal'}`;
+                cell.appendChild(m);
+            }
+
+            if (piece) {
+                const isMine = piece.owner === role;
+                const pEl = document.createElement('div');
+                // 自分の駒のみ色を表示
+                const typeClass = isMine ? piece.type : '';
+                pEl.className = `piece ${isMine ? 'mine' : 'opponent'} ${typeClass}`;
+                cell.appendChild(pEl);
+            }
+
+            cell.onclick = () => handleCellClick(i);
+            boardEl.appendChild(cell);
+        });
+        updateCapturedDisplay();
+    }
+
+    function handleCellClick(i) {
+        if (phase === 'setup') {
+            if (board[i] && board[i].owner === role) {
+                board[i].type = (board[i].type === 'blue' ? 'red' : 'blue');
+                render();
+            }
+        } else {
+            if (isMyTurn && board[i] && board[i].owner === role) {
+                selectedIdx = (selectedIdx === i) ? null : i;
+                render();
+            } else if (selectedIdx !== null) {
+                movePiece(i);
+            }
+        }
+    }
+
+    function confirmSetup() {
+        const mySetup = [];
+        board.forEach((p, i) => {
+            if (p && p.owner === role) mySetup.push({ index: i, type: p.type });
+        });
+
+        document.getElementById('ready-btn').disabled = true;
+        document.getElementById('ready-btn').innerText = "相手の準備待ち...";
+        send({ type: "G_READY", setup: mySetup });
+        checkStart();
+    }
+
+    function movePiece(toIdx) {
+        const fromIdx = selectedIdx;
+        const movingPiece = board[fromIdx];
+        const rowDiff = Math.abs(Math.floor(fromIdx / 6) - Math.floor(toIdx / 6));
+        const colDiff = Math.abs((fromIdx % 6) - (toIdx % 6));
+
+        if ((rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1)) {
+            if (board[toIdx] && board[toIdx].owner === role) return;
+
+            let capturedInfo = null;
+            if (board[toIdx] && board[toIdx].owner !== role) {
+                capturedInfo = board[toIdx].type; // 内部データのtype（正解）を使用
+                capturedByMe[capturedInfo]++;
+            }
+
+            board[toIdx] = movingPiece;
+            board[fromIdx] = null;
+            
+            send({ type: "G_MOVE", from: fromIdx, to: toIdx, capturedType: capturedInfo });
+            
+            if (movingPiece.type === 'blue') {
+                if (isHost && [0, 5].includes(toIdx)) { announceWin("脱出成功！あなたの勝ちです！"); return; }
+                if (!isHost && [30, 35].includes(toIdx)) { announceWin("脱出成功！あなたの勝ちです！"); return; }
+            }
+
+            selectedIdx = null;
+            isMyTurn = false;
+            render();
+            updateStatus();
+            checkGameOver();
+        }
+    }
+
+    function checkGameOver() {
+        let msg = "";
+        if (capturedByMe.blue === 4) msg = "勝ち！(相手の青を4つ取りました)";
+        else if (capturedByMe.red === 4) msg = "負け...(相手の赤を4つ取りました)";
+        else if (capturedByOpponent.blue === 4) msg = "負け...(自分の青を4つ取られました)";
+        else if (capturedByOpponent.red === 4) msg = "勝ち！(自分の赤を4つ取らせました)";
+
+        if (msg) announceWin(msg);
+    }
+
+    function announceWin(msg) {
+        let oppMsg = "負けました。";
+        if (msg.includes("脱出")) oppMsg = "相手に脱出されました。あなたの負けです。";
+        else if (msg.includes("相手の青")) oppMsg = "自分の青をすべて取られました。あなたの負けです。";
+        else if (msg.includes("相手の赤")) oppMsg = "相手に赤をすべて取らせました。あなたの勝ちです！";
+
+        send({ type: "G_GAMEOVER", message: oppMsg });
+        setTimeout(() => { alert(msg); location.reload(); }, 200);
+    }
+
+    function updateCapturedDisplay() {
+        const capEl = document.getElementById('captured-pieces');
+        const lostEl = document.getElementById('lost-pieces');
+        capEl.innerHTML = ''; lostEl.innerHTML = '';
+        for(let i=0; i<capturedByMe.blue; i++) capEl.innerHTML += '<div class="mini-piece mini-blue"></div>';
+        for(let i=0; i<capturedByMe.red; i++) capEl.innerHTML += '<div class="mini-piece mini-red"></div>';
+        for(let i=0; i<capturedByOpponent.blue; i++) lostEl.innerHTML += '<div class="mini-piece mini-blue"></div>';
+        for(let i=0; i<capturedByOpponent.red; i++) lostEl.innerHTML += '<div class="mini-piece mini-red"></div>';
+    }
+
+    window.addEventListener("message", (e) => {
+        const data = e.data;
+        if (data.type === "G_READY") {
+            opponentReady = true;
+            if (data.setup) {
+                data.setup.forEach(item => {
+                    board[item.index] = { type: item.type, owner: isHost ? 'guest' : 'host' };
+                });
+            }
+            checkStart();
+        }
+        if (data.type === "G_MOVE") {
+            if (data.capturedType) capturedByOpponent[data.capturedType]++;
+            const movedPiece = board[data.from];
+            if (movedPiece) { board[data.to] = movedPiece; board[data.from] = null; }
+            isMyTurn = true;
+            render();
+            updateStatus();
+            checkGameOver();
+        }
+        if (data.type === "G_GAMEOVER") {
+            setTimeout(() => { alert(data.message); location.reload(); }, 200);
+        }
+    });
+
+    function checkStart() {
+        if (opponentReady && document.getElementById('ready-btn').disabled) {
+            phase = 'play';
+            document.getElementById('ready-btn').style.display = 'none';
+            updateStatus();
+            render();
+        }
+    }
+
+    function updateStatus() {
+        const s = document.getElementById('status');
+        if (phase === 'setup') s.innerText = "配置を決めてください";
+        else s.innerText = isMyTurn ? "あなたの番です" : "相手の番です";
+    }
+
+    createBoard();
+</script>
+</body>
+</html>

@@ -22,8 +22,6 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
-        #status { color: #ffd11a; font-weight: bold; }
-
         /* ボタン：スマホの親指で押しやすいサイズ(最小44px以上) */
         .btn { 
             padding: 18px; font-size: 18px; margin: 10px 0; border: none; 
@@ -75,16 +73,22 @@
 <body>
 
     <div id="lobby-ui">
-        <h2>Hit & Blow Online</h2>
-        
-        <div class="box">
-            Status: <span id="status">準備完了</span>
-        </div>
-
-        <div id="setup-ui">
-            <button class="btn host-btn" onclick="initP2P(true)">部屋を作る (HOST)</button>
-            <button class="btn guest-btn" onclick="initP2P(false)">参加する (GUEST)</button>
-        </div>
+				<div id="setup-ui">
+				    <h3>遊ぶゲームを選択</h3>
+				    <div style="margin-bottom: 20px; text-align: left; display: inline-block;">
+				        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+				            <input type="radio" name="game-select" value="hitnblow"> 
+				            <strong>Hit & Blow</strong> (数字当てゲーム)
+				        </label>
+				        <label style="display: block; margin-bottom: 10px; cursor: pointer; color: #888;">
+				            <input type="radio" name="game-select" value="geister" checked> 
+				            ガイスター（心理戦ゲーム） 
+				        </label>
+				    </div>
+				    <br>
+				    <button class="btn" onclick="initP2P(true)">ホストとして部屋を作る</button>
+				    <button class="btn" onclick="initP2P(false)">ゲストとして参加する</button>
+				</div>
 
         <div id="host-ui" style="display:none;">
             <div class="box">
@@ -131,8 +135,15 @@
         
         let pc, dataChannel, isHost, roomRef;
         const config = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+				let selectedGame = "hitnblow"; // デフォルト値
 
         window.initP2P = async (hostMode) => {
+				    // 接続開始時に、選択されているラジオボタンの値を取得する
+				    const selected = document.querySelector('input[name="game-select"]:checked');
+				    if (selected) {
+				        selectedGame = selected.value;
+				    }
+
             isHost = hostMode;
             document.getElementById('setup-ui').style.display = 'none';
             pc = new RTCPeerConnection(config);
@@ -156,7 +167,6 @@
                 pc.onicecandidate = e => {
                     if (!e.candidate) {
                         set(roomRef, { offer: { type: pc.localDescription.type, sdp: pc.localDescription.sdp } });
-                        document.getElementById('status').innerText = "ゲスト待機中...";
                     }
                 };
 
@@ -178,7 +188,6 @@
             stopScan();
             document.getElementById('v-container').style.display = 'none';
             document.getElementById('input-area').style.display = 'none';
-            document.getElementById('status').innerText = `ID:${id} に接続中...`;
             roomRef = ref(db, 'rooms/' + id);
 
             onValue(roomRef, async (snapshot) => {
@@ -197,21 +206,42 @@
             });
         }
 
-        function setupDataEvents() {
-            dataChannel.onopen = () => {
-                document.getElementById('status').innerText = "接続成功！";
-                remove(roomRef);
-                setTimeout(() => {
-                    document.getElementById('lobby-ui').style.display = "none";
-                    const frame = document.getElementById('game-frame');
-                    frame.src = "hitnblow.html?role=" + (isHost ? "host" : "guest");
-                    frame.style.display = "block";
-                }, 500);
-            };
-            dataChannel.onmessage = e => {
-                document.getElementById('game-frame').contentWindow.postMessage(JSON.parse(e.data), "*");
-            };
-        }
+				function setupDataEvents() {
+				    dataChannel.onopen = () => {
+				        remove(roomRef);
+				        
+				        // 1. ホストの場合、選択中のゲーム名を相手（ゲスト）に送る
+				        if (isHost) {
+				            const gameName = document.querySelector('input[name="game-select"]:checked').value;
+				            dataChannel.send(JSON.stringify({ type: "SYSTEM_START", game: gameName }));
+				            
+				            // 自分も起動
+				            launchGame(gameName, "host");
+				        }
+				    };
+
+				    dataChannel.onmessage = e => {
+				        const data = JSON.parse(e.data);
+				        
+				        // 2. ゲストの場合、ホストから送られてきたゲーム名で起動する
+				        if (data.type === "SYSTEM_START") {
+				            launchGame(data.game, "guest");
+				        } else {
+				            // それ以外のメッセージ（ゲーム中のデータ）は子画面へ転送
+				            document.getElementById('game-frame').contentWindow.postMessage(data, "*");
+				        }
+				    };
+				}
+
+				// ゲーム画面を起動する共通関数
+				function launchGame(gameFile, role) {
+				    setTimeout(() => {
+				        document.getElementById('lobby-ui').style.display = "none";
+				        const frame = document.getElementById('game-frame');
+				        frame.src = `${gameFile}.html?role=${role}`;
+				        frame.style.display = "block";
+				    }, 500);
+				}
 
         window.addEventListener("message", (e) => {
             if (dataChannel && dataChannel.readyState === "open") {
@@ -233,7 +263,6 @@
                 video.play();
                 scanReq = requestAnimationFrame(tick);
             } catch (e) {
-                document.getElementById('status').innerText = "カメラが使えません。IDを手入力してください。";
             }
         }
 
