@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>主催者管理（テスト版）</title>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f4f7f9; }
+        .container { max-width: 500px; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .form-group { margin-bottom: 15px; }
+        label { display: block; font-weight: bold; margin-bottom: 5px; }
+        input, select, textarea { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        .btn { width: 100%; padding: 15px; background: #1a73e8; color: white; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; }
+        #qr-section { display: none; text-align: center; background: #eef; padding: 15px; border-radius: 10px; margin-bottom: 20px; }
+        #item-form-section { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>オークション主催者</h1>
+    
+    <button id="setup-btn" class="btn" onclick="setupAuction()" style="background:#34a853;">① 会場を作成する</button>
+
+    <div id="qr-section">
+        <p>会場ID: <strong id="display-id"></strong></p>
+        <img id="qr-code" src="" style="width:150px;"><br>
+        <a id="join-link" href="" target="_blank">参加用ページを開く</a>
+    </div>
+
+    <div id="item-form-section">
+        <h2>②商品を出品</h2>
+        <div class="form-group">
+            <label>商品名</label>
+            <input type="text" id="item-title" placeholder="例：テスト商品">
+        </div>
+        <div class="form-group">
+            <label>画像URL (拾い画のURLを貼り付け)</label>
+            <input type="text" id="item-image-url" placeholder="https://example.com/image.jpg">
+        </div>
+        <div class="form-group">
+            <label>初期価格 (円)</label>
+            <input type="number" id="item-price" value="1000">
+        </div>
+        <div class="form-group">
+            <label>終了時刻</label>
+            <input type="datetime-local" id="end-time">
+        </div>
+				<div class="form-group">
+				    <label>オークション形式</label>
+				    <select id="auction-type">
+				        <option value="normal">通常入札（価格公開）</option>
+				        <option value="blind">密封入札（自分以外は価格非公開）</option>
+				    </select>
+				</div>
+				<div class="form-group" id="auto-extend-wrapper" style="display: flex; align-items: center; gap: 10px; transition: 0.3s;">
+				    <input type="checkbox" id="auto-extend" style="width: auto;">
+				    <label for="auto-extend" id="auto-extend-label" style="margin: 0;">終了間際の入札で自動延長（5分）</label>
+				</div>
+
+        <button id="submit-btn" class="btn" onclick="submitItem()">出品する</button>
+    </div>
+
+		<hr style="margin: 30px 0;">
+
+		<div id="status-section">
+		    <h2>参加者リスト (<span id="participant-count">0</span>名)</h2>
+		    <div id="participant-list" style="background: #eee; padding: 10px; border-radius: 5px; margin-bottom: 20px; font-size: 0.9rem;">
+		        待機中...
+		    </div>
+
+		    <h2>出品物の状況</h2>
+		    <div id="admin-items-list">
+		        </div>
+		</div>
+
+</div>
+<script>
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+		const firebaseConfig = {
+		  apiKey: "AIzaSyAv_eQX0TeXEWWY6DlWt_8cbKVSsL8T2m4",
+		  authDomain: "bidding-75c1f.firebaseapp.com",
+		  projectId: "bidding-75c1f",
+		  storageBucket: "bidding-75c1f.firebasestorage.app",
+		  messagingSenderId: "790924245144",
+		  appId: "1:790924245144:web:c69ba31b34b53e8e2a78ed",
+		  measurementId: "G-P5JSZ0W8LR"
+		};
+
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    let ROOM_ID = "";
+
+		// 形式選択（通常/密封）のセレクトボックスを取得
+		const typeSelect = document.getElementById('auction-type');
+		const autoExtendCheck = document.getElementById('auto-extend');
+		const autoExtendLabel = document.getElementById('auto-extend-label');
+
+		typeSelect.addEventListener('change', function() {
+		    if (this.value === 'blind') {
+		        // 密封入札が選ばれた場合
+		        autoExtendCheck.checked = false; // チェックを外す
+		        autoExtendCheck.disabled = true; // チェックボックスを無効化
+		        autoExtendLabel.style.color = '#ccc'; // 文字をグレーにする
+		        autoExtendLabel.innerText = "終了間際の入札で自動延長（密封式では無効）";
+		    } else {
+		        // 通常入札に戻った場合
+		        autoExtendCheck.disabled = false;
+		        autoExtendLabel.style.color = '#000'; // 文字を黒に戻す
+		        autoExtendLabel.innerText = "終了間際の入札で自動延長（5分）";
+		    }
+		});
+
+    // 会場作成
+		function setDefaultEndTime() {
+        const now = new Date();
+        now.setHours(now.getHours() + 1);
+        const y = now.getFullYear();
+        const m = String(now.getMonth() + 1).padStart(2, '0');
+        const d = String(now.getDate()).padStart(2, '0');
+        const h = String(now.getHours()).padStart(2, '0');
+        const mi = String(now.getMinutes()).padStart(2, '0');
+        document.getElementById('end-time').value = `${y}-${m}-${d}T${h}:${mi}`;
+    }
+
+    async function setupAuction() {
+        ROOM_ID = Math.random().toString(36).substring(2, 10).toUpperCase();
+        const joinUrl = window.location.href.replace('organizer.html', 'participant.html') + '?id=' + ROOM_ID;
+
+        await db.collection("auctions").doc(ROOM_ID).set({ status: "active", createdAt: firebase.firestore.FieldValue.serverTimestamp() });
+
+        document.getElementById('display-id').innerText = ROOM_ID;
+        document.getElementById('qr-code').src = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(joinUrl)}`;
+        document.getElementById('join-link').href = joinUrl;
+        document.getElementById('qr-section').style.display = 'block';
+        document.getElementById('item-form-section').style.display = 'block';
+        document.getElementById('setup-btn').style.display = 'none';
+        setDefaultEndTime();
+				startAdminMonitoring(); // 監視開始
+    }
+
+    async function submitItem() {
+        const title = document.getElementById('item-title').value;
+        const imgUrl = document.getElementById('item-image-url').value || "https://via.placeholder.com/400x300?text=No+Image";
+        const price = parseInt(document.getElementById('item-price').value);
+        const endTime = document.getElementById('end-time').value;
+				const type = document.getElementById('auction-type').value;
+		    const autoExtend = document.getElementById('auto-extend').checked;
+
+        if (!title) return alert("商品名を入力してください");
+
+        const btn = document.getElementById('submit-btn');
+        btn.disabled = true;
+
+        try {
+						await db.collection("auctions").doc(ROOM_ID).collection("items").add({
+							title,
+	            imageUrl: imgUrl,
+	            startPrice: price,
+	            currentPrice: price,
+	            maxBid: price,
+	            auctionType: type,     // 'normal' or 'blind'
+	            autoExtend: autoExtend, // true or false
+							endTime: firebase.firestore.Timestamp.fromDate(new Date(endTime)),
+	            highestBidder: "なし",
+	            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+						});
+            alert("出品完了！");
+            document.getElementById('item-title').value = "";
+            document.getElementById('item-image-url').value = "";
+        } catch (e) { alert("エラー: " + e.message); }
+        btn.disabled = false;
+    }
+
+		document.getElementById('auction-type').addEventListener('change', function() {
+		    if (this.value === 'blind') {
+		        const autoExtendCheck = document.getElementById('auto-extend');
+		        autoExtendCheck.checked = false; // チェックを外す
+		        autoExtendCheck.disabled = true; // 操作不能にする
+		    } else {
+		        document.getElementById('auto-extend').disabled = false;
+		    }
+		});
+
+		// 会場作成後、またはページ読み込み時に実行
+		function startAdminMonitoring() {
+		    if (!ROOM_ID) return;
+
+		    // 1. 参加者の監視
+		    db.collection("auctions").doc(ROOM_ID).collection("participants")
+		      .onSnapshot((snapshot) => {
+		          const listEl = document.getElementById('participant-list');
+		          const countEl = document.getElementById('participant-count');
+		          const names = [];
+		          snapshot.forEach(doc => names.push(doc.id));
+		          
+		          countEl.innerText = names.length;
+		          listEl.innerText = names.length > 0 ? names.join(', ') : "まだ誰もいません";
+		      });
+
+		    // 2. 各商品の入札状況の監視
+		    db.collection("auctions").doc(ROOM_ID).collection("items")
+		      .orderBy("createdAt", "asc")
+		      .onSnapshot((snapshot) => {
+		          const listEl = document.getElementById('admin-items-list');
+		          listEl.innerHTML = '';
+							// startAdminMonitoring 関数内の snapshot.forEach 部分を修正
+							snapshot.forEach(doc => {
+							    const data = doc.data();
+							    const itemCard = document.createElement('div');
+							    
+							    // --- 終了判定ロジック ---
+							    const now = new Date();
+							    const endTimeDate = data.endTime && data.endTime.toDate ? data.endTime.toDate() : new Date(data.endTime);
+							    const isEnded = endTimeDate <= now;
+							    
+							    // --- 修正ポイント：延長されているかチェック ---
+							    // もし元々の終了予定から変更があった場合などに視認しやすくします
+							    const timeStr = endTimeDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+							    itemCard.style = `background: ${isEnded ? '#f8f9fa' : 'white'}; border: 2px solid ${isEnded ? '#ccc' : '#ddd'}; padding: 15px; margin-bottom: 10px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center;`;
+							    
+							    const isBlind = data.auctionType === 'blind';
+							    const hiddenMaxPrice = data.maxBid ? data.maxBid.toLocaleString() : "---";
+							    
+							    let priceHTML = "";
+							    if (isBlind) {
+							        priceHTML = `
+							            <div style="color: blue; font-size: 0.7rem; font-weight: bold;">[密封入札モード]</div>
+							            <div style="font-size: 1.2rem; font-weight: bold; color: #e67e22;">最高額: ¥${hiddenMaxPrice}</div>
+							        `;
+							    } else {
+							        priceHTML = `
+							            <div style="font-size: 0.7rem; color: #666;">表示価格: ¥${data.currentPrice.toLocaleString()}</div>
+							            <div style="font-size: 1.1rem; font-weight: bold; color: #e67e22;">最高入札: ¥${hiddenMaxPrice}</div>
+							        `;
+							    }
+
+							    itemCard.innerHTML = `
+							        <div style="flex: 1;">
+							            <div style="display:flex; align-items:center; gap:8px;">
+							                <strong style="font-size: 1.1rem;">${data.title}</strong>
+							                ${isEnded ? '<span style="background:#666; color:white; font-size:0.7rem; padding:2px 5px; border-radius:4px;">終了</span>' : '<span style="background:#34a853; color:white; font-size:0.7rem; padding:2px 5px; border-radius:4px;">進行中</span>'}
+							            </div>
+							            <small>落札候補者: <strong>${data.highestBidder || 'なし'}</strong></small><br>
+							            <small style="color: ${isEnded ? '#999' : '#d93025'}; font-weight: ${!isEnded ? 'bold' : 'normal'};">
+							                ${isEnded ? '終了時刻' : '最新の終了予定'}: ${timeStr} 
+							                ${data.autoExtend && !isBlind ? ' (延長設定あり)' : ''}
+							            </small>
+							        </div>
+							        <div style="text-align: right;">
+							            ${priceHTML}
+							        </div>
+							    `;
+							    listEl.appendChild(itemCard);
+							});
+		      });
+		}
+
+</script>
+</body>
+</html>
