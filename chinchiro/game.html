@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>DICEメイン</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: white; text-align: center; }
+        .box { background: #2a2a2a; padding: 20px; border-radius: 12px; max-width: 500px; margin: 20px auto; border: 1px solid #444; }
+        .gauge-container { width: 100%; height: 30px; background: #444; border-radius: 15px; position: relative; overflow: hidden; margin: 20px 0; }
+        #gauge-bar { width: 0%; height: 100%; background: linear-gradient(90deg, #4cc9f0, #f72585); position: absolute; }
+        .dice-area { font-size: 3rem; margin: 20px; display: flex; justify-content: center; gap: 10px; }
+        .btn-roll { padding: 15px 30px; font-size: 1.2rem; background: #e63946; color: white; border: none; border-radius: 8px; cursor: pointer; width: 100%; }
+        .btn-roll:disabled { background: #555; cursor: not-allowed; }
+
+
+		/* どんぶり */
+		.dice-area {
+		    position: relative;
+		    width: 200px;
+		    height: 200px;
+		    margin: 40px auto;
+		    border: 8px solid #8d6e63; /* どんぶりの縁 */
+		    border-radius: 50%;
+		    background: #efebe9; /* どんぶりの底 */
+		    display: flex;
+		    justify-content: center;
+		    align-items: center;
+		}
+
+		#gauge-bar { 
+		    width: 0%; 
+		    height: 100%; 
+		    background: #4caf50; /* 初期色の緑 */
+		    position: absolute; 
+		    transition: background 0.2s; /* 色の変化を滑らかに */
+		}
+		/* サイコロ本体 */
+		.dice {
+		    position: absolute;
+		    width: 44px;
+		    height: 44px;
+		    background: #fff;
+		    border-radius: 6px;
+		    display: grid;
+		    grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+		    padding: 4px;
+		    box-sizing: border-box;
+		    box-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+		    /* 縁取りを追加して重なりを強調 */
+		    border: 1px solid #ccc; 
+		    z-index: 10;
+				position: absolute;
+		    left: 50%;   /* どんぶりの横中心を基準にする */
+		    top: 50%;    /* どんぶりの縦中心を基準にする */
+		    margin-left: -22px; /* 幅44pxの半分戻す */
+		    margin-top: -22px;  /* 高さ44pxの半分戻す */
+		}
+
+		/* サイコロの目（ドット） */
+		.dot {
+		    background: #333;
+		    border-radius: 50%;
+		    width: 8px;
+		    height: 8px;
+		    margin: auto;
+		}
+		/* 1の目だけ赤く大きくする演出 */
+		.dice[data-value="1"] .dot { background: #e63946; width: 12px; height: 12px; }
+
+		.dice-area.out-flash {
+		    border-color: #ff4d4d !important;
+		    box-shadow: 0 0 20px #ff4d4d;
+		    transition: all 0.3s;
+		}
+
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h2 id="room-name-display">読み込み中...</h2>
+    <div id="turn-display" style="color: #ffd11a; font-weight: bold;">相手の番を待っています</div>
+    <hr>
+    
+    <div class="dice-area">
+        <span id="d1">🎲</span><span id="d2">🎲</span><span id="d3">🎲</span>
+    </div>
+
+		<div class="gauge-container">
+		    <div id="gauge-bar"></div>
+		    <div id="safe-zone" style="position:absolute; left:40%; width:20%; height:100%; background:rgba(255,255,255,0.2); border-left:1px dashed #fff; border-right:1px dashed #fff;"></div>
+		</div>
+
+    <button id="roll-btn" class="btn-roll" onclick="handleRoll()" disabled>ストップ！</button>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, onValue, update, onDisconnect, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyDXQstrCY2Xo6MG5aKcM_orNxhddlDx3rA",
+        authDomain: "dice-a59f3.firebaseapp.com",
+        projectId: "dice-a59f3",
+        storageBucket: "dice-a59f3.firebasestorage.app",
+        messagingSenderId: "1013783488303",
+        appId: "1:1013783488303:web:828116dfd3852ff85de3da",
+        measurementId: "G-5GFX1S7DHQ"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    const params = new URLSearchParams(window.location.search);
+    const roomId = params.get('id');
+    const myId = params.get('uid');
+    const myName = params.get('uname');
+
+    let gaugeInterval = null;
+    let gaugeValue = 0;
+    let safeMin = 40; 
+    let safeMax = 60; 
+
+    const roomRef = roomId ? ref(db, `rooms/${roomId}`) : null;
+    const myPlayerRef = (roomId && myId) ? ref(db, `rooms/${roomId}/players/${myId}`) : null;
+
+    if (!roomId || !myId) {
+        alert("無効なアクセスです");
+        window.location.href = "lobby.html";
+    } else {
+        onDisconnect(myPlayerRef).remove(); 
+        update(myPlayerRef, { name: myName, isReady: true });
+
+        onValue(roomRef, (snapshot) => {
+            const data = snapshot.val();
+            if (!data || !data.players) return;
+
+            document.getElementById('room-name-display').innerText = data.roomName;
+            const turnPlayerId = data.currentTurnPlayer;
+
+            if (turnPlayerId === myId) {
+                document.getElementById('turn-display').innerText = "あなたの番です！";
+                document.getElementById('roll-btn').disabled = false;
+                startGauge();
+            } else {
+                const turnOwnerName = data.players[turnPlayerId] ? data.players[turnPlayerId].name : "不明";
+                document.getElementById('turn-display').innerText = `${turnOwnerName}が振っています...`;
+                document.getElementById('roll-btn').disabled = true;
+                stopGauge();
+            }
+
+            if (data.lastRoll) {
+                // 【重要】values だけでなく lastRoll オブジェクト全体を渡す
+                updateDiceUI(data.lastRoll);
+            }
+        });
+    }
+
+		let loopCount = 0; // 現在のループ回数
+		const maxLoops = 5; // 最大5回（緑3回、黄1回、赤1回）
+
+		function startGauge() {
+		    if (gaugeInterval) return;
+		    gaugeValue = 0;
+		    loopCount = 0;
+		    
+		    gaugeInterval = setInterval(() => {
+		        gaugeValue += 4;
+
+		        // 100%に達したらループカウントを増やしてリセット
+		        if (gaugeValue >= 100) {
+		            gaugeValue = 0;
+		            loopCount++;
+
+		            // 5回ループ（インデックス0,1,2,3,4）が終わっても止まらなかったら
+		            if (loopCount >= maxLoops) {
+		                forceOut(); // 強制ションベン処理
+		                return;
+		            }
+		        }
+
+		        const bar = document.getElementById('gauge-bar');
+		        bar.style.width = gaugeValue + "%";
+
+		        // ループ回数に応じて色を変える
+		        if (loopCount < 3) {
+		            bar.style.background = "#4caf50"; // 緑 (1〜3回目)
+		        } else if (loopCount === 3) {
+		            bar.style.background = "#ffeb3b"; // 黄 (4回目)
+		        } else {
+		            bar.style.background = "#f44336"; // 赤 (5回目)
+		        }
+
+		        // サイコロの暴れ演出（既存のロジック）
+		        const d1 = document.getElementById('d1');
+		        const d2 = document.getElementById('d2');
+		        const d3 = document.getElementById('d3');
+		        const power = (loopCount * 20) + (gaugeValue * 0.5); // ループが進むほど激しく
+
+		        [d1, d2, d3].forEach(el => {
+		            const x = (Math.random() - 0.5) * power * 2;
+		            const y = (Math.random() - 0.5) * power * 2;
+		            const deg = Math.random() * 360;
+		            el.style.transform = `translate(${x}px, ${y}px) rotate(${deg}deg)`;
+		            el.innerHTML = getDiceHTML(Math.floor(Math.random() * 6) + 1); 
+		        });
+		    }, 20);
+		}
+
+		// タイムアップ時の強制ションベン関数
+		async function forceOut() {
+		    // 1. まずゲージを止めてリセット
+		    stopGauge();
+		    
+		    // 2. 演出用の目を作成
+		    const dVals = [
+		        Math.floor(Math.random() * 6) + 1,
+		        Math.floor(Math.random() * 6) + 1,
+		        Math.floor(Math.random() * 6) + 1
+		    ];
+		    
+		    try {
+		        const snapshot = await get(roomRef);
+		        const data = snapshot.val();
+		        const playerIds = Object.keys(data.players);
+		        const nextPlayerId = playerIds[(playerIds.indexOf(myId) + 1) % playerIds.length];
+
+		        // 3. 強制ションベンデータを送信
+		        await update(roomRef, {
+		            lastRoll: { 
+		                values: [0, 0, 0], 
+		                displayValues: dVals, 
+		                playerName: myName 
+		            },
+		            currentTurnPlayer: nextPlayerId
+		        });
+		    } catch (e) {
+		        console.error(e);
+		    }
+		}
+
+		function stopGauge() {
+		    if (gaugeInterval) {
+		        clearInterval(gaugeInterval);
+		        gaugeInterval = null;
+		    }
+		    // ストップした瞬間にゲージを0に戻す
+		    const bar = document.getElementById('gauge-bar');
+		    if (bar) bar.style.width = "0%";
+		}
+
+    function getOutProbability(val) {
+        const center = (safeMin + safeMax) / 2;
+        const distanceFromCenter = Math.abs(val - center);
+        return Math.pow(distanceFromCenter / center, 2); 
+    }
+
+    function getDiceHTML(num) {
+        const dotPositions = {
+            1: [4], 2: [0, 8], 3: [0, 4, 8],
+            4: [0, 2, 6, 8], 5: [0, 2, 4, 6, 8], 6: [0, 3, 6, 2, 5, 8]
+        };
+        const positions = dotPositions[num] || [];
+        let dots = "";
+        for(let i=0; i<9; i++) {
+            dots += positions.includes(i) ? '<div class="dot"></div>' : '<div></div>';
+        }
+        return `<div class="dice" data-value="${num}">${dots}</div>`;
+    }
+
+    function updateDiceUI(rollData) {
+        const values = rollData.values || [1, 1, 1];
+        const d = rollData.displayValues || values; 
+        const d1 = document.getElementById('d1');
+        const d2 = document.getElementById('d2');
+        const d3 = document.getElementById('d3');
+        const area = document.querySelector('.dice-area');
+
+        d1.innerHTML = getDiceHTML(d[0]);
+        d2.innerHTML = getDiceHTML(d[1]);
+        d3.innerHTML = getDiceHTML(d[2]);
+
+        if (values[0] === 0) {
+            // ションベン：大きく外へ
+            d1.style.transform = "translate(-130px, -100px) rotate(-110deg)";
+            d2.style.transform = "translate(20px, -150px) rotate(200deg)";
+            d3.style.transform = "translate(120px, 60px) rotate(45deg)";
+            area.style.borderColor = "#ff4d4d";
+        } else {
+            // 成功：三角形（少し左上に微調整）
+            d1.style.transform = "translate(-2px, -42px) rotate(5deg)";   
+            d2.style.transform = "translate(-40px, 24px) rotate(-10deg)"; 
+            d3.style.transform = "translate(36px, 24px) rotate(12deg)";  
+            area.style.borderColor = "#8d6e63";
+        }
+    }
+
+    window.handleRoll = async () => {
+        stopGauge();
+        const prob = getOutProbability(gaugeValue);
+        const isOut = Math.random() < prob;
+        const dVals = [Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1];
+        const finalValues = isOut ? [0, 0, 0] : dVals;
+
+        try {
+            const snapshot = await get(roomRef);
+            const data = snapshot.val();
+            const playerIds = Object.keys(data.players);
+            const nextPlayerId = playerIds[(playerIds.indexOf(myId) + 1) % playerIds.length];
+
+            await update(roomRef, {
+                lastRoll: { 
+                    values: finalValues, 
+                    displayValues: dVals, 
+                    playerName: myName 
+                },
+                currentTurnPlayer: nextPlayerId
+            });
+        } catch (e) {
+            console.error("送信エラー:", e);
+        }
+    };
+</script>
+</body>
+</html>
