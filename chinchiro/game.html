@@ -46,14 +46,15 @@
 		    padding: 4px;
 		    box-sizing: border-box;
 		    box-shadow: 2px 2px 8px rgba(0,0,0,0.5);
-		    /* 縁取りを追加して重なりを強調 */
 		    border: 1px solid #ccc; 
 		    z-index: 10;
-				position: absolute;
-		    left: 50%;   /* どんぶりの横中心を基準にする */
-		    top: 50%;    /* どんぶりの縦中心を基準にする */
-		    margin-left: -22px; /* 幅44pxの半分戻す */
-		    margin-top: -22px;  /* 高さ44pxの半分戻す */
+		    left: 50%;
+		    top: 50%;
+		    /* 初期位置（JSが当たる前の位置） */
+		    margin-left: -22px;
+		    margin-top: -22px;
+		    /* transition を付けておくと、止まる時に「スッ」と位置につきます */
+		    transition: transform 0.2s ease-out; 
 		}
 
 		/* サイコロの目（ドット） */
@@ -73,6 +74,20 @@
 		    transition: all 0.3s;
 		}
 
+		@keyframes shake {
+		    0% { margin-top: -22px; margin-left: -22px; }
+		    25% { margin-top: -25px; margin-left: -19px; }
+		    50% { margin-top: -19px; margin-left: -25px; }
+		    75% { margin-top: -23px; margin-left: -20px; }
+		    100% { margin-top: -22px; margin-left: -22px; }
+		}
+
+		.rolling {
+		    animation: shake 0.1s infinite;
+		    /* 振っている間は transition を切るとより激しく見えます */
+		    transition: none !important; 
+		}
+
     </style>
 </head>
 <body>
@@ -81,17 +96,26 @@
     <h2 id="room-name-display">読み込み中...</h2>
     <div id="turn-display" style="color: #ffd11a; font-weight: bold;">相手の番を待っています</div>
     <hr>
-    
+
+		<div id="result-message" style="font-size: 1.5rem; color: #ffd11a; min-height: 2rem; margin-top: 10px;"></div>
+
     <div class="dice-area">
         <span id="d1">🎲</span><span id="d2">🎲</span><span id="d3">🎲</span>
     </div>
+		<button id="show-result-btn" class="btn-roll" style="display: none; background: #ff9800; margin-top: 10px;" onclick="finalizeGame()">結果を表示する</button>
+
+		<div id="result-screen" style="display: none; background: #333; padding: 20px; border-radius: 12px; margin: 20px auto; max-width: 400px;">
+		    <h3>対戦結果</h3>
+		    <div id="ranking-list" style="text-align: left; line-height: 2;"></div>
+		    <button id="restart-btn" class="btn-roll" style="display: none; background: #2196f3; margin-top: 20px;" onclick="handleRestart()">ゲームを再開する</button>
+		</div>
 
 		<div class="gauge-container">
 		    <div id="gauge-bar"></div>
 		    <div id="safe-zone" style="position:absolute; left:40%; width:20%; height:100%; background:rgba(255,255,255,0.2); border-left:1px dashed #fff; border-right:1px dashed #fff;"></div>
 		</div>
 
-    <button id="roll-btn" class="btn-roll" onclick="handleRoll()" disabled>ストップ！</button>
+		<button id="roll-btn" class="btn-roll" onclick="handleButtonClick()" disabled>スタート</button>
 </div>
 
 <script type="module">
@@ -131,54 +155,146 @@
         onDisconnect(myPlayerRef).remove(); 
         update(myPlayerRef, { name: myName, isReady: true });
 
-        onValue(roomRef, (snapshot) => {
-            const data = snapshot.val();
-            if (!data || !data.players) return;
+				onValue(roomRef, (snapshot) => {
+				    const data = snapshot.val();
+				    if (!data || !data.players) return;
 
-            document.getElementById('room-name-display').innerText = data.roomName;
-            const turnPlayerId = data.currentTurnPlayer;
+				    const turnDisplay = document.getElementById('turn-display');
+				    const btn = document.getElementById('roll-btn');
+				    const diceArea = document.querySelector('.dice-area');
+				    const gaugeContainer = document.querySelector('.gauge-container');
+				    const resultScreen = document.getElementById('result-screen');
+				    const msgEl = document.getElementById('result-message');
+				    const showResultBtn = document.getElementById('show-result-btn');
 
-            if (turnPlayerId === myId) {
-                document.getElementById('turn-display').innerText = "あなたの番です！";
-                document.getElementById('roll-btn').disabled = false;
-                startGauge();
-            } else {
-                const turnOwnerName = data.players[turnPlayerId] ? data.players[turnPlayerId].name : "不明";
-                document.getElementById('turn-display').innerText = `${turnOwnerName}が振っています...`;
-                document.getElementById('roll-btn').disabled = true;
-                stopGauge();
-            }
+				    document.getElementById('room-name-display').innerText = data.roomName;
+				    const turnPlayerId = data.currentTurnPlayer;
 
-            if (data.lastRoll) {
-                // 【重要】values だけでなく lastRoll オブジェクト全体を渡す
-                updateDiceUI(data.lastRoll);
-            }
-        });
+				    // --- 1. 状態に応じた表示の切り替え ---
+				    if (turnPlayerId === "finished") {
+				        if (diceArea) diceArea.style.display = 'none';
+				        if (gaugeContainer) gaugeContainer.style.display = 'none';
+				        if (btn) btn.style.display = 'none';
+				        showResult(data);
+				    } else if (turnPlayerId === "waiting_result") {
+				        turnDisplay.innerText = "全員が振り終わりました";
+				        if (btn) btn.style.display = "none";
+				        if (showResultBtn) showResultBtn.style.display = (data.hostId === myId) ? "block" : "none";
+				    } else {
+				        // 通常進行中 or リスタート直後
+				        if (diceArea) diceArea.style.display = 'flex';
+				        if (gaugeContainer) gaugeContainer.style.display = 'block';
+				        if (btn) btn.style.display = 'block';
+				        if (resultScreen) resultScreen.style.display = 'none'; // ランキング画面を隠す
+				        if (showResultBtn) showResultBtn.style.display = "none";
+
+				        if (turnPlayerId === myId) {
+				            turnDisplay.innerText = "あなたの番です";
+				            btn.disabled = false;
+				            if (btn.innerText !== "ストップ") {
+				                btn.innerText = "スタート";
+				                btn.style.background = "#4caf50";
+				            }
+				        } else {
+				            const turnOwnerName = data.players[turnPlayerId] ? data.players[turnPlayerId].name : "不明";
+				            turnDisplay.innerText = `${turnOwnerName}の番です`;
+				            btn.disabled = true;
+				            btn.innerText = "待機中...";
+				            btn.style.background = "#555";
+				            stopGauge(); // 自分のゲージが動いていたら止める
+				        }
+				    }
+
+				    // --- 2. サイコロ・ゲージのリセット同期 ---
+				    if (!data.lastRoll) {
+				        // 【重要】ホストがリスタートした時のリセット処理
+				        resetGaugeUI(); // ゲージを0%に
+				        if (msgEl) msgEl.innerText = "";
+				        
+				        // サイコロを初期位置に戻す
+				        const d1 = document.getElementById('d1');
+				        const d2 = document.getElementById('d2');
+				        const d3 = document.getElementById('d3');
+				        [d1, d2, d3].forEach(d => {
+				            d.classList.remove('rolling');
+				            d.style.transform = "translate(0, 0) rotate(0deg)";
+				        });
+				        d1.innerHTML = getDiceHTML(1);
+				        d2.innerHTML = getDiceHTML(1);
+				        d3.innerHTML = getDiceHTML(1);
+
+				        // 他人のアニメーション用タイマーも解除
+				        if (typeof remoteRollInterval !== 'undefined' && remoteRollInterval) {
+				            clearInterval(remoteRollInterval);
+				            remoteRollInterval = null;
+				        }
+				    } else {
+				        // --- 3. サイコロ描画（通常時・他人が振っている時） ---
+				        updateDiceUI(data.lastRoll);
+
+				        const rollCount = data.lastRoll.rollCount;
+				        // 自分が振っている最中で、役なし振り直しの場合
+				        if (rollCount > 0 && turnPlayerId === myId && !data.lastRoll.isRolling) {
+				            if (msgEl && !msgEl.innerText.includes('回目')) {
+				                msgEl.innerText += `（${rollCount}回目）`;
+				            }
+				        }
+				    }
+				});
     }
+
+		// ボタン制御用のメイン関数
+		window.handleButtonClick = () => {
+		    const btn = document.getElementById('roll-btn');
+		    
+		    if (btn.innerText === "スタート") {
+		        // --- スタート処理 ---
+						document.getElementById('gauge-bar').style.width = "0%";
+		        gaugeValue = 0;
+		        loopCount = 0;
+
+		        btn.innerText = "ストップ";
+		        btn.style.background = "#e63946"; // ストップは赤系
+		        startGauge();
+		    } else {
+		        // --- ストップ処理 ---
+		        btn.innerText = "スタート";
+		        btn.style.background = "#4caf50"; // 次のスタートに向けて緑系に
+		        handleRoll(); // 既存のサイコロ確定・送信処理
+		    }
+		};
 
 		let loopCount = 0; // 現在のループ回数
 		const maxLoops = 5; // 最大5回（緑3回、黄1回、赤1回）
 
+		// 既存の startGauge 内の監視を少し修正
 		function startGauge() {
 		    if (gaugeInterval) return;
 		    gaugeValue = 0;
 		    loopCount = 0;
-		    
+
+				update(roomRef, { "lastRoll/isRolling": true });
+
 		    gaugeInterval = setInterval(() => {
 		        gaugeValue += 4;
-
-		        // 100%に達したらループカウントを増やしてリセット
 		        if (gaugeValue >= 100) {
 		            gaugeValue = 0;
 		            loopCount++;
-
-		            // 5回ループ（インデックス0,1,2,3,4）が終わっても止まらなかったら
 		            if (loopCount >= maxLoops) {
-		                forceOut(); // 強制ションベン処理
+										// 時間切れ！
+				            gaugeValue = 100; // 内部値を100に固定
+				            updateGaugeUI();   // 見た目を100%（満タン）にする
+
+		                // タイムアップ時はボタン表示を戻して強制ションベン
+		                const btn = document.getElementById('roll-btn');
+		                btn.innerText = "スタート";
+		                btn.style.background = "#4caf50";
+		                forceOut();
 		                return;
 		            }
 		        }
-
+		        
+		        // --- ゲージ描画とサイコロの暴れ演出はそのまま ---
 		        const bar = document.getElementById('gauge-bar');
 		        bar.style.width = gaugeValue + "%";
 
@@ -230,7 +346,8 @@
 		            lastRoll: { 
 		                values: [0, 0, 0], 
 		                displayValues: dVals, 
-		                playerName: myName 
+		                playerName: myName,
+										rollCount: 0 // リセット
 		            },
 		            currentTurnPlayer: nextPlayerId
 		        });
@@ -244,9 +361,6 @@
 		        clearInterval(gaugeInterval);
 		        gaugeInterval = null;
 		    }
-		    // ストップした瞬間にゲージを0に戻す
-		    const bar = document.getElementById('gauge-bar');
-		    if (bar) bar.style.width = "0%";
 		}
 
     function getOutProbability(val) {
@@ -268,58 +382,282 @@
         return `<div class="dice" data-value="${num}">${dots}</div>`;
     }
 
-    function updateDiceUI(rollData) {
-        const values = rollData.values || [1, 1, 1];
-        const d = rollData.displayValues || values; 
-        const d1 = document.getElementById('d1');
-        const d2 = document.getElementById('d2');
-        const d3 = document.getElementById('d3');
-        const area = document.querySelector('.dice-area');
+		// アニメーション用のタイマー変数（関数の外に定義）
+		let remoteRollInterval = null;
 
-        d1.innerHTML = getDiceHTML(d[0]);
-        d2.innerHTML = getDiceHTML(d[1]);
-        d3.innerHTML = getDiceHTML(d[2]);
+		function updateDiceUI(rollData) {
+		    if (!rollData) return;
 
-        if (values[0] === 0) {
-            // ションベン：大きく外へ
-            d1.style.transform = "translate(-130px, -100px) rotate(-110deg)";
-            d2.style.transform = "translate(20px, -150px) rotate(200deg)";
-            d3.style.transform = "translate(120px, 60px) rotate(45deg)";
-            area.style.borderColor = "#ff4d4d";
-        } else {
-            // 成功：三角形（少し左上に微調整）
-            d1.style.transform = "translate(-2px, -42px) rotate(5deg)";   
-            d2.style.transform = "translate(-40px, 24px) rotate(-10deg)"; 
-            d3.style.transform = "translate(36px, 24px) rotate(12deg)";  
-            area.style.borderColor = "#8d6e63";
-        }
-    }
+		    const values = rollData.values || [1, 1, 1];
+		    const d = rollData.displayValues || values;
+		    const msgEl = document.getElementById('result-message');
+		    const isRolling = rollData.isRolling;
 
-    window.handleRoll = async () => {
-        stopGauge();
-        const prob = getOutProbability(gaugeValue);
-        const isOut = Math.random() < prob;
-        const dVals = [Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1, Math.floor(Math.random() * 6) + 1];
-        const finalValues = isOut ? [0, 0, 0] : dVals;
+		    const d1 = document.getElementById('d1');
+		    const d2 = document.getElementById('d2');
+		    const d3 = document.getElementById('d3');
+		    const area = document.querySelector('.dice-area');
 
-        try {
-            const snapshot = await get(roomRef);
-            const data = snapshot.val();
-            const playerIds = Object.keys(data.players);
-            const nextPlayerId = playerIds[(playerIds.indexOf(myId) + 1) % playerIds.length];
+		    if (isRolling) {
+		        // --- 誰かが振っている最中 ---
+		        msgEl.innerText = `${rollData.playerName} が振っています...`;
+		        msgEl.style.color = "#ffffff";
+		        
+		        // すでにアニメーションが動いていなければ開始
+		        if (!remoteRollInterval) {
+		            remoteRollInterval = setInterval(() => {
+		                // 座標を高速にランダム化（どんぶりの中で飛び跳ねさせる）
+		                const randPos = () => Math.floor(Math.random() * 80) - 40; // -40px ~ 40px
+		                const randRot = () => Math.floor(Math.random() * 360);
 
-            await update(roomRef, {
-                lastRoll: { 
-                    values: finalValues, 
-                    displayValues: dVals, 
-                    playerName: myName 
-                },
-                currentTurnPlayer: nextPlayerId
-            });
-        } catch (e) {
-            console.error("送信エラー:", e);
-        }
-    };
+		                d1.style.transform = `translate(${randPos()}px, ${randPos()}px) rotate(${randRot()}deg)`;
+		                d2.style.transform = `translate(${randPos()}px, ${randPos()}px) rotate(${randRot()}deg)`;
+		                d3.style.transform = `translate(${randPos()}px, ${randPos()}px) rotate(${randRot()}deg)`;
+
+		                // 目もランダムに変える
+		                d1.innerHTML = getDiceHTML(Math.floor(Math.random() * 6) + 1);
+		                d2.innerHTML = getDiceHTML(Math.floor(Math.random() * 6) + 1);
+		                d3.innerHTML = getDiceHTML(Math.floor(Math.random() * 6) + 1);
+		            }, 50); // 0.05秒ごとに激しく動かす
+		        }
+		    } else {
+		        // --- 止まった時 ---
+		        // 動いていたタイマーを止める
+		        if (remoteRollInterval) {
+		            clearInterval(remoteRollInterval);
+		            remoteRollInterval = null;
+		        }
+
+		        d1.innerHTML = getDiceHTML(d[0]);
+		        d2.innerHTML = getDiceHTML(d[1]);
+		        d3.innerHTML = getDiceHTML(d[2]);
+
+		        if (values[0] === 0) {
+		            // ションベン配置
+		            d1.style.transform = "translate(-130px, -100px) rotate(-110deg)";
+		            d2.style.transform = "translate(20px, -150px) rotate(200deg)";
+		            d3.style.transform = "translate(120px, 60px) rotate(45deg)";
+		            area.style.borderColor = "#ff4d4d";
+		            msgEl.innerText = "ションベン";
+		            msgEl.style.color = "#ff4d4d";
+		        } else {
+		            // 通常確定配置
+		            d1.style.transform = "translate(-2px, -42px) rotate(5deg)";
+		            d2.style.transform = "translate(-40px, 24px) rotate(-10deg)";
+		            d3.style.transform = "translate(36px, 24px) rotate(12deg)";
+		            area.style.borderColor = "#8d6e63";
+
+		            const result = judge(values);
+		            msgEl.innerText = result.name;
+		            msgEl.style.color = "#ffd11a";
+		        }
+		    }
+		}
+
+		function judge(dice) {
+		    // 判定しやすくするために昇順（小さい順）に並び替える
+		    const sorted = [...dice].sort((a, b) => a - b);
+		    const [a, b, c] = sorted;
+
+		    // 1. ゾロ目（アラシ）
+		    if (a === b && b === c) {
+		        if (a === 1) {
+		            return { name: "ピンゾロ", score: 100 }; // 最強
+		        }
+		        return { name: a + "のゾロ目", score: 90 + a };
+		    }
+
+		    // 2. シゴロ (4, 5, 6)
+		    if (a === 4 && b === 5 && c === 6) {
+		        return { name: "シゴロ", score: 80 };
+		    }
+
+		    // 3. ヒフミ (1, 2, 3)
+		    if (a === 1 && b === 2 && c === 3) {
+		        return { name: "ヒフミ", score: -1 }; // 最弱（負け）
+		    }
+
+		    // 4. 目あり（2つのサイコロが同じで、残りの1つが「目」になる）
+		    // 例: [2, 2, 5] なら「5の目」
+		    if (a === b) return { name: c + "の目", score: c };
+		    if (b === c) return { name: a + "の目", score: a };
+		    
+		    // a === c のケース（[2, 5, 2] など）は、ソート済みなので [2, 2, 5] になり上の判定で拾えます
+
+		    // 5. 役なし（目なし）
+		    return { name: "役なし", score: 0 };
+		}
+
+		// 全員の順位を表示する関数
+		function showResult(data) {
+		    // 1. 画面表示の切り替え
+		    document.querySelector('.dice-area').style.display = 'none';
+		    document.querySelector('.gauge-container').style.display = 'none';
+		    document.getElementById('roll-btn').style.display = 'none';
+		    document.getElementById('show-result-btn').style.display = "none";
+
+		    const resultScreen = document.getElementById('result-screen');
+		    const rankingList = document.getElementById('ranking-list');
+		    resultScreen.style.display = 'block';
+
+		    // 2. プレイヤーデータをスコア順にソート
+		    const players = data.players;
+		    const sortedList = Object.keys(players).map(id => ({
+		        name: players[id].name,
+		        result: players[id].lastResultName || "役なし",
+		        score: players[id].lastScore || 0
+		    })).sort((a, b) => b.score - a.score);
+
+		    // 3. 同順位を考慮したHTMLの生成（スコア非表示）
+		    let displayRank = 1;
+		    rankingList.innerHTML = sortedList.map((p, i) => {
+		        // 2人目以降で、前のプレイヤーよりスコアが低い場合のみ順位を更新
+		        if (i > 0 && p.score < sortedList[i - 1].score) {
+		            displayRank = i + 1;
+		        }
+
+		        return `
+		            <div style="border-bottom: 1px solid #444; padding: 12px; display: flex; align-items: center;">
+		                <span style="width: 60px; font-weight: bold; color: #ffd11a;">${displayRank}位</span>
+		                <span style="flex: 1; text-align: left; font-size: 1.1rem;"><strong>${p.name}</strong></span>
+		                <span style="color: #ccc; font-size: 0.9rem;">${p.result}</span>
+		            </div>
+		        `;
+		    }).join('');
+
+		    // 4. ホストなら再スタートボタンを表示
+		    if (data.hostId === myId) {
+		        document.getElementById('restart-btn').style.display = 'block';
+		    }
+		}
+
+		function resetGaugeUI() {
+		    gaugeValue = 0;
+		    loopCount = 0;
+		    const bar = document.getElementById('gauge-bar');
+		    if (bar) {
+		        bar.style.width = "0%";
+		        bar.style.background = "#4caf50";
+		    }
+		}
+
+		window.finalizeGame = async () => {
+		    try {
+		        await update(roomRef, {
+		            currentTurnPlayer: "finished"
+		        });
+		    } catch (e) {
+		        console.error(e);
+		    }
+		};
+
+		// ゲームを最初からやり直す関数（ホスト専用）
+		window.handleRestart = async () => {
+		    try {
+		        const snapshot = await get(roomRef);
+		        const data = snapshot.val();
+		        const playerIds = Object.keys(data.players);
+		        
+		        const updates = {};
+		        playerIds.forEach(id => {
+		            updates[`players/${id}/lastScore`] = 0;
+		            updates[`players/${id}/lastResultName`] = "";
+		        });
+		        
+		        updates['currentTurnPlayer'] = playerIds[0];
+		        updates['lastRoll'] = null;
+		        // --- 追加：ゲージの状態もリセット ---
+		        updates['currentGaugeValue'] = 0; 
+
+		        await update(roomRef, updates);
+
+		        // ホスト自身のUIを即時リセット
+		        resetGaugeUI();
+		        
+		        document.getElementById('show-result-btn').style.display = 'none';
+		        document.getElementById('result-screen').style.display = 'none';
+		        document.querySelector('.dice-area').style.display = 'flex';
+		        document.querySelector('.gauge-container').style.display = 'block';
+		        document.getElementById('roll-btn').style.display = 'block';
+		        document.getElementById('result-message').innerText = "";
+		    } catch (e) {
+		        console.error("再スタートエラー:", e);
+		    }
+		};
+
+		window.handleRoll = async () => {
+		    stopGauge();
+		    
+		    const prob = getOutProbability(gaugeValue);
+		    const isOut = Math.random() < prob;
+		    const dVals = [
+		        Math.floor(Math.random() * 6) + 1,
+		        Math.floor(Math.random() * 6) + 1,
+		        Math.floor(Math.random() * 6) + 1
+		    ];
+		    // ションベンなら[0,0,0]、そうでなければ出目をそのまま使う
+		    const finalValues = isOut ? [0, 0, 0] : dVals;
+
+		    try {
+		        const snapshot = await get(roomRef);
+		        const data = snapshot.val();
+		        if (!data || !data.players) return;
+
+		        const playerIds = Object.keys(data.players);
+		        
+		        // --- 1. 回数カウントの修正 ---
+		        let currentRollCount = 1;
+		        // 前回の記録があり、かつ自分が振っていた場合のみカウントアップ
+		        if (data.lastRoll && data.lastRoll.playerName === myName) {
+		            // 前回のrollCountが0（交代直後）でなければ加算
+		            const lastCount = Number(data.lastRoll.rollCount || 0);
+		            currentRollCount = lastCount > 0 ? lastCount + 1 : 1;
+		        }
+
+		        const result = judge(dVals);
+		        const isNone = result.name === "役なし";
+		        
+		        // 交代条件：ションベン、または役が出た、または3回目
+		        const shouldSwitch = isOut || !isNone || currentRollCount >= 3;
+
+		        let nextPlayerId = myId; // デフォルトは「自分（振り直し）」
+		        let rollCountToSave = currentRollCount; // DBに保存する回数
+
+		        if (shouldSwitch) {
+		            // 役の結果とスコアを個人枠に保存（リザルト用）
+		            const myPlayerRef = ref(db, `rooms/${roomId}/players/${myId}`);
+		            await update(myPlayerRef, {
+		                lastResultName: isOut ? "ションベン" : result.name,
+		                lastScore: isOut ? -100 : result.score
+		            });
+
+		            const currentIndex = playerIds.indexOf(myId);
+		            if (currentIndex === playerIds.length - 1) {
+		                nextPlayerId = "waiting_result"; // 全員終了
+		            } else {
+		                nextPlayerId = playerIds[currentIndex + 1]; // 次の人へ
+		            }
+		            rollCountToSave = 0; // ターンが終了するのでカウントをリセット
+		        }
+
+		        // --- 2. 【重要】ここで必ずDBを更新する ---
+		        // これにより、役なし（shouldSwitch=false）の時でも lastRoll が更新され、
+		        // 全プレイヤーの onValue -> updateDiceUI が発火します。
+		        await update(roomRef, {
+		            lastRoll: { 
+		                values: finalValues, 
+		                displayValues: dVals, 
+		                playerName: myName,
+		                rollCount: rollCountToSave
+		            },
+		            currentTurnPlayer: nextPlayerId
+		        });
+
+		    } catch (e) {
+		        console.error("送信エラー:", e);
+		    }
+		};
+
 </script>
 </body>
 </html>
