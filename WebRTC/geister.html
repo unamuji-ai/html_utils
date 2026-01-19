@@ -62,13 +62,16 @@
 				        flex-direction: column;
 				        gap: 10px;
 				        padding: 10px;
-				        overflow-y: auto;
+				        overflow-y: auto; /* ← これが重要 */
+				        max-height: 100vh; /* ← 画面内に収める */
 				    }
 
 				    .sidebar {
 				        width: 90%;
 				        max-width: 300px;
 				        margin: 0 auto;
+				        max-height: 120px;     /* ← 高さ制限 */
+				        overflow-y: auto;      /* ← スクロール可能にする */
 				    }
 
 				    #board {
