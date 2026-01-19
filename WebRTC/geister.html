@@ -4,7 +4,11 @@
     <meta charset="UTF-8">
     <title>ガイスター - 完全同期版</title>
     <style>
-        body { font-family: sans-serif; background: #1a1a2e; color: white; text-align: center; margin: 0; padding: 0; overflow: hidden; }
+				html, body {
+				    height: auto !important;
+				    min-height: 100vh;
+				    overflow-y: auto !important;
+				}
         #game-layout { display: flex; align-items: center; justify-content: center; gap: 30px; min-height: 100vh; }
         
         /* 盤面の設定 */
@@ -62,8 +66,8 @@
 				        flex-direction: column;
 				        gap: 10px;
 				        padding: 10px;
-				        overflow-y: auto; /* ← これが重要 */
-				        max-height: 100vh; /* ← 画面内に収める */
+				        min-height: auto;
+				        height: auto;
 				    }
 
 				    .sidebar {
