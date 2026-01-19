@@ -56,6 +56,31 @@
         .mini-red { background: #e94560; }
 
         .setup-btn { background: #f1c40f; color: #1a1a2e; border: none; padding: 12px 40px; font-weight: bold; border-radius: 5px; cursor: pointer; margin-top: 20px; font-size: 1.1rem; }
+
+				@media (max-width: 600px) {
+				    #game-layout {
+				        flex-direction: column;
+				        gap: 10px;
+				        padding: 10px;
+				        overflow-y: auto;
+				    }
+
+				    .sidebar {
+				        width: 90%;
+				        max-width: 300px;
+				        margin: 0 auto;
+				    }
+
+				    #board {
+				        width: 300px;
+				        height: 300px;
+				    }
+
+				    .cell {
+				        width: 50px;
+				        height: 50px;
+				    }
+				}
     </style>
 </head>
 <body>
@@ -164,17 +189,34 @@
         }
     }
 
-    function confirmSetup() {
-        const mySetup = [];
-        board.forEach((p, i) => {
-            if (p && p.owner === role) mySetup.push({ index: i, type: p.type });
-        });
+		function confirmSetup() {
+		    // --- 追加：赤青の数チェック ---
+		    let blueCount = 0;
+		    let redCount = 0;
 
-        document.getElementById('ready-btn').disabled = true;
-        document.getElementById('ready-btn').innerText = "相手の準備待ち...";
-        send({ type: "G_READY", setup: mySetup });
-        checkStart();
-    }
+		    board.forEach((p) => {
+		        if (p && p.owner === role) {
+		            if (p.type === "blue") blueCount++;
+		            if (p.type === "red") redCount++;
+		        }
+		    });
+
+		    if (blueCount !== 4 || redCount !== 4) {
+		        alert(`青 ${blueCount} 個、赤 ${redCount} 個です。\n赤と青を4個ずつにしてください。`);
+		        return; // 配置完了を中断
+		    }
+		    // --- ここまで追加 ---
+
+		    const mySetup = [];
+		    board.forEach((p, i) => {
+		        if (p && p.owner === role) mySetup.push({ index: i, type: p.type });
+		    });
+
+		    document.getElementById('ready-btn').disabled = true;
+		    document.getElementById('ready-btn').innerText = "相手の準備待ち...";
+		    send({ type: "G_READY", setup: mySetup });
+		    checkStart();
+		}
 
     function movePiece(toIdx) {
         const fromIdx = selectedIdx;

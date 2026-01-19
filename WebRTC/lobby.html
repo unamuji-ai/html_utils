@@ -22,6 +22,15 @@
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
 
+				.game-option {
+				    opacity: 1;
+				    transition: opacity 0.2s;
+				}
+
+				.game-option.disabled {
+				    opacity: 0.4;
+				}
+
         /* ボタン：スマホの親指で押しやすいサイズ(最小44px以上) */
         .btn { 
             padding: 18px; font-size: 18px; margin: 10px 0; border: none; 
@@ -76,13 +85,13 @@
 				<div id="setup-ui">
 				    <h3>遊ぶゲームを選択</h3>
 				    <div style="margin-bottom: 20px; text-align: left; display: inline-block;">
-				        <label style="display: block; margin-bottom: 10px; cursor: pointer;">
+								<label class="game-option" style="display: block; margin-bottom: 10px; cursor: pointer;">
+				            <input type="radio" name="game-select" value="geister" checked> 
+				            <strong>ガイスター</strong>（心理戦ゲーム） 
+				        </label>
+								<label class="game-option" style="display: block; margin-bottom: 10px; cursor: pointer;">
 				            <input type="radio" name="game-select" value="hitnblow"> 
 				            <strong>Hit & Blow</strong> (数字当てゲーム)
-				        </label>
-				        <label style="display: block; margin-bottom: 10px; cursor: pointer; color: #888;">
-				            <input type="radio" name="game-select" value="geister" checked> 
-				            ガイスター（心理戦ゲーム） 
 				        </label>
 				    </div>
 				    <br>
@@ -281,6 +290,25 @@
             }
             scanReq = requestAnimationFrame(tick);
         }
+
+				// ラジオ切り替えでグレーアウト更新
+				function updateGameOptionStyles() {
+				    const checked = document.querySelector('input[name="game-select"]:checked');
+				    document.querySelectorAll('.game-option').forEach(label => {
+				        label.classList.add('disabled');
+				    });
+				    if (checked) {
+				        checked.parentElement.classList.remove('disabled');
+				    }
+				}
+
+				// ラジオボタンにイベントを付与
+				document.querySelectorAll('input[name="game-select"]').forEach(radio => {
+				    radio.addEventListener('change', updateGameOptionStyles);
+				});
+
+				// 初期状態の反映
+				window.addEventListener('DOMContentLoaded', updateGameOptionStyles);
 
         window.handleManualInput = () => {
             const id = document.getElementById('manual-id').value;
