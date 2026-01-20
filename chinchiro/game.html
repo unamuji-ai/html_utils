@@ -74,6 +74,51 @@
 		    transition: all 0.3s;
 		}
 
+		/* 外枠（場所による安全・危険を示すガイド） */
+		.gauge-container {
+		    width: 100%;
+		    height: 30px;
+		    background-color: #333; /* 下地 */
+		    /* グラデーションの設定 */
+		    background-image: linear-gradient(
+		        to right,
+		        #f44336 0%,     /* 左端：赤 */
+		        #ffeb3b 40%,    /* 安全圏の直前：黄 */
+		        #4caf50 40%,    /* 安全圏開始：緑 */
+		        #4caf50 60%,    /* 安全圏終了：緑 */
+		        #ffeb3b 60%,    /* 安全圏の直後：黄 */
+		        #f44336 100%    /* 右端：赤 */
+		    );
+		    border: 2px solid #555;
+		    border-radius: 15px;
+		    position: relative;
+		    overflow: hidden;
+		}
+
+		/* 伸縮するバー（残り時間・周回数を示す） */
+		#gauge-bar { 
+		    width: 0%; 
+		    height: 50%; /* 背景が見えるように半分程度の高さにする */
+		    position: absolute; 
+		    top: 25%;    /* 上下に余白を作って中央に配置 */
+		    left: 0;
+		    border-radius: 10px;
+		    transition: width 0.02s linear, background-color 0.3s; /* 色変化も滑らかに */
+		    box-shadow: 0 0 10px rgba(0,0,0,0.3);
+		    z-index: 10;
+		}
+
+		.gauge-container::after {
+		    content: "";
+		    position: absolute;
+		    left: 50%;
+		    top: 0;
+		    width: 2px;
+		    height: 100%;
+		    background: rgba(255, 255, 255, 0.5);
+		    z-index: 5;
+		}
+
 		@keyframes shake {
 		    0% { margin-top: -22px; margin-left: -22px; }
 		    25% { margin-top: -25px; margin-left: -19px; }
@@ -86,6 +131,35 @@
 		    animation: shake 0.1s infinite;
 		    /* 振っている間は transition を切るとより激しく見えます */
 		    transition: none !important; 
+		}
+
+		/* 呪い発動時の背景エフェクト */
+		body.curse-active {
+		    background: radial-gradient(circle, #4a0000, #1a0000); /* 中心から広がる暗い赤 */
+		    transition: background 1.0s ease; /* じわっと変わる演出 */
+		}
+
+		.gauge-container {
+		    position: relative; /* 子要素の基準にする */
+		    overflow: hidden;
+		}
+
+		/* 目隠しレイヤーの初期状態 */
+		.blind-overlay {
+		    position: absolute;
+		    top: 0;
+		    left: 25%;  /* 左から25%の位置から */
+		    width: 50%; /* 幅50%（つまり中央付近を隠す） */
+		    height: 100%;
+		    background: #000; /* 真っ黒 */
+		    z-index: 10;
+		    display: none; /* 通常は非表示 */
+		}
+
+		/* 親に .is-blinded がついたら表示 */
+		.gauge-container.is-blinded .blind-overlay {
+		    display: block;
+		    box-shadow: 0 0 20px 10px #000; /* 境界をぼかしてより見づらく */
 		}
 
     </style>
@@ -110,8 +184,14 @@
 		    <button id="restart-btn" class="btn-roll" style="display: none; background: #2196f3; margin-top: 20px;" onclick="handleRestart()">ゲームを再開する</button>
 		</div>
 
+		<div id="curse-display-area" style="min-height: 40px; margin-bottom: 10px;">
+		    <div id="curse-status-display" style="font-size: 1.5rem; font-weight: bold; color: #ff4d4d; text-shadow: 0 0 10px #ff0000; letter-spacing: 2px;">
+				</div>
+		</div>
+
 		<div class="gauge-container">
 		    <div id="gauge-bar"></div>
+				<div class="blind-overlay"></div>
 		    <div id="safe-zone" style="position:absolute; left:40%; width:20%; height:100%; background:rgba(255,255,255,0.2); border-left:1px dashed #fff; border-right:1px dashed #fff;"></div>
 		</div>
 
@@ -140,6 +220,7 @@
     const myId = params.get('uid');
     const myName = params.get('uname');
 
+		let currentRoomData = null; // ルームデータを保持するグローバル変数
     let gaugeInterval = null;
     let gaugeValue = 0;
     let safeMin = 40; 
@@ -156,9 +237,50 @@
         update(myPlayerRef, { name: myName, isReady: true });
 
 				onValue(roomRef, (snapshot) => {
-				    const data = snapshot.val();
-				    if (!data || !data.players) return;
+				    currentRoomData = snapshot.val();
+				    if (!currentRoomData || !currentRoomData.players) return;
 
+				    const curses = currentRoomData.activeCurses || {};
+				    const curseTargetId = currentRoomData.curseTarget;
+				    const isTarget = curseTargetId === myId;
+				    const statusEl = document.getElementById('curse-status-display');
+
+				    // --- 1. 呪いの演出コントロール（全員同期版） ---
+				    let activeMessages = [];
+				    if (curses.blind) activeMessages.push("暗黒");
+				    if (curses.fast) activeMessages.push("神速");
+				    if (curses.badLuck) activeMessages.push("不幸");
+
+				    // 誰かが呪われている、かつそのプレイヤーがまだ部屋にいる場合
+				    if (activeMessages.length > 0 && currentRoomData.players[curseTargetId]) {
+				        const targetName = currentRoomData.players[curseTargetId].name;
+				        const curseText = activeMessages.join("・");
+
+				        if (isTarget) {
+				            // 【本人の画面】背景を赤くし、警告を出す
+				            document.body.classList.add('curse-active');
+				            statusEl.innerHTML = `<span style="font-size: 0.8rem; color: #ffeb3b;">⚠️ あなたに受呪中</span><br>${curseText}`;
+				            if (document.getElementById('result-message')) {
+				                document.getElementById('result-message').style.color = "#ff6080";
+				            }
+				        } else {
+				            // 【他人の画面】背景は通常、誰が呪われているかだけ表示
+				            document.body.classList.remove('curse-active');
+				            statusEl.innerHTML = `<span style="font-size: 0.9rem; color: #fff;">💀 ${targetName} が受呪中</span><br><span style="color: #ff4d4d;">${curseText}</span>`;
+				            if (document.getElementById('result-message')) {
+				                document.getElementById('result-message').style.color = "#fff";
+				            }
+				        }
+				    } else {
+				        // 誰も呪われていない
+				        document.body.classList.remove('curse-active');
+				        statusEl.innerText = "";
+				        if (document.getElementById('result-message')) {
+				            document.getElementById('result-message').style.color = "#fff";
+				        }
+				    }
+
+				    // --- 以降、既存のUI制御ロジック ---
 				    const turnDisplay = document.getElementById('turn-display');
 				    const btn = document.getElementById('roll-btn');
 				    const diceArea = document.querySelector('.dice-area');
@@ -167,25 +289,23 @@
 				    const msgEl = document.getElementById('result-message');
 				    const showResultBtn = document.getElementById('show-result-btn');
 
-				    document.getElementById('room-name-display').innerText = data.roomName;
-				    const turnPlayerId = data.currentTurnPlayer;
+				    document.getElementById('room-name-display').innerText = currentRoomData.roomName;
+				    const turnPlayerId = currentRoomData.currentTurnPlayer;
 
-				    // --- 1. 状態に応じた表示の切り替え ---
 				    if (turnPlayerId === "finished") {
 				        if (diceArea) diceArea.style.display = 'none';
 				        if (gaugeContainer) gaugeContainer.style.display = 'none';
 				        if (btn) btn.style.display = 'none';
-				        showResult(data);
+				        showResult(currentRoomData);
 				    } else if (turnPlayerId === "waiting_result") {
 				        turnDisplay.innerText = "全員が振り終わりました";
 				        if (btn) btn.style.display = "none";
-				        if (showResultBtn) showResultBtn.style.display = (data.hostId === myId) ? "block" : "none";
+				        if (showResultBtn) showResultBtn.style.display = (currentRoomData.hostId === myId) ? "block" : "none";
 				    } else {
-				        // 通常進行中 or リスタート直後
 				        if (diceArea) diceArea.style.display = 'flex';
 				        if (gaugeContainer) gaugeContainer.style.display = 'block';
 				        if (btn) btn.style.display = 'block';
-				        if (resultScreen) resultScreen.style.display = 'none'; // ランキング画面を隠す
+				        if (resultScreen) resultScreen.style.display = 'none';
 				        if (showResultBtn) showResultBtn.style.display = "none";
 
 				        if (turnPlayerId === myId) {
@@ -196,22 +316,18 @@
 				                btn.style.background = "#4caf50";
 				            }
 				        } else {
-				            const turnOwnerName = data.players[turnPlayerId] ? data.players[turnPlayerId].name : "不明";
+				            const turnOwnerName = currentRoomData.players[turnPlayerId] ? currentRoomData.players[turnPlayerId].name : "不明";
 				            turnDisplay.innerText = `${turnOwnerName}の番です`;
 				            btn.disabled = true;
 				            btn.innerText = "待機中...";
 				            btn.style.background = "#555";
-				            stopGauge(); // 自分のゲージが動いていたら止める
+				            stopGauge(); 
 				        }
 				    }
 
-				    // --- 2. サイコロ・ゲージのリセット同期 ---
-				    if (!data.lastRoll) {
-				        // 【重要】ホストがリスタートした時のリセット処理
-				        resetGaugeUI(); // ゲージを0%に
+				    if (!currentRoomData.lastRoll) {
+				        resetGaugeUI();
 				        if (msgEl) msgEl.innerText = "";
-				        
-				        // サイコロを初期位置に戻す
 				        const d1 = document.getElementById('d1');
 				        const d2 = document.getElementById('d2');
 				        const d3 = document.getElementById('d3');
@@ -223,18 +339,14 @@
 				        d2.innerHTML = getDiceHTML(1);
 				        d3.innerHTML = getDiceHTML(1);
 
-				        // 他人のアニメーション用タイマーも解除
 				        if (typeof remoteRollInterval !== 'undefined' && remoteRollInterval) {
 				            clearInterval(remoteRollInterval);
 				            remoteRollInterval = null;
 				        }
 				    } else {
-				        // --- 3. サイコロ描画（通常時・他人が振っている時） ---
-				        updateDiceUI(data.lastRoll);
-
-				        const rollCount = data.lastRoll.rollCount;
-				        // 自分が振っている最中で、役なし振り直しの場合
-				        if (rollCount > 0 && turnPlayerId === myId && !data.lastRoll.isRolling) {
+				        updateDiceUI(currentRoomData.lastRoll);
+				        const rollCount = currentRoomData.lastRoll.rollCount;
+				        if (rollCount > 0 && turnPlayerId === myId && !currentRoomData.lastRoll.isRolling) {
 				            if (msgEl && !msgEl.innerText.includes('回目')) {
 				                msgEl.innerText += `（${rollCount}回目）`;
 				            }
@@ -270,48 +382,74 @@
 		// 既存の startGauge 内の監視を少し修正
 		function startGauge() {
 		    if (gaugeInterval) return;
+
+				// Firebaseから取得した最新データ(currentRoomDataとする)を確認
+				// currentRoomData が undefined の場合のフォールバックも入れる
+		    const curses = (currentRoomData && currentRoomData.activeCurses) ? currentRoomData.activeCurses : {};
+		    const curseTargetId = currentRoomData ? currentRoomData.curseTarget : null;
+		    const isTarget = curseTargetId === myId;
+
+		    // ① 速度の決定（呪われていれば3倍速、そうでなければ通常）
+	  	  let currentSpeed = (isTarget && curses.fast) ? 6 : 3;
+
+	   	 	// ② 目隠しの表示
+				const container = document.querySelector('.gauge-container');
+				if (container) {
+					if (isTarget && curses.blind) {
+		 	       container.classList.add('is-blinded'); // CSSで中央を隠す
+		 	 		} else {
+		 	       container.classList.remove('is-blinded');
+					}
+				}
+
 		    gaugeValue = 0;
 		    loopCount = 0;
+		    const maxLoops = 5; // 明示的に指定
 
-				update(roomRef, { "lastRoll/isRolling": true });
+		    // lastRoll全体を上書きせず、isRollingフラグだけをピンポイントで更新
+		    // これにより playerName などの他のフィールドが保持されます
+		    update(ref(db, `rooms/${roomId}/lastRoll`), { isRolling: true });
 
 		    gaugeInterval = setInterval(() => {
-		        gaugeValue += 4;
+		        gaugeValue += currentSpeed;
+		        
 		        if (gaugeValue >= 100) {
 		            gaugeValue = 0;
 		            loopCount++;
+		            
 		            if (loopCount >= maxLoops) {
-										// 時間切れ！
-				            gaugeValue = 100; // 内部値を100に固定
-				            updateGaugeUI();   // 見た目を100%（満タン）にする
+		                // 【重要】先にタイマーを止める（forceOutとの競合を防ぐ）
+		                clearInterval(gaugeInterval);
+		                gaugeInterval = null;
 
-		                // タイムアップ時はボタン表示を戻して強制ションベン
+		                // 見た目を満タンにしてから強制終了
+		                const bar = document.getElementById('gauge-bar');
+		                if (bar) bar.style.width = "100%";
+
 		                const btn = document.getElementById('roll-btn');
 		                btn.innerText = "スタート";
 		                btn.style.background = "#4caf50";
+		                
 		                forceOut();
 		                return;
 		            }
 		        }
 		        
-		        // --- ゲージ描画とサイコロの暴れ演出はそのまま ---
+		        // --- ゲージ描画 ---
 		        const bar = document.getElementById('gauge-bar');
-		        bar.style.width = gaugeValue + "%";
-
-		        // ループ回数に応じて色を変える
-		        if (loopCount < 3) {
-		            bar.style.background = "#4caf50"; // 緑 (1〜3回目)
-		        } else if (loopCount === 3) {
-		            bar.style.background = "#ffeb3b"; // 黄 (4回目)
-		        } else {
-		            bar.style.background = "#f44336"; // 赤 (5回目)
+		        if (bar) {
+		            bar.style.width = gaugeValue + "%";
+		            if (loopCount < 3) bar.style.background = "#40cf70";
+		            else if (loopCount === 3) bar.style.background = "#ffeb3b";
+		            else bar.style.background = "#f44336";
 		        }
 
-		        // サイコロの暴れ演出（既存のロジック）
+		        // --- サイコロの暴れ演出 ---
+		        // 自分の画面では高速に動かす
 		        const d1 = document.getElementById('d1');
 		        const d2 = document.getElementById('d2');
 		        const d3 = document.getElementById('d3');
-		        const power = (loopCount * 20) + (gaugeValue * 0.5); // ループが進むほど激しく
+		        const power = (loopCount * 15) + (gaugeValue * 0.3); // 飛び出しすぎないよう少し調整
 
 		        [d1, d2, d3].forEach(el => {
 		            const x = (Math.random() - 0.5) * power * 2;
@@ -323,12 +461,32 @@
 		    }, 20);
 		}
 
+		function updateGaugeUI() {
+		    const bar = document.getElementById('gauge-bar');
+		    if (!bar) return;
+		    
+		    // ゲージの長さを更新
+		    bar.style.width = gaugeValue + "%";
+		    
+		    // 周回数（loopCount）に基づくバーの色設定
+		    // 0~2周目（3回目まで）: 緑
+		    // 3周目（4回目）: 黄色
+		    // 4周目（5回目）: 赤
+		    if (loopCount < 3) {
+		        bar.style.background = "#2ecc7180"; // 鮮やかな緑
+		    } else if (loopCount === 3) {
+		        bar.style.background = "#f1c40f80"; // 黄色
+		    } else {
+		        bar.style.background = "#e74c3c80"; // 赤（最終周）
+		    }
+		}
+
 		// タイムアップ時の強制ションベン関数
 		async function forceOut() {
-		    // 1. まずゲージを止めてリセット
+		    // 1. ゲージを止める
 		    stopGauge();
-		    
-		    // 2. 演出用の目を作成
+
+		    // 演出用の出目（見た目だけ適当な目にする）
 		    const dVals = [
 		        Math.floor(Math.random() * 6) + 1,
 		        Math.floor(Math.random() * 6) + 1,
@@ -338,21 +496,44 @@
 		    try {
 		        const snapshot = await get(roomRef);
 		        const data = snapshot.val();
-		        const playerIds = Object.keys(data.players);
-		        const nextPlayerId = playerIds[(playerIds.indexOf(myId) + 1) % playerIds.length];
+						if (!data) return;
 
-		        // 3. 強制ションベンデータを送信
+		        const playerIds = Object.keys(data.players);
+		        const myIndex = playerIds.indexOf(myId);
+
+						// 自分の名前をデータから確実に取得（グローバル変数 myName でも可）
+		        const myActualName = data.players[myId].name || "不明";
+
+		        // --- 次のプレイヤーを決定するロジック ---
+		        let nextPlayerId;
+		        if (myIndex < playerIds.length - 1) {
+		            // まだ次の人がいる場合
+		            nextPlayerId = playerIds[myIndex + 1];
+		        } else {
+		            // 自分が最後の人だった場合
+		            nextPlayerId = "waiting_result";
+		        }
+
+		        // 2. 自分の個別スコアを「ションベン」で更新
+		        await update(ref(db, `rooms/${roomId}/players/${myId}`), {
+		            lastScore: -100,
+		            lastResultName: "ションベン"
+		        });
+
+		        // 3. ルーム全体の共有データ（lastRoll）と次のターンを更新
 		        await update(roomRef, {
 		            lastRoll: { 
-		                values: [0, 0, 0], 
+		                values: [0, 0, 0], // 判定ロジック用
 		                displayValues: dVals, 
-		                playerName: myName,
-										rollCount: 0 // リセット
+										playerName: myActualName,
+		                rollCount: 0,
+		                isRolling: false // 確実に止める
 		            },
 		            currentTurnPlayer: nextPlayerId
 		        });
+
 		    } catch (e) {
-		        console.error(e);
+		        console.error("forceOut Error:", e);
 		    }
 		}
 
@@ -363,11 +544,28 @@
 		    }
 		}
 
-    function getOutProbability(val) {
-        const center = (safeMin + safeMax) / 2;
-        const distanceFromCenter = Math.abs(val - center);
-        return Math.pow(distanceFromCenter / center, 2); 
-    }
+		function getOutProbability(value) {
+		    const center = 50;
+		    const safeHalfWidth = 10; // グリーンゾーンの広さ（40〜60が安全）
+		    const distanceFromCenter = Math.abs(value - center);
+
+		    let prob = 0;
+
+		    if (distanceFromCenter <= safeHalfWidth) {
+		        // --- グリーンゾーン内 ---
+		        // ゾーン内でも端にいくほど微増させる（0% 〜 10% 程度）
+		        prob = (distanceFromCenter / safeHalfWidth) * 0.1;
+		    } else {
+		        // --- グリーンゾーン外（一歩でもはみ出た！） ---
+		        // はみ出た瞬間に 0.5 (50%) からスタートし、端(50)にいくほど 1.0 に近づく
+		        const overflowDistance = distanceFromCenter - safeHalfWidth;
+		        const maxOverflow = 50 - safeHalfWidth; // 40
+		        
+		        prob = 0.5 + (overflowDistance / maxOverflow) * 0.5;
+		    }
+
+		    return Math.min(1.0, prob);
+		}
 
     function getDiceHTML(num) {
         const dotPositions = {
@@ -388,6 +586,7 @@
 		function updateDiceUI(rollData) {
 		    if (!rollData) return;
 
+				const pName = rollData.playerName || "";
 		    const values = rollData.values || [1, 1, 1];
 		    const d = rollData.displayValues || values;
 		    const msgEl = document.getElementById('result-message');
@@ -400,7 +599,7 @@
 
 		    if (isRolling) {
 		        // --- 誰かが振っている最中 ---
-		        msgEl.innerText = `${rollData.playerName} が振っています...`;
+						msgEl.innerText = pName ? `${pName} が振っています...` : "振っています...";
 		        msgEl.style.color = "#ffffff";
 		        
 		        // すでにアニメーションが動いていなければ開始
@@ -455,6 +654,11 @@
 		}
 
 		function judge(dice) {
+		    // 0. ションベン判定（forceOutから送られてくる [0,0,0] のケース）
+		    if (!dice || dice[0] === 0) {
+		        return { name: "ションベン", score: -100 };
+		    }
+
 		    // 判定しやすくするために昇順（小さい順）に並び替える
 		    const sorted = [...dice].sort((a, b) => a - b);
 		    const [a, b, c] = sorted;
@@ -462,27 +666,26 @@
 		    // 1. ゾロ目（アラシ）
 		    if (a === b && b === c) {
 		        if (a === 1) {
-		            return { name: "ピンゾロ", score: 100 }; // 最強
+		            return { name: "ピンゾロ", score: 1000 }; // 最強
 		        }
-		        return { name: a + "のゾロ目", score: 90 + a };
+		        return { name: a + "のゾロ目", score: 500 + a }; // 他の役より圧倒的に強く
 		    }
 
 		    // 2. シゴロ (4, 5, 6)
 		    if (a === 4 && b === 5 && c === 6) {
-		        return { name: "シゴロ", score: 80 };
+		        return { name: "シゴロ", score: 300 };
 		    }
 
 		    // 3. ヒフミ (1, 2, 3)
 		    if (a === 1 && b === 2 && c === 3) {
-		        return { name: "ヒフミ", score: -1 }; // 最弱（負け）
+		        return { name: "ヒフミ", score: -50 }; // 役なし(0)より弱く、ションベン(-100)よりはマシ
 		    }
 
 		    // 4. 目あり（2つのサイコロが同じで、残りの1つが「目」になる）
 		    // 例: [2, 2, 5] なら「5の目」
-		    if (a === b) return { name: c + "の目", score: c };
-		    if (b === c) return { name: a + "の目", score: a };
-		    
-		    // a === c のケース（[2, 5, 2] など）は、ソート済みなので [2, 2, 5] になり上の判定で拾えます
+		    // スコアは「目」の数値（1〜6）×10 とすることで、役なし(0)より強くします
+		    if (a === b) return { name: c + "の目", score: c * 10 };
+		    if (b === c) return { name: a + "の目", score: a * 10 };
 
 		    // 5. 役なし（目なし）
 		    return { name: "役なし", score: 0 };
@@ -541,6 +744,72 @@
 		    }
 		}
 
+		//==================================
+		//	↓↓↓↓↓	付加要素	↓↓↓↓↓
+		//==================================
+		// ターンの切り替わりを監視する場所に追加
+		async function setupTurnCurses(nextPlayerId, isCurseMode) {
+		    if (!isCurseMode) return; // そもそもモードがOFFなら何もしない
+
+		    // 各呪いが独立して抽選される（重複あり）
+		    const curses = {
+		        blind: Math.random() < 0.3,   // 30%で目隠し
+		        fast: Math.random() < 0.3,    // 30%で高速化
+		        badLuck: Math.random() < 0.3  // 30%で出目弱体化
+		    };
+
+		    // Firebaseに今回のターンの呪い状態を書き込む
+		    await update(ref(db, `rooms/${roomId}`), {
+		        activeCurses: curses,
+		        curseTarget: nextPlayerId
+		    });
+		}
+
+		function getDiceValues(isBadLuck) {
+		    // 呪われている場合、3割の確率でヒフミにする
+		    if (isBadLuck && Math.random() < 0.3) {
+		        return [1, 2, 3].sort(() => Math.random() - 0.5);
+		    }
+		    // 通常のランダム
+		    return [
+		        Math.floor(Math.random() * 6) + 1,
+		        Math.floor(Math.random() * 6) + 1,
+		        Math.floor(Math.random() * 6) + 1
+		    ];
+		}
+
+		// 呪いを抽選する関数
+		function generateRandomCurses(isCurseMode) {
+		    // 妨害モードがOFFならすべてfalse
+		    if (!isCurseMode) return { blind: false, fast: false, badLuck: false };
+
+		    // 1. まず「呪いが発生するかどうか」を判定（例：70%で発生）
+		    if (Math.random() < 0.7) {
+		        // 2. 発生する場合、どれか1つは「必ず」ONにする
+		        const curses = {
+		            blind: Math.random() < 0.5,
+		            fast: Math.random() < 0.5,
+		            badLuck: Math.random() < 0.5
+		        };
+
+		        // もし全部falseになっちゃったら、どれか1つを強制的にON
+		        if (!curses.blind && !curses.fast && !curses.badLuck) {
+		            const keys = ['blind', 'fast', 'badLuck'];
+		            const randomKey = keys[Math.floor(Math.random() * keys.length)];
+		            curses[randomKey] = true;
+		        }
+		        return curses;
+		    }
+
+		    // 30%の確率で「平和なターン」
+		    return { blind: false, fast: false, badLuck: false };
+		}
+
+		//==================================
+		//	↑↑↑↑↑	付加要素	↑↑↑↑↑
+		//==================================
+
+
 		window.finalizeGame = async () => {
 		    try {
 		        await update(roomRef, {
@@ -590,12 +859,22 @@
 		    
 		    const prob = getOutProbability(gaugeValue);
 		    const isOut = Math.random() < prob;
-		    const dVals = [
-		        Math.floor(Math.random() * 6) + 1,
-		        Math.floor(Math.random() * 6) + 1,
-		        Math.floor(Math.random() * 6) + 1
-		    ];
-		    // ションベンなら[0,0,0]、そうでなければ出目をそのまま使う
+		    
+		    // 【追加】「不幸の呪い」がかかっている場合の出目操作
+		    const curses = currentRoomData?.activeCurses || {};
+		    const isTarget = currentRoomData?.curseTarget === myId;
+		    let dVals;
+		    if (isTarget && curses.badLuck && Math.random() < 0.4) {
+		        // 呪い：40%の確率で 1,2,3 などの弱い目にする
+		        dVals = [1, 2, 3].sort(() => Math.random() - 0.5);
+		    } else {
+		        dVals = [
+		            Math.floor(Math.random() * 6) + 1,
+		            Math.floor(Math.random() * 6) + 1,
+		            Math.floor(Math.random() * 6) + 1
+		        ];
+		    }
+
 		    const finalValues = isOut ? [0, 0, 0] : dVals;
 
 		    try {
@@ -605,26 +884,25 @@
 
 		        const playerIds = Object.keys(data.players);
 		        
-		        // --- 1. 回数カウントの修正 ---
 		        let currentRollCount = 1;
-		        // 前回の記録があり、かつ自分が振っていた場合のみカウントアップ
 		        if (data.lastRoll && data.lastRoll.playerName === myName) {
-		            // 前回のrollCountが0（交代直後）でなければ加算
 		            const lastCount = Number(data.lastRoll.rollCount || 0);
 		            currentRollCount = lastCount > 0 ? lastCount + 1 : 1;
 		        }
 
 		        const result = judge(dVals);
 		        const isNone = result.name === "役なし";
-		        
-		        // 交代条件：ションベン、または役が出た、または3回目
 		        const shouldSwitch = isOut || !isNone || currentRollCount >= 3;
 
-		        let nextPlayerId = myId; // デフォルトは「自分（振り直し）」
-		        let rollCountToSave = currentRollCount; // DBに保存する回数
+		        let nextPlayerId = myId; 
+		        let rollCountToSave = currentRollCount; 
+
+		        // --- 呪いの準備 ---
+		        // デフォルトは「今の呪い」を維持
+		        let nextCurses = data.activeCurses || { blind: false, fast: false, badLuck: false };
+		        let nextCurseTarget = data.curseTarget || myId;
 
 		        if (shouldSwitch) {
-		            // 役の結果とスコアを個人枠に保存（リザルト用）
 		            const myPlayerRef = ref(db, `rooms/${roomId}/players/${myId}`);
 		            await update(myPlayerRef, {
 		                lastResultName: isOut ? "ションベン" : result.name,
@@ -633,16 +911,20 @@
 
 		            const currentIndex = playerIds.indexOf(myId);
 		            if (currentIndex === playerIds.length - 1) {
-		                nextPlayerId = "waiting_result"; // 全員終了
+		                nextPlayerId = "waiting_result"; 
+		                // 全員終わったら呪いをクリア
+		                nextCurses = { blind: false, fast: false, badLuck: false };
+		                nextCurseTarget = "none";
 		            } else {
-		                nextPlayerId = playerIds[currentIndex + 1]; // 次の人へ
+		                nextPlayerId = playerIds[currentIndex + 1];
+		                // 【重要】次の人へ回る時だけ、新しい呪いを生成
+		                nextCurses = generateRandomCurses(data.isCurseMode);
+		                nextCurseTarget = nextPlayerId;
 		            }
-		            rollCountToSave = 0; // ターンが終了するのでカウントをリセット
+		            rollCountToSave = 0; 
 		        }
 
-		        // --- 2. 【重要】ここで必ずDBを更新する ---
-		        // これにより、役なし（shouldSwitch=false）の時でも lastRoll が更新され、
-		        // 全プレイヤーの onValue -> updateDiceUI が発火します。
+		        // --- 最終的なDB更新 ---
 		        await update(roomRef, {
 		            lastRoll: { 
 		                values: finalValues, 
@@ -650,7 +932,9 @@
 		                playerName: myName,
 		                rollCount: rollCountToSave
 		            },
-		            currentTurnPlayer: nextPlayerId
+		            currentTurnPlayer: nextPlayerId,
+		            activeCurses: nextCurses,
+		            curseTarget: nextCurseTarget
 		        });
 
 		    } catch (e) {

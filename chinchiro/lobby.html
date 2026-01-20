@@ -40,15 +40,24 @@
         <ul id="room-list"></ul>
     </div>
 
-    <div id="game-room-ui" class="box">
-        <h3 id="display-room-name">部屋名</h3>
-        <p style="font-size: 0.9rem; color: #ffd11a;">ルームID: <span id="display-room-id"></span></p>
-        <hr>
-        <h4>参加者リスト</h4>
-        <ul id="player-list"></ul>
-        <button class="btn join-btn" onclick="leaveRoom()">部屋を抜ける</button>
-        <button id="start-btn" class="btn create-btn" style="display:none;" onclick="startGame()">ゲーム開始！</button>
-    </div>
+		<div id="game-room-ui" class="box">
+		    <h3 id="display-room-name">部屋名</h3>
+		    <p style="font-size: 0.9rem; color: #ffd11a;">ルームID: <span id="display-room-id"></span></p>
+		    <hr>
+		    <h4>参加者リスト</h4>
+		    <ul id="player-list"></ul>
+		    
+		    <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+						<div id="host-controls" style="display:none; border: 1px solid #ffd11a; padding: 15px; border-radius: 8px; background: rgba(255, 209, 26, 0.1); margin-bottom: 10px;">
+						    <label style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 15px; cursor: pointer; text-align: left;">
+						        <input type="checkbox" id="curse-mode-check" style="width: 18px; height: 18px; cursor: pointer;"> 
+						        <span style="color: #ffd11a; font-weight: bold; font-size: 0.95rem;">妨害モードを有効にする</span>
+						    </label>
+						    <button id="start-game-btn" class="btn create-btn" style="width: 100%;" onclick="startGame()">ゲーム開始！</button>
+						</div>
+		        <button class="btn join-btn" onclick="leaveRoom()">部屋を抜ける</button>
+		    </div>
+		</div>
 </div>
 
 <script type="module">
@@ -152,10 +161,8 @@
 		    const roomPath = `rooms/${roomId}`;
 		    const playerRef = ref(db, `${roomPath}/players/${myId}`);
 		    
-		    // ホスト・ゲストに関わらず、必ず自分を登録する（確実な同期のため）
 		    set(playerRef, { name: myName, isReady: false });
 
-		    // 【重要】変数を定義しておき、後でキャンセルできるようにする
 		    const myDisconnect = onDisconnect(playerRef);
 		    myDisconnect.remove();
 
@@ -165,23 +172,19 @@
 
 		    onValue(ref(db, `rooms/${roomId}`), (snapshot) => {
 		        const data = snapshot.val();
-		        if (!data) { /* ...解散処理... */ return; }
+		        if (!data) return;
 
-		        // --- ゲーム開始判定 ---
 		        if (data.status === "playing") {
-		            // 【重要】ページ遷移の直前に、onDisconnect（削除予約）をキャンセルする！
-		            // これにより、遷移中にプレイヤーリストから自分が消えるのを防ぎます
 		            myDisconnect.cancel();
-		            
 		            window.location.href = `game.html?id=${roomId}&uid=${myId}&uname=${encodeURIComponent(myName)}`;
 		            return; 
 		        }
 
-		        // --- 以下、ホスト昇格やリスト更新などの既存ロジック ---
 		        const players = data.players || {};
 		        const playerIds = Object.keys(players);
 		        let currentHostId = data.hostId;
 
+		        // --- ホスト昇格ロジック ---
 		        if (!currentHostId || !players[currentHostId]) {
 		            if (playerIds.length > 0) {
 		                const nextHostId = playerIds[0];
@@ -191,13 +194,32 @@
 		                }
 		            }
 		        }
+
 		        updatePlayerList(players, currentHostId);
+
+		        // --- UIの表示制御（修正箇所） ---
 		        const amIHost = (currentHostId === myId);
-		        const startBtn = document.getElementById('start-btn');
-		        if (amIHost && playerIds.length >= 2) {
-		            startBtn.style.display = 'block';
-		        } else {
-		            startBtn.style.display = 'none';
+		        const hostControls = document.getElementById('host-controls'); 
+		        const startBtn = document.getElementById('start-game-btn');
+
+		        if (amIHost && hostControls && startBtn) {
+		            hostControls.style.display = 'block'; 
+
+		            // 参加人数が2人以上のときだけ活性化
+		            if (playerIds.length >= 2) {
+		                startBtn.disabled = false;
+		                startBtn.style.opacity = "1";
+		                startBtn.style.cursor = "pointer";
+		                startBtn.innerText = "ゲーム開始！";
+		            } else {
+		                // 人数が足りないとき
+		                startBtn.disabled = true;
+		                startBtn.style.opacity = "0.5";
+		                startBtn.style.cursor = "not-allowed";
+		                startBtn.innerText = `あと${2 - playerIds.length}名で開始可能`;
+		            }
+		        } else if (hostControls) {
+		            hostControls.style.display = 'none'; 
 		        }
 		    });
 		}
@@ -266,25 +288,60 @@
 		    if (!currentRoomId) return;
 		    const roomRef = ref(db, `rooms/${currentRoomId}`);
 		    
+		    // チェックボックスの状態を取得
+		    const curseEnabled = document.getElementById('curse-mode-check').checked;
+		    
 		    try {
 		        const snapshot = await get(roomRef);
 		        const data = snapshot.val();
 
 		        if (data && data.players) {
 		            const playerIds = Object.keys(data.players);
-		            
-		            // set ではなく update を使い、特定のフィールドだけを書き換える
+								const firstPlayerId = playerIds[0]; // 最初の人
+
+		            // 妨害モードがONなら、最初の人にも呪いを抽選する
+		            const curseEnabled = document.getElementById('curse-mode-check').checked;
+		            const initialCurses = generateRandomCurses(curseEnabled);		            
+
 		            await update(roomRef, {
 		                status: "playing",
-		                currentTurnPlayer: playerIds[0],
-		                // players はそのまま残るはずですが、
-		                // 心配な場合はここに明示的に含める必要はありません（updateなので）
+										currentTurnPlayer: firstPlayerId,
+		                isCurseMode: curseEnabled, // 妨害モードがONかどうかを保存
+										activeCurses: initialCurses, // ← ここで最初の人への呪いをセット！
+                		curseTarget: firstPlayerId   // ← ターゲットも最初の人に
 		            });
 		        }
 		    } catch (error) {
 		        console.error("開始エラー:", error);
 		    }
 		};
+
+		// 呪いを抽選する関数
+		function generateRandomCurses(isCurseMode) {
+		    // 妨害モードがOFFならすべてfalse
+		    if (!isCurseMode) return { blind: false, fast: false, badLuck: false };
+
+		    // 1. まず「呪いが発生するかどうか」を判定（例：70%で発生）
+		    if (Math.random() < 0.7) {
+		        // 2. 発生する場合、どれか1つは「必ず」ONにする
+		        const curses = {
+		            blind: Math.random() < 0.5,
+		            fast: Math.random() < 0.5,
+		            badLuck: Math.random() < 0.5
+		        };
+
+		        // もし全部falseになっちゃったら、どれか1つを強制的にON
+		        if (!curses.blind && !curses.fast && !curses.badLuck) {
+		            const keys = ['blind', 'fast', 'badLuck'];
+		            const randomKey= keys[Math.floor(Math.random() * keys.length)];
+		            curses[randomKey] = true;
+		        }
+		        return curses;
+		    }
+
+		    // 30%の確率で「平和なターン」
+		    return { blind: false, fast: false, badLuck: false };
+		}
 
 </script>
 </body>
