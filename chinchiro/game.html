@@ -5,241 +5,224 @@
     <meta charset="UTF-8">
     <title>DICEメイン</title>
     <style>
-		body {
-		    /* 誤操作防止 */
-		    user-select: none;
-		    -webkit-user-select: none;
-		    overflow: hidden; /* 画面の揺れ防止 */
-		    position: fixed;  /* スクロールによるガタつき防止 */
-		    width: 100%;
-		    height: 100%;
-		}
-		/* どんぶり */
-		.dice-area { 
-		    position: relative; 
-		    width: 250px;         /* スマホで見やすいよう少し大きく(200→250) */
-		    height: 250px; 
-		    margin: 30px auto; 
-		    border: 10px solid #8d6e63; /* どんぶりの縁を少し太く */
-		    border-radius: 50%; 
-		    background: #efebe9;  /* どんぶりの底 */
-		    display: flex; 
-		    justify-content: center; 
-		    align-items: center; 
-		    gap: 10px;           /* サイコロ同士の隙間 */
-		    box-shadow: inset 0 0 20px rgba(0,0,0,0.2), 0 10px 20px rgba(0,0,0,0.3);
-		    /* 呪い(暗黒)の時はどんぶりの中も少し暗くする演出用 */
-		    transition: background 0.5s ease;
-		}
+				/* --- ベース設定 --- */
+				html, body {
+					  background-color: #1a1a1a !important;
+					  color: #ffffff !important;
+					  margin: 0;
+					  padding: 0;
+					  min-height: 100vh;
+				}
 
-		/* 個別のサイコロのサイズ調整（どんぶりからはみ出さないように） */
-		.dice {
-		    font-size: 3rem;     /* どんぶりの大きさに合わせて調整 */
-		    z-index: 5;
-		}
+				.box {
+				    background: #2a2a2a;
+				    padding: 15px;
+				    border-radius: 12px;
+				    max-width: 500px;
+				    margin: 10px auto;
+				    border: 1px solid #444;
+				}
 
+				/* --- テキスト視認性 --- */
+				h2, h3, #room-name-display, #turn-display, #result-message {
+				    color: #ffffff !important; /* 絶対に白 */
+				}
 
-		#gauge-bar { 
-		    width: 0%; 
-		    height: 100%; 
-		    background: #4caf50; /* 初期色の緑 */
-		    position: absolute; 
-		    transition: background 0.2s; /* 色の変化を滑らかに */
-		}
-		/* サイコロ本体 */
-		.dice {
-		    position: absolute;
-		    width: 44px;
-		    height: 44px;
-		    background: #fff;
-		    border-radius: 6px;
-		    display: grid;
-		    grid-template: repeat(3, 1fr) / repeat(3, 1fr);
-		    padding: 4px;
-		    box-sizing: border-box;
-		    box-shadow: 2px 2px 8px rgba(0,0,0,0.5);
-		    border: 1px solid #ccc; 
-		    z-index: 10;
-		    left: 50%;
-		    top: 50%;
-		    /* 初期位置（JSが当たる前の位置） */
-		    margin-left: -22px;
-		    margin-top: -22px;
-		    /* transition を付けておくと、止まる時に「スッ」と位置につきます */
-		    transition: transform 0.2s ease-out; 
-		}
+				#ranking-list {
+				    color: #ffffff; /* 対戦結果の文字も白 */
+				}
 
-		/* サイコロの目（ドット） */
-		.dot {
-		    background: #333;
-		    border-radius: 50%;
-		    width: 8px;
-		    height: 8px;
-		    margin: auto;
-		}
-		/* 1の目だけ赤く大きくする演出 */
-		.dice[data-value="1"] .dot { background: #e63946; width: 12px; height: 12px; }
+				#curse-status-display {
+				    color: #ff4d4d;
+				    font-size: 1.5rem;
+				    font-weight: bold;
+				    text-shadow: 0 0 10px #ff0000;
+				    min-height: 60px;
+				}
+				/* 2枚目の画像にあるグレーのボックス内の文字色を白くする */
+				#result-screen, .box {
+				    background-color: #2a2a2a !important;
+				    color: #ffffff !important;
+				}
 
-		.dice-area.out-flash {
-		    border-color: #ff4d4d !important;
-		    box-shadow: 0 0 20px #ff4d4d;
-		    transition: all 0.3s;
-		}
+				/* 「対戦結果」や「順位」のテキストが黒くなるのを防ぐ */
+				#result-screen h2, 
+				#result-screen h3, 
+				#ranking-list, 
+				.result-item {
+				    color: #ffffff !important;
+				}
+
+				/* プレイヤー名や「ションベン」などの文字 */
+				#ranking-list div, 
+				#ranking-list span {
+				    color: #ffffff !important;
+				}
+
+				/* ボタンをWindowsクラシック風からモダンに修正 */
+				#restart-btn {
+				    background: #2196f3;
+				    color: white;
+				    border: none;
+				    padding: 10px 20px;
+				    border-radius: 5px;
+				    cursor: pointer;
+				    font-weight: bold;
+				    appearance: none; /* デフォルトのボタンデザインを解除 */
+				}
 
 
-		/* ゲージコンテナのサイズアップ */
-		.gauge-container {
-		    width: 95%;          /* 画面端に少し余裕を持たせる */
-		    max-width: 500px;    /* PCで見ても大きすぎないように */
-		    height: 50px;        /* 高さを出して視認性アップ（30pxから50pxへ） */
-		    margin: 20px auto;   /* 上下の余白を広げる */
-		    background-image: linear-gradient(
-		        to right,
-		        #f44336 0%,     
-		        #ffeb3b 45%,    
-		        #4caf50 45%,    
-		        #4caf50 55%,    
-		        #ffeb3b 55%,    
-		        #f44336 100%    
-		    );
-		    border: 3px solid #eee; /* 枠線を少し太く、明るくして目立たせる */
-		    border-radius: 25px;    /* 丸みも高さに合わせて調整 */
-		    position: relative;
-		    overflow: hidden;
-		    touch-action: manipulation; /* スマホのダブルタップズームを防止 */
-		}
+				/* --- どんぶり & サイコロ --- */
+				.dice-area {
+				    position: relative;
+				    width: 200px;
+				    height: 200px;
+				    margin: 20px auto;
+				    border: 10px solid #8d6e63;
+				    border-radius: 50%;
+				    background: #efebe9;
+				    display: flex;
+				    justify-content: center;
+				    align-items: center;
+				    gap: 10px;
+				    box-shadow: inset 0 0 20px rgba(0,0,0,0.2);
+				}
 
-		/* 呪い表示エリアのサイズアップ */
-		#curse-status-display {
-		    font-size: 1.8rem;    /* 文字を大きく */
-		    min-height: 80px;     /* 2行になっても崩れない高さ */
-		    padding: 0 10px;
-		    line-height: 1.3;
-		}
+				.dice {
+				    position: absolute;
+				    width: 44px;
+				    height: 44px;
+				    background: #fff;
+				    border-radius: 6px;
+				    display: grid;
+				    grid-template: repeat(3, 1fr) / repeat(3, 1fr);
+				    padding: 4px;
+				    box-sizing: border-box;
+				    box-shadow: 2px 2px 8px rgba(0,0,0,0.5);
+				    border: 1px solid #ccc;
+				    z-index: 10;
+				    transition: transform 0.2s ease-out;
+				}
 
-		/* ボタンを押しやすく */
-		#roll-btn {
-		    width: 80%;
-		    max-width: 300px;
-		    height: 70px;         /* 親指で押しやすい大きなボタン */
-		    font-size: 1.5rem;
-		    font-weight: bold;
-		    border-radius: 35px;
-		    margin: 20px auto;
-		    display: block;
-		}
+				.dot { background: #333; border-radius: 50%; width: 8px; height: 8px; margin: auto; }
+				.dice[data-value="1"] .dot { background: #e63946; width: 12px; height: 12px; }
 
-		/* 画面全体のフォントサイズ調整 */
-		#turn-display {
-		    font-size: 1.4rem;
-		    margin-bottom: 10px;
-		}
+				/* --- ゲージ --- */
+				.gauge-container {
+				    width: 95%;
+				    max-width: 450px;
+				    height: 50px;
+				    margin: 20px auto;
+						background-image: linear-gradient(
+				        to right,
+				        #f44336 0%,      /* 左端：赤 */
+				        #ffeb3b 30%,     /* 30%までかけて黄色へ（グラデーション） */
+				        #ffeb3b 40%,     /* 40%までしっかり黄色 */
+				        #40cf70 40%,     /* 40%でパッと緑に切り替え */
+				        #40cf70 60%,     /* 60%までずっと緑 */
+				        #ffeb3b 60%,     /* 60%でパッと黄色に切り替え */
+				        #ffeb3b 70%,     /* 70%まで黄色を維持 */
+				        #f44336 100%     /* 最後は赤へ */
+				    );
+				    border: 3px solid #eee;
+				    border-radius: 25px;
+				    position: relative;
+				    overflow: hidden;
+				}
 
-		/* 伸縮するバー（残り時間・周回数を示す） */
-		#gauge-bar { 
-		    width: 0%; 
-		    height: 50%; /* 背景が見えるように半分程度の高さにする */
-		    position: absolute; 
-		    top: 25%;    /* 上下に余白を作って中央に配置 */
-		    left: 0;
-		    border-radius: 10px;
-				transition: width 0.02s linear, background-color 0.3s ease;
-		    will-change: width; /* ブラウザに「動くぞ」と予告して準備させる */
-				box-shadow: 0 0 15px rgba(255,255,255,0.5), 0 0 5px rgba(0,0,0,0.3);
-				background-color: rgba(255, 255, 255, 0.6);
-		    z-index: 10;
-		}
+				#gauge-bar {
+				    width: 0%;
+				    height: 50%;
+				    position: absolute;
+				    top: 25%;
+				    left: 0;
+				    border-radius: 10px;
+				    background-color: rgba(255, 255, 255, 0.7);
+				    box-shadow: 0 0 15px rgba(255,255,255,0.8);
+				    transition: width 0.02s linear, background-color 0.3s ease;
+				    will-change: width;
+				    z-index: 10;
+				}
 
-		.gauge-container::after {
-		    content: "";
-		    position: absolute;
-		    left: 50%;
-		    top: 0;
-		    width: 2px;
-		    height: 100%;
-		    background: rgba(255, 255, 255, 0.5);
-		    z-index: 5;
-		}
+				.blind-overlay {
+				    position: absolute;
+				    top: 0;
+				    left: 35%;
+				    width: 30%;
+				    height: 100%;
+				    background: #000;
+				    z-index: 15;
+				    display: none;
+				    box-shadow: 0 0 40px 30px #000;
+				}
+				.gauge-container.is-blinded .blind-overlay { display: block; }
 
-		@keyframes shake {
-		    0% { margin-top: -22px; margin-left: -22px; }
-		    25% { margin-top: -25px; margin-left: -19px; }
-		    50% { margin-top: -19px; margin-left: -25px; }
-		    75% { margin-top: -23px; margin-left: -20px; }
-		    100% { margin-top: -22px; margin-left: -22px; }
-		}
+				/* --- ボタン --- */
+				.btn-roll {
+				    width: 85%;
+				    height: 65px;
+				    font-size: 1.5rem;
+				    font-weight: bold;
+				    border-radius: 35px;
+				    border: none;
+				    cursor: pointer;
+				    background: #4caf50;
+				    color: white;
+				    margin: 10px auto;
+				    display: block;
+				}
 
-		.rolling {
-		    animation: shake 0.1s infinite;
-		    /* 振っている間は transition を切るとより激しく見えます */
-		    transition: none !important; 
-		}
+				.btn-roll:disabled {
+				    background: #444 !important;
+				    color: #888 !important; /* 待機中も黒くならず、読みやすいグレー */
+				    -webkit-text-fill-color: #888; /* Safari用 */
+				}
 
-		/* 呪い発動時の背景エフェクト */
-		body.curse-active {
-		    background: radial-gradient(circle, #4a0000, #1a0000); /* 中心から広がる暗い赤 */
-		    transition: background 1.0s ease; /* じわっと変わる演出 */
-		}
-
-		.gauge-container {
-		    position: relative; /* 子要素の基準にする */
-		    overflow: hidden;
-		}
-
-		/* 目隠しレイヤーの初期状態 */
-		.blind-overlay {
-		    position: absolute;
-		    top: 0;
-		    left: 35%;   /* 安全圏(45-55)の前後10%をしっかり隠す */
-		    width: 30%;  /* 中央30%を覆う */
-		    height: 100%;
-		    background: #000;
-		    z-index: 10;
-		    display: none;
-		    box-shadow: 0 0 40px 30px #000; /* ぼかしを強くして周辺も見えなくする */
-		}
-
-		/* 親に .is-blinded がついたら表示 */
-		.gauge-container.is-blinded .blind-overlay {
-		    display: block;
-		    box-shadow: 0 0 20px 10px #000; /* 境界をぼかしてより見づらく */
-		}
-
+				/* アニメーション */
+				@keyframes shake {
+				    0%, 100% { transform: translate(0, 0); }
+				    25% { transform: translate(-2px, -2px); }
+				    50% { transform: translate(2px, 2px); }
+				}
+				.rolling { animation: shake 0.1s infinite; transition: none !important; }
     </style>
 </head>
 <body>
 
-<div class="box">
-    <h2 id="room-name-display">読み込み中...</h2>
-    <div id="turn-display" style="color: #ffd11a; font-weight: bold;">相手の番を待っています</div>
-    <hr>
+<body>
+    <div class="box">
+        <h2 id="room-name-display">読み込み中...</h2>
+        <div id="turn-display">相手の番を待っています</div>
+        <hr>
 
-		<div id="result-message" style="font-size: 1.5rem; color: #ffd11a; min-height: 2rem; margin-top: 10px;"></div>
+        <div id="result-message"></div>
 
-    <div class="dice-area">
-        <span id="d1">🎲</span><span id="d2">🎲</span><span id="d3">🎲</span>
+        <div class="dice-area">
+            <div id="d1" class="dice"></div>
+            <div id="d2" class="dice"></div>
+            <div id="d3" class="dice"></div>
+        </div>
+
+        <div id="curse-display-area">
+            <div id="curse-status-display"></div>
+        </div>
+
+        <div class="gauge-container">
+            <div id="gauge-bar"></div>
+            <div class="blind-overlay"></div>
+            <div style="position:absolute; left:50%; width:2px; height:100%; background:rgba(255,255,255,0.4); z-index:5;"></div>
+        </div>
+
+        <button id="roll-btn" class="btn-roll" onclick="handleButtonClick()" disabled>スタート</button>
+        <button id="show-result-btn" class="btn-roll" style="display: none; background: #ff9800;" onclick="finalizeGame()">結果を表示する</button>
+
+        <div id="result-screen" style="display: none; background: #333; padding: 15px; border-radius: 12px; margin-top: 15px;">
+            <h3 style="margin-top:0;">対戦結果</h3>
+            <div id="ranking-list" style="text-align: left;"></div>
+            <button id="restart-btn" class="btn-roll" style="background: #2196f3; height: 50px; font-size: 1.2rem;" onclick="handleRestart()">もう一度遊ぶ</button>
+        </div>
     </div>
-		<button id="show-result-btn" class="btn-roll" style="display: none; background: #ff9800; margin-top: 10px;" onclick="finalizeGame()">結果を表示する</button>
-
-		<div id="result-screen" style="display: none; background: #333; padding: 20px; border-radius: 12px; margin: 20px auto; max-width: 400px;">
-		    <h3>対戦結果</h3>
-		    <div id="ranking-list" style="text-align: left; line-height: 2;"></div>
-		    <button id="restart-btn" class="btn-roll" style="display: none; background: #2196f3; margin-top: 20px;" onclick="handleRestart()">ゲームを再開する</button>
-		</div>
-
-		<div id="curse-display-area" style="min-height: 40px; margin-bottom: 10px;">
-		    <div id="curse-status-display" style="font-size: 1.5rem; font-weight: bold; color: #ff4d4d; text-shadow: 0 0 10px #ff0000; letter-spacing: 2px;">
-				</div>
-		</div>
-
-		<div class="gauge-container">
-		    <div id="gauge-bar"></div>
-				<div class="blind-overlay"></div>
-		    <div id="safe-zone" style="position:absolute; left:40%; width:20%; height:100%; background:rgba(255,255,255,0.2); border-left:1px dashed #fff; border-right:1px dashed #fff;"></div>
-		</div>
-
-		<button id="roll-btn" class="btn-roll" onclick="handleButtonClick()" disabled>スタート</button>
-</div>
+</body>
 
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
@@ -360,7 +343,7 @@
 				            }
 				        } else {
 				            const turnOwnerName = currentRoomData.players[turnPlayerId] ? currentRoomData.players[turnPlayerId].name : "不明";
-				            turnDisplay.innerText = `${turnOwnerName}の番です`;
+				            turnDisplay.innerText = `<span style="color: #ffffff;">${turnOwnerName}の番です</span>`;
 				            btn.disabled = true;
 				            btn.innerText = "待機中...";
 				            btn.style.background = "#555";
@@ -516,11 +499,11 @@
 		    // 3周目（4回目）: 黄色
 		    // 4周目（5回目）: 赤
 		    if (loopCount < 3) {
-		        bar.style.background = "#2ecc7180"; // 鮮やかな緑
+		        bar.style.backgroundColor = "#2ecc71c0"; // 鮮やかな緑
 		    } else if (loopCount === 3) {
-		        bar.style.background = "#f1c40f80"; // 黄色
+		        bar.style.backgroundColor = "#f1c40fc0"; // 黄色
 		    } else {
-		        bar.style.background = "#e74c3c80"; // 赤（最終周）
+		        bar.style.backgroundColor = "#e74c3cc0"; // 赤（最終周）
 		    }
 		}
 
