@@ -249,20 +249,64 @@
                 "、汚らわしい",
                 "でしょ？"
             ],
-            symbols: ["♡", "✝︎", "❄︎", "🎀", "🍭", "💉", ""]
+            symbols: ["♡", "✝︎", "❄︎", "🎀", "🍭", "💉","🔪", "🐤",""]
         };
 
-        function generatePoem() {
-            const i = dictionary.intro[Math.floor(Math.random() * dictionary.intro.length)];
-            const c = dictionary.core[Math.floor(Math.random() * dictionary.core.length)];
-            const o = dictionary.outro[Math.floor(Math.random() * dictionary.outro.length)];
-            const s = dictionary.symbols[Math.floor(Math.random() * dictionary.symbols.length)];
+				function generatePoem() {
+				    // 辞書と記号リストからランダムに取得
+				    const i = dictionary.intro[Math.floor(Math.random() * dictionary.intro.length)];
+				    const c = dictionary.core[Math.floor(Math.random() * dictionary.core.length)];
+				    const o = dictionary.outro[Math.floor(Math.random() * dictionary.outro.length)];
+				    const s = dictionary.symbols[Math.floor(Math.random() * dictionary.symbols.length)]; 
 
-            // 改行をランダムに入れて「ポスカの手書き感」を出す
-            const phrase = `${i}<br>${c}${o}${s}`;
-            
-            document.getElementById('phrase-display').innerHTML = phrase;
-        }
+				    // フレーズを組み立て
+				    const phrase = `${i}<br>${c}${o}${s}`;
+				    
+				    const display = document.getElementById('phrase-display');
+				    display.innerHTML = phrase;
+
+				    // --- 演出：ポスカ風の加工（視認性強化版） ---
+				    
+				    // 1. ポスカ風カラー
+				    const colors = [
+				        '#ffffff', // 白
+				        '#ff007f', // ピンク
+				        '#ffff00', // 黄色
+				        '#00ffff', // 水色
+				        '#7fff00'  // 蛍光緑
+				    ];
+				    const selectedColor = colors[Math.floor(Math.random() * colors.length)];
+				    display.style.color = selectedColor;
+
+				    // 2. 縁取り（text-shadow）を強化
+				    // 白文字の時は「ピンク」、それ以外は「黒」で縁取ると、チェキの白枠に重なっても読めます
+				    const outlineColor = (selectedColor === '#ffffff') ? '#ff007f' : '#000000';
+				    
+				    display.style.textShadow = `
+				        3px 3px 0 ${outlineColor}, 
+				        -3px -3px 0 ${outlineColor}, 
+				        3px -3px 0 ${outlineColor}, 
+				        -3px 3px 0 ${outlineColor},
+				        0 0 8px rgba(0,0,0,0.5)  /* ぼんやりした影を足して文字を浮かせます */
+				    `;
+
+				    // 3. 【追加】文字数に応じてサイズを自動調整（はみ出し防止）
+				    const totalLength = i.length + c.length + o.length;
+				    if (totalLength > 30) {
+				        display.style.fontSize = '1.0rem'; // かなり長い時
+				    } else if (totalLength > 20) {
+				        display.style.fontSize = '1.2rem'; // 長めの時
+				    } else {
+				        display.style.fontSize = '1.5rem'; // 標準
+				    }
+
+				    // 4. 傾きと位置のランダム化
+				    const randomRotate = Math.floor(Math.random() * 10) - 5; 
+				    const randomTop = 12 + Math.floor(Math.random() * 15); 
+				    
+				    display.style.transform = `rotate(${randomRotate}deg)`;
+				    display.style.top = `${randomTop}%`;
+				}
 
         // 初回実行
         generatePoem();
