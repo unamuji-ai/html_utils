@@ -3,21 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>自撮り添え痛ポエムジェネレーター</title>
+    <title>痛ポエムチェキジェネレーター</title>
     <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500&family=Yomogi&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
-        body {
+				body {
             background-color: #fce4ec;
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            height: 100vh;
+            min-height: 100vh;
             margin: 0;
             font-family: 'Kiwi Maru', serif;
+            touch-action: manipulation;
         }
 
-        .cheki-card {
+        #cheki-area {
             background: white;
             width: 300px;
             height: 450px;
@@ -36,31 +38,56 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            color: #555;
             overflow: hidden;
             position: relative;
         }
 
+        #uploaded-img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: none;
+        }
+
+        #placeholder-text {
+            color: #fff;
+            font-size: 0.8rem;
+        }
+
+        /* フレーズ表示エリア：幅を広げて改行を抑制 */
         #phrase-display {
             position: absolute;
-            width: 80%;
-            color: #ff007f; /* ポスカのピンク風 */
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 95%; /* コンテンツに合わせる */
+            min-width: 80%; /* 最低限の幅を確保 */
+            max-width: 98%; /* チェキの端ギリギリまで広げる */
+            padding: 8px 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
             font-family: 'Yomogi', cursive;
-            font-size: 1.5rem;
-            line-height: 1.4;
+            font-size: 1.15rem; /* わずかに小さくして1行の収容力をアップ */
+            line-height: 1.35;
             text-align: center;
-            text-shadow: 1px 1px 0px #fff, -1px -1px 0px #fff;
-            word-break: break-all;
+            word-break: normal; /* 単語の途中で変に切れないように */
+            overflow-wrap: anywhere;
             pointer-events: none;
+            z-index: 10;
+            box-sizing: border-box;
         }
 
         .controls {
-            margin-top: 30px;
+            margin-top: 25px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 260px;
         }
 
-        button {
-            padding: 10px 20px;
-            font-size: 1rem;
+        button, .upload-label {
+            padding: 12px;
+            font-size: 0.9rem;
             cursor: pointer;
             background-color: #ff80ab;
             color: white;
@@ -68,94 +95,111 @@
             border-radius: 25px;
             box-shadow: 0 4px 0 #c94b7c;
             transition: 0.1s;
+            text-align: center;
+            font-weight: bold;
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+            -webkit-tap-highlight-color: transparent;
         }
 
-        button:active {
-            transform: translateY(3px);
-            box-shadow: none;
+        button:active, .upload-label:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px 0 #c94b7c;
         }
-    </style>
+
+        .download-btn {
+            background-color: #4fc3f7;
+            box-shadow: 0 4px 0 #0288d1;
+        }
+
+        #imageInput { display: none; }    </style>
 </head>
 <body>
 
-    <div class="cheki-card">
+		<div id="cheki-area">
         <div class="photo-area">
-            <span>PHOTO AREA</span>
-            <div id="phrase-display">ここにフレーズが出るよ</div>
+            <span id="placeholder-text">自撮りをアップロードしてね</span>
+            <img id="uploaded-img" src="" alt="">
+            <div id="phrase-display"></div>
         </div>
     </div>
 
     <div class="controls">
-        <button onclick="generatePoem()">フレーズを生成</button>
+        <label class="upload-label">
+            自撮りアップロード
+            <input type="file" id="imageInput" accept="image/*">
+        </label>
+        <button onclick="generatePoem()">フレーズ生成</button>
+        <button class="download-btn" onclick="downloadCheki()">画像ダウンロード</button>
     </div>
 
     <script>
-        // 【辞書エリア】ここをどんどん充実させていく
         const dictionary = {
             intro: [
-                "ねぇ、",
-                "午前2時の",
-                "世界で一番",
-                "救いようのない",
-                "君という名の",
-                "視線が合うたび",
-                "透明な私の",
-                "眠れない夜",
-                "好きと嫌いの",
-                "虚無の世界",
-                "何もかもが虚像",
-                "虐げられた",
-                "え、まって",
-                "草の上で",
-                "きみの澄んだ瞳",
-                "明かりのない世界",
-                "求められていない",
-                "生きている意味",
-                "すれ違いの",
-                "かき集めた",
-                "とろけるような",
-                "これって",
-                "生まれ変わったら",
-                "この世界の",
-                "中二と言われても",
-                "燃えつくすほど",
-                "この世にふたつとない",
-                "比べようがなくても",
-                "しゅきぴと",
-                "先祖代々一族末裔まで",
-                "世界じゅうを敵に回しても",
-                "世界が終わったとしても",
-                "誰からも必要とされていない",
-                "通知が鳴るたびに",
-                "ネットの中だけで",
-                "壊れるくらい"
-            ],
+								"ねぇ、",
+								"午前2時の",
+								"世界で一番",
+								"救いようのない",
+								"君という名の",
+								"視線が合うたび",
+								"透明な私の",
+								"眠れない夜",
+								"好きと嫌いの",
+								"虚無の世界",
+								"何もかもが虚像",
+								"虐げられた",
+								"え、まって",
+								"草の上で",
+								"きみの澄んだ瞳",
+								"明かりのない世界",
+								"求められていない",
+								"生きている意味",
+								"すれ違いの",
+								"かき集めた",
+								"とろけるような",
+								"これって",
+								"生まれ変わったら",
+								"この世界の",
+								"中二と言われても",
+								"燃えつくすほど",
+								"この世にふたつとない",
+								"比べようがなくても",
+								"しゅきぴと",
+								"先祖代々一族末裔まで",
+								"世界じゅうを敵に回しても",
+								"世界が終わったとしても",
+								"誰からも必要とされていない",
+								"通知が鳴るたびに",
+								"ネットの中だけで",
+								"壊れるくらい"
+						],
             core: [
-                "共依存",
-                "脳内麻薬",
-                "一生の罪",
-                "有害な愛",
-                "あなたの生命（いのち）",
-                "魔法",
-                "呪い",
-                "厄介",
-                "説教",
-                "初期型のアップルウォッチ",
-                "セクハラ",
-                "タンパク質",
-                "原液のカルピス",
-                "履き続けたくつ下",
-                "なま牡蠣",
-                "とんかつの脂身",
-                "後悔のタトゥー",
-                "洗ってないピアス",
-                "断罪",
-                "毒親",
-                "傷んだ髪",
-                "治らないおねしょ",
-                "隠していたBL本",
-                "風俗と間違われる",
-                "この長いネイルのひみつ",
+								"共依存",
+								"脳内麻薬",
+								"一生の罪",
+								"有害な愛",
+								"あなたの生命（いのち）",
+								"魔法",
+								"呪い",
+								"厄介",
+								"説教",
+								"初期型のアップルウォッチ",
+								"セクハラ",
+								"タンパク質",
+								"原液のカルピス",
+								"履き続けたくつ下",
+								"なま牡蠣",
+								"とんかつの脂身",
+								"後悔のタトゥー",
+								"洗ってないピアス",
+								"断罪",
+								"毒親",
+								"傷んだ髪",
+								"治らないおねしょ",
+								"隠していたBL本",
+								"風俗と間違われる",
+								"この長いネイルのひみつ",
 								"ぽっかりと空いた穴",
 								"ADHDの権化",
 								"誰もが振り向くブス",
@@ -167,148 +211,151 @@
 								"今更覚えた三角関数",
 								"躁鬱と不眠症",
 								"足りない頭",
-                "虐待",
-                "暗黒",
-                "未払いの給料",
-                "逃れられぬ宿命（さだめ）",
-                "冷めたからあげくん",
-                "飲みたくないテキーラ",
-                "溶けた時間",
-                "毎夜一人でたべた菓子パン",
-                "溶けない片栗粉",
-                "こぼれたイクラ",
-                "欲望",
-                "生まれつきの貧乏",
-                "いつも金欠",
-                "疑われる人間性",
-                "甘い罠",
-                "17歳の時の私",
-                "ツイ廃",
-                "理想と現実",
-                "クレカの請求書",
+								"虐待",
+								"暗黒",
+								"未払いの給料",
+								"逃れられぬ宿命（さだめ）",
+								"冷めたからあげくん",
+								"飲みたくないテキーラ",
+								"溶けた時間",
+								"毎夜一人でたべた菓子パン",
+								"溶けない片栗粉",
+								"こぼれたイクラ",
+								"欲望",
+								"生まれつきの貧乏",
+								"いつも金欠",
+								"疑われる人間性",
+								"甘い罠",
+								"17歳の時の私",
+								"ツイ廃",
+								"理想と現実",
+								"クレカの請求書",
 								"財布の中のレシートの束",
 								"マヨネーズ味",
 								"噛み終えたガム",
-                "今日もウーバー",
-                "使い古したエクステ",
-                "希死念慮",
-                "飲み込んだピアスのキャッチ",
-                "賞味期限切れのコンビニ弁当",
-                "自傷自虐",
-                "15時間の睡眠",
-                "独占欲",
-                "一緒に行く人はもういない年パス"
-            ],
+								"今日もウーバー",
+								"使い古したエクステ",
+								"希死念慮",
+								"飲み込んだピアスのキャッチ",
+								"賞味期限切れのコンビニ弁当",
+								"自傷自虐",
+								"15時間の睡眠",
+								"独占欲",
+								"一緒に行く人はもういない年パス"
+						],
             outro: [
-                "……あげる",
-                "、教えて？",
-                "だけで満たして",
-                "の共犯者になろう",
-                "以外、要らない",
-                "、させてよ",
-                "を、あげるね♡",
-                "、もうしにたい",
-                "、帰れない",
-                "恋してる",
-                "そんな気分",
-                "共存するしかない",
-                "、たぶん、死ぬまで",
-                "　夢に見そう",
-                "、死後の世界？",
-                "　いい加減にして",
-                "　もう、終わりね",
-                "何も聞こえない",
-                "待ってて...",
-                "その苦しみだけ",
-                "を否定はしない",
-                "ただ、それだけ",
-                "　そう、だから黙ってて",
-                "、それがあたしの答え",
-                "もう一度言って",
-                "お互いさま",
-                "ずっと笑顔でいられる",
-                "　うん、いいよ…",
-                "　朝まで調教する？",
-                "あとで法廷で会いましょう",
-                "、死ぬまでそれ",
-                "いつもピンク色",
-                "目の前の絶望",
-                "だから、しんでほしい",
-                "のままでいさせて",
-                "　見たいの？",
-                "から逃げないで！",
-                "かんべんしてね",
-                "友達なんていらない",
-                "　それが破滅",
-                "　ぜんぶ嘘",
-                "　来世で出直してきて",
-                "終わらない苦しみ",
-                "、本気のおねがい",
-                "、ほんとに気持ち悪い",
-                "　まだまだこれから",
-                "、汚らわしい",
-                "でしょ？"
-            ],
+									"……あげる",
+									"、教えて？",
+									"だけで満たして",
+									"の共犯者になろう",
+									"以外、要らない",
+									"、させてよ",
+									"を、あげるね♡",
+									"、もうしにたい",
+									"、帰れない",
+									"恋してる",
+									"そんな気分",
+									"共存するしかない",
+									"、たぶん、死ぬまで",
+									"　夢に見そう",
+									"、死後の世界？",
+									"　いい加減にして",
+									"　もう、終わりね",
+									"何も聞こえない",
+									"待ってて...",
+									"その苦しみだけ",
+									"を否定はしない",
+									"ただ、それだけ",
+									"　そう、だから黙ってて",
+									"、それがあたしの答え",
+									"もう一度言って",
+									"お互いさま",
+									"ずっと笑顔でいられる",
+									"　うん、いいよ…",
+									"　朝まで調教する？",
+									"あとで法廷で会いましょう",
+									"、死ぬまでそれ",
+									"いつもピンク色",
+									"目の前の絶望",
+									"だから、しんでほしい",
+									"のままでいさせて",
+									"　見たいの？",
+									"から逃げないで！",
+									"かんべんしてね",
+									"友達なんていらない",
+									"　それが破滅",
+									"　ぜんぶ嘘",
+									"　来世で出直してきて",
+									"終わらない苦しみ",
+									"、本気のおねがい",
+									"、ほんとに気持ち悪い",
+									"　まだまだこれから",
+									"、汚らわしい",
+									"でしょ？"
+						],
             symbols: ["♡", "✝︎", "❄︎", "🎀", "🍭", "💉","🔪", "🐤",""]
         };
 
+        // 画像アップロード
+        const imageInput = document.getElementById('imageInput');
+        imageInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = document.getElementById('uploaded-img');
+                    img.src = event.target.result;
+                    img.style.display = 'block';
+                    document.getElementById('placeholder-text').style.display = 'none';
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+
+        // フレーズ生成
 				function generatePoem() {
-				    // 辞書と記号リストからランダムに取得
-				    const i = dictionary.intro[Math.floor(Math.random() * dictionary.intro.length)];
-				    const c = dictionary.core[Math.floor(Math.random() * dictionary.core.length)];
-				    const o = dictionary.outro[Math.floor(Math.random() * dictionary.outro.length)];
-				    const s = dictionary.symbols[Math.floor(Math.random() * dictionary.symbols.length)]; 
+            const i = dictionary.intro[Math.floor(Math.random() * dictionary.intro.length)];
+            const c = dictionary.core[Math.floor(Math.random() * dictionary.core.length)];
+            const o = dictionary.outro[Math.floor(Math.random() * dictionary.outro.length)];
+            const s = dictionary.symbols[Math.floor(Math.random() * dictionary.symbols.length)]; 
 
-				    // フレーズを組み立て
-				    const phrase = `${i}<br>${c}${o}${s}`;
-				    
-				    const display = document.getElementById('phrase-display');
-				    display.innerHTML = phrase;
+            const display = document.getElementById('phrase-display');
+            display.innerHTML = `${i}<br>${c}${o}${s}`;
 
-				    // --- 演出：ポスカ風の加工（視認性強化版） ---
-				    
-				    // 1. ポスカ風カラー
-				    const colors = [
-				        '#ffffff', // 白
-				        '#ff007f', // ピンク
-				        '#ffff00', // 黄色
-				        '#00ffff', // 水色
-				        '#7fff00'  // 蛍光緑
-				    ];
-				    const selectedColor = colors[Math.floor(Math.random() * colors.length)];
-				    display.style.color = selectedColor;
+            const colors = [
+							'#ffffff', // 白（最強に読みやすい）
+					    '#00ffff', // 水色（蛍光っぽい）
+					    '#ffff00', // 黄色（目立つ）
+					    '#7fff00', // 蛍光緑
+					    '#ff99cc', // パステルピンク（濃いピンクより読みやすい）
+					    '#ffdb00'  // オレンジがかった黄色
+						];
+            const selectedColor = colors[Math.floor(Math.random() * colors.length)];
+            display.style.color = selectedColor;
 
-				    // 2. 縁取り（text-shadow）を強化
-				    // 白文字の時は「ピンク」、それ以外は「黒」で縁取ると、チェキの白枠に重なっても読めます
-				    const outlineColor = (selectedColor === '#ffffff') ? '#ff007f' : '#000000';
-				    
-				    display.style.textShadow = `
-				        3px 3px 0 ${outlineColor}, 
-				        -3px -3px 0 ${outlineColor}, 
-				        3px -3px 0 ${outlineColor}, 
-				        -3px 3px 0 ${outlineColor},
-				        0 0 8px rgba(0,0,0,0.5)  /* ぼんやりした影を足して文字を浮かせます */
-				    `;
+            const outlineColor = (selectedColor === '#ffffff') ? '#ff007f' : '#000000';
+            display.style.textShadow = `1px 1px 0 ${outlineColor}, -1px -1px 0 ${outlineColor}, 1px -1px 0 ${outlineColor}, -1px 1px 0 ${outlineColor}`;
 
-				    // 3. 【追加】文字数に応じてサイズを自動調整（はみ出し防止）
-				    const totalLength = i.length + c.length + o.length;
-				    if (totalLength > 30) {
-				        display.style.fontSize = '1.0rem'; // かなり長い時
-				    } else if (totalLength > 20) {
-				        display.style.fontSize = '1.2rem'; // 長めの時
-				    } else {
-				        display.style.fontSize = '1.5rem'; // 標準
-				    }
+            const randomRotate = Math.floor(Math.random() * 4) - 2; // 下地が広いので傾きは控えめに
+            display.style.transform = `translateX(-50%) rotate(${randomRotate}deg)`;
+        }
 
-				    // 4. 傾きと位置のランダム化
-				    const randomRotate = Math.floor(Math.random() * 10) - 5; 
-				    const randomTop = 12 + Math.floor(Math.random() * 15); 
-				    
-				    display.style.transform = `rotate(${randomRotate}deg)`;
-				    display.style.top = `${randomTop}%`;
-				}
+        // 画像ダウンロード機能
+        function downloadCheki() {
+            const chekiArea = document.getElementById('cheki-area');
+            
+            // html2canvasを実行
+            html2canvas(chekiArea, {
+                scale: 2, // 高画質で保存
+                useCORS: true // 外部リソース（フォント等）の許可
+            }).then(canvas => {
+                const link = document.createElement('a');
+                link.download = 'deco-cheki.png';
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            });
+        }
 
-        // 初回実行
         generatePoem();
     </script>
 </body>
