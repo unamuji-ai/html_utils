@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>自撮り添え痛ポエムジェネレーター</title>
+    <link href="https://fonts.googleapis.com/css2?family=Kiwi+Maru:wght@400;500&family=Yomogi&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background-color: #fce4ec;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: 'Kiwi Maru', serif;
+        }
+
+        .cheki-card {
+            background: white;
+            width: 300px;
+            height: 450px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+            padding: 15px 15px 60px 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+        }
+
+        .photo-area {
+            background: #333;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #555;
+            overflow: hidden;
+            position: relative;
+        }
+
+        #phrase-display {
+            position: absolute;
+            width: 80%;
+            color: #ff007f; /* ポスカのピンク風 */
+            font-family: 'Yomogi', cursive;
+            font-size: 1.5rem;
+            line-height: 1.4;
+            text-align: center;
+            text-shadow: 1px 1px 0px #fff, -1px -1px 0px #fff;
+            word-break: break-all;
+            pointer-events: none;
+        }
+
+        .controls {
+            margin-top: 30px;
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 1rem;
+            cursor: pointer;
+            background-color: #ff80ab;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            box-shadow: 0 4px 0 #c94b7c;
+            transition: 0.1s;
+        }
+
+        button:active {
+            transform: translateY(3px);
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="cheki-card">
+        <div class="photo-area">
+            <span>PHOTO AREA</span>
+            <div id="phrase-display">ここにフレーズが出るよ</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <button onclick="generatePoem()">フレーズを生成</button>
+    </div>
+
+    <script>
+        // 【辞書エリア】ここをどんどん充実させていく
+        const dictionary = {
+            intro: [
+                "ねぇ、",
+                "午前2時の",
+                "世界で一番",
+                "救いようのない",
+                "君という名の",
+                "視線が合うたび",
+                "透明な私の",
+                "眠れない夜",
+                "好きと嫌いの",
+                "虚無の世界",
+                "何もかもが虚像",
+                "虐げられた",
+                "え、まって",
+                "草の上で",
+                "明かりのない世界",
+                "求められていない",
+                "生きている意味",
+                "すれ違いの",
+                "かき集めた",
+                "とろけるような",
+                "これって",
+                "この世界の",
+                "中二と言われても",
+                "燃えつくすほど",
+                "この世にふたつとない",
+                "比べようがなくても",
+                "しゅきぴと",
+                "世界じゅうを敵に回しても",
+                "壊れるくらい"
+            ],
+            core: [
+                "共依存",
+                "脳内麻薬",
+                "一生の罪",
+                "有害な愛",
+                "生命（いのち）",
+                "魔法",
+                "呪い",
+                "厄介",
+                "説教",
+                "セクハラ",
+                "タンパク質",
+                "原液のカルピス",
+                "履き続けたくつ下",
+                "なま牡蠣",
+                "とんかつの脂身",
+                "後悔のタトゥー",
+                "洗ってないピアス",
+                "断罪",
+                "毒親",
+                "治らないおねしょ",
+                "隠していたBL本",
+                "風俗と間違われる",
+                "この長いネイルのひみつ",
+                "虐待",
+                "暗黒",
+                "宿命（さだめ）",
+                "冷めたからあげくん",
+                "飲みたくないテキーラ",
+                "溶けた時間",
+                "毎夜一人でたべた菓子パン",
+                "溶けない片栗粉",
+                "欲望",
+                "今日もウーバー",
+                "使い古したエクステ",
+                "希死念慮",
+                "飲み込んだピアスのキャッチ",
+                "自傷自虐",
+                "15時間の睡眠",
+                "独占欲",
+                "一緒に行く人はもういない年パス"
+            ],
+            outro: [
+                "……あげる",
+                "、教えて？",
+                "だけで満たして",
+                "の共犯者になろう",
+                "以外、要らない",
+                "、させてよ",
+                "を、あげるね♡",
+                "、もうしにたい",
+                "、帰れない",
+                "死ぬまでは",
+                "　もう、終わりね",
+                "何も聞こえない",
+                "待ってて...",
+                "苦しみからは",
+                "を否定はしない",
+                "ただ、それだけ",
+                "　そう、だから黙ってて",
+                "、それがあたしの答え",
+                "もう一度言って",
+                "お互いさま",
+                "調教する？",
+                "、死ぬまでそれ",
+                "、本気のおねがい",
+                "、ほんとに気持ち悪い",
+                "　まだまだこれから",
+                "、汚らわしい",
+                "でしょ？"
+            ],
+            symbols: ["♡", "✝︎", "❄︎", "🎀", "🍭", "💉", ""]
+        };
+
+        function generatePoem() {
+            const i = dictionary.intro[Math.floor(Math.random() * dictionary.intro.length)];
+            const c = dictionary.core[Math.floor(Math.random() * dictionary.core.length)];
+            const o = dictionary.outro[Math.floor(Math.random() * dictionary.outro.length)];
+            const s = dictionary.symbols[Math.floor(Math.random() * dictionary.symbols.length)];
+
+            // 改行をランダムに入れて「ポスカの手書き感」を出す
+            const phrase = `${i}<br>${c}${o}${s}`;
+            
+            document.getElementById('phrase-display').innerHTML = phrase;
+        }
+
+        // 初回実行
+        generatePoem();
+    </script>
+</body>
+</html>
