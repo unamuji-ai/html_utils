@@ -108,6 +108,35 @@
             box-shadow: 0 2px 0 #c94b7c;
         }
 
+				/* 画像プレビュー用のモーダル */
+				#preview-overlay {
+				    display: none; /* 最初は隠す */
+				    position: fixed;
+				    top: 0; left: 0;
+				    width: 100%; height: 100%;
+				    background: rgba(0,0,0,0.85);
+				    z-index: 1000;
+				    justify-content: center;
+				    align-items: center;
+				    flex-direction: column;
+				    color: white;
+				}
+
+				#preview-img {
+				    max-width: 90%;
+				    max-height: 80%;
+				    border: 5px solid white;
+				    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+				}
+
+				.close-instruction {
+				    margin-top: 15px;
+				    font-size: 0.9rem;
+				    background: #4fc3f7;
+				    padding: 8px 20px;
+				    border-radius: 20px;
+				}
+
         .download-btn {
             background-color: #4fc3f7;
             box-shadow: 0 4px 0 #0288d1;
@@ -133,6 +162,12 @@
         <button onclick="generatePoem()">フレーズ生成</button>
         <button class="download-btn" onclick="downloadCheki()">画像ダウンロード</button>
     </div>
+
+		<div id="preview-overlay" onclick="this.style.display='none'">
+		    <p>画像を長押しして「写真に追加」してね</p>
+		    <img id="preview-img" src="" alt="preview">
+		    <div class="close-instruction">タップで閉じる</div>
+		</div>
 
     <script>
         const dictionary = {
@@ -377,20 +412,32 @@
         }
 
         // 画像ダウンロード機能
-        function downloadCheki() {
-            const chekiArea = document.getElementById('cheki-area');
-            
-            // html2canvasを実行
-            html2canvas(chekiArea, {
-                scale: 2, // 高画質で保存
-                useCORS: true // 外部リソース（フォント等）の許可
-            }).then(canvas => {
-                const link = document.createElement('a');
-                link.download = 'deco-cheki.png';
-                link.href = canvas.toDataURL('image/png');
-                link.click();
-            });
-        }
+				function downloadCheki() {
+				    const chekiArea = document.getElementById('cheki-area');
+				    
+				    // 生成中であることを伝える（ボタン無効化などはお好みで）
+				    const downloadBtn = document.querySelector('.download-btn');
+				    const originalText = downloadBtn.innerText;
+				    downloadBtn.innerText = "生成中...";
+
+				    html2canvas(chekiArea, {
+				        scale: 3, // 高画質にする
+				        useCORS: true
+				    }).then(canvas => {
+				        const previewOverlay = document.getElementById('preview-overlay');
+				        const previewImg = document.getElementById('preview-img');
+				        
+				        // Canvasを画像データ(Base64)に変換
+				        const imageData = canvas.toDataURL('image/png');
+				        
+				        // プレビュー用画像にセットして表示
+				        previewImg.src = imageData;
+				        previewOverlay.style.display = 'flex';
+				        
+				        // ボタンのテキストを戻す
+				        downloadBtn.innerText = originalText;
+				    });
+				}
 
         generatePoem();
     </script>
