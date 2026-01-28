@@ -57,6 +57,166 @@ const types = [
 ];
 
 // =============================
+// 単タイプ説明文
+// =============================
+const typeDescriptions = {
+  "カルビ": {
+    feature: [
+      "外向性が高く、コミュニケーションの主導権を握りやすい",
+      "感情表現が豊かで、周囲にポジティブな影響を与える",
+      "初対面でも距離を縮めるのが得意"
+    ],
+    weak: [
+      "明るさを維持しようとして疲れやすい",
+      "無意識に“盛り上げ役”を背負いがち",
+      "本音を後回しにしがち"
+    ]
+  },
+  "タン": {
+    feature: [
+      "誠実で、約束やルールを大切にする",
+      "感情の波が少なく安定している",
+      "聞き役としての能力が高い"
+    ],
+    weak: [
+      "自分の気持ちを抑え込みやすい",
+      "変化の多い環境が苦手",
+      "感情表現が控えめで誤解されやすい"
+    ]
+  },
+  "ロース": {
+    feature: [
+      "柔軟で、どんなタイプの人とも合わせられる",
+      "感情と論理のバランスが良い",
+      "対人距離の調整が上手い"
+    ],
+    weak: [
+      "器用すぎて本音が見えにくい",
+      "周囲の期待に合わせすぎて疲れる",
+      "優先順位が曖昧になりがち"
+    ]
+  },
+  "ハラミ": {
+    feature: [
+      "継続力が高く、途中で投げ出さない",
+      "裏方としてのサポート能力が高い",
+      "誠実で信頼されやすい"
+    ],
+    weak: [
+      "自分を過小評価しがち",
+      "頼まれごとを断れず負担を抱えやすい",
+      "変化への対応が遅れがち"
+    ]
+  },
+  "マルチョウ": {
+    feature: [
+      "共感性が高く、相手の気持ちを察するのが得意",
+      "柔らかい雰囲気で場を和ませる",
+      "心理的安全性を作り出す"
+    ],
+    weak: [
+      "自分の感情を後回しにしがち",
+      "優しさが利用されることがある",
+      "決断に時間がかかる"
+    ]
+  },
+  "ミノ": {
+    feature: [
+      "集中力が高く、質の高い成果を出す",
+      "自分の価値観を大切にする",
+      "物事を深く理解しようとする"
+    ],
+    weak: [
+      "柔軟性が求められる場面が苦手",
+      "頑固に見られることがある",
+      "感情表現が控えめ"
+    ]
+  },
+  "レバー": {
+    feature: [
+      "他者の感情に寄り添う能力が高い",
+      "内省的で、自分の心の動きを理解している",
+      "微細な変化に気づく"
+    ],
+    weak: [
+      "情緒的な刺激に影響されやすい",
+      "自分の感情を抱え込みがち",
+      "ストレス耐性が低め"
+    ]
+  },
+  "シマチョウ": {
+    feature: [
+      "行動が早く、迷いが少ない",
+      "場を盛り上げる能力が高い",
+      "直感的な判断が得意"
+    ],
+    weak: [
+      "衝動的になりやすい",
+      "計画性が弱い",
+      "感情の起伏が激しいことがある"
+    ]
+  },
+  "アカセン": {
+    feature: [
+      "発想が独特で、創造性が高い",
+      "自分の価値観を大切にする",
+      "表現力が豊か"
+    ],
+    weak: [
+      "誤解されやすい",
+      "気分の波がある",
+      "集団行動が苦手なことも"
+    ]
+  },
+  "センマイ": {
+    feature: [
+      "論理的で、物事を構造化して理解する",
+      "感情に流されず安定した判断ができる",
+      "長期的視点で考えられる"
+    ],
+    weak: [
+      "感情的な相手とのコミュニケーションが負担",
+      "柔軟性に欠けることがある",
+      "自分のペースを乱されるのが苦手"
+    ]
+  }
+};
+
+
+// =============================
+// MIX説明文テンプレート
+// =============================
+function generateMixDescription(a, b, rank) {
+  const A = typeDescriptions[a];
+  const B = typeDescriptions[b];
+
+  const rankText = {
+    "並": "あなたは2つのタイプの性質をバランスよく併せ持つタイプ。",
+    "上": "あなたは2つのタイプの強みを高いレベルで使いこなすタイプ。",
+    "特上": "あなたは2つのタイプの長所を高度に統合した“ハイブリッド型”。"
+  }[rank];
+
+  return `
+    <p>${rankText}</p>
+
+    <h3>【特徴】</h3>
+    <ul>
+      <li>${A.feature[0]}</li>
+      <li>${B.feature[0]}</li>
+      <li>状況に応じて行動を切り替えられる柔軟性</li>
+      <li>多様なタイプと相性が良い</li>
+    </ul>
+
+    <h3>【弱点】</h3>
+    <ul>
+      <li>器用すぎて本音が見えにくい</li>
+      <li>周囲に合わせすぎて疲れやすい</li>
+      <li>判断に迷う場面が増えやすい</li>
+    </ul>
+  `;
+}
+
+// =============================
 // スコア表（前回作成したもの）
 // =============================
 const scores = {
@@ -157,13 +317,12 @@ function answer(ai) {
 }
 
 // =============================
-// 結果表示（ミックス＋ランク判定）
+// 結果表示（MIX＋ランク＋説明文）
 // =============================
 function finish() {
   document.getElementById("question-area").innerHTML = "";
   document.getElementById("progress").innerHTML = "";
 
-  // 最大スコアと2番目を取得
   const sorted = totalScore
     .map((v, i) => ({ type: types[i], score: v }))
     .sort((a, b) => b.score - a.score);
@@ -171,26 +330,26 @@ function finish() {
   const top = sorted[0];
   const second = sorted[1];
 
-  // ランク判定
   let rank = "並";
-  if (top.score >= 20) rank = "特上";
-  else if (top.score >= 15) rank = "上";
+  if (top.score >= 25) rank = "特上";
+  else if (top.score >= 20) rank = "上";
 
-  // ミックス判定（差が3点以内）
-  let resultText = "";
+  let html = "";
 
   if (top.score - second.score <= 3) {
-    resultText =
-      `<h2>${rank} ${top.type} × ${second.type} MIXタイプ！</h2>
-       <p>1位：${top.type}（${top.score}pts）<br>
-          2位：${second.type}（${second.score}pts）</p>`;
+    html += `<h2>${rank} ${top.type} × ${second.type} MIXタイプ！</h2>`;
+    html += generateMixDescription(top.type, second.type, rank);
   } else {
-    resultText =
-      `<h2>${rank} ${top.type}タイプ！</h2>
-       <p>スコア：${top.score}pts</p>`;
+    html += `<h2>${rank} ${top.type}タイプ！</h2>`;
+    html += `
+      <h3>【特徴】</h3>
+      <ul>${typeDescriptions[top.type].feature.map(f => `<li>${f}</li>`).join("")}</ul>
+      <h3>【弱点】</h3>
+      <ul>${typeDescriptions[top.type].weak.map(f => `<li>${f}</li>`).join("")}</ul>
+    `;
   }
 
-  document.getElementById("result").innerHTML = resultText;
+  document.getElementById("result").innerHTML = html;
 }
 
 // 初期表示
