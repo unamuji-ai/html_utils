@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>顔面モザイク</title>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; background-color: #f0f2f5; padding: 20px; }
+        .controls { display: flex; gap: 10px; margin-bottom: 20px; }
+        .button { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        canvas { border: 2px solid #ddd; background-color: #fff; max-width: 100%; height: auto; border-radius: 8px; }
+        #loading { color: #888; display: none; }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+</head>
+<body>
+
+    <h1>誰だかわからなくする前衛的モザイク</h1>
+    <div id="message">画像をアップロードしてください。</div>
+
+    <div class="controls">
+        <label for="imageUpload" class="button">自撮りをアップロード</label>
+        <input type="file" id="imageUpload" accept="image/*" style="display:none;">
+        <button class="button" onclick="resetParts()" style="background-color:#008CBA;">再配置‼️</button>
+        <button class="button" onclick="saveImage()" style="background-color:#555;">保存</button>
+    </div>
+
+    <div id="loading">AIモデル読み込み中...</div>
+    <canvas id="partsCanvas"></canvas>
+
+    <script>
+        const imageUpload = document.getElementById('imageUpload');
+        const partsCanvas = document.getElementById('partsCanvas');
+        const ctx = partsCanvas.getContext('2d');
+        const messageDiv = document.getElementById('message');
+        const loadingDiv = document.getElementById('loading');
+
+        let originalImage = null;
+        let detections = null;
+        let faceParts = {};
+
+        async function loadModels() {
+            loadingDiv.style.display = 'block';
+            const MODEL_URL = 'https://raw.githubusercontent.com/vladmandic/face-api/master/model/';
+            try {
+                await faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL);
+                await faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL);
+                messageDiv.innerText = '準備完了！画像をアップしてください。';
+            } catch (err) {
+                messageDiv.innerText = 'モデル読み込み失敗。';
+            } finally {
+                loadingDiv.style.display = 'none';
+            }
+        }
+        window.onload = loadModels;
+
+        imageUpload.addEventListener('change', async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            const img = await faceapi.bufferToImage(file);
+            originalImage = img;
+            partsCanvas.width = img.width;
+            partsCanvas.height = img.height;
+            messageDiv.innerText = '解析中...';
+            detections = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+            if (detections) {
+                await extractAndProcess();
+            } else {
+                messageDiv.innerText = '顔が見つかりません。';
+            }
+        });
+
+        // 肌の色を取得
+        function getSkinColor(img, landmarks) {
+            const nose = landmarks.positions[30]; // 鼻の頭
+            const tempCanvas = document.createElement('canvas');
+            const tempCtx = tempCanvas.getContext('2d');
+            tempCanvas.width = img.width;
+            tempCanvas.height = img.height;
+            tempCtx.drawImage(img, 0, 0);
+            const pixel = tempCtx.getImageData(nose.x, nose.y, 1, 1).data;
+            return `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
+        }
+
+				// 1. 抽出時に「元の中心位置」を記録するように修正
+				async function extractAndProcess() {
+				    const landmarks = detections.landmarks;
+				    const partsData = {
+				        leftEyeBrow: landmarks.positions.slice(17, 22),
+				        rightEyeBrow: landmarks.positions.slice(22, 27),
+				        nose: landmarks.positions.slice(27, 36),
+				        leftEye: landmarks.positions.slice(36, 42),
+				        rightEye: landmarks.positions.slice(42, 48),
+				        mouth: landmarks.positions.slice(48, 68)
+				    };
+
+				    faceParts = {};
+				    Object.keys(partsData).forEach(key => {
+				        const points = partsData[key];
+				        const xs = points.map(p => p.x);
+				        const ys = points.map(p => p.y);
+				        const minX = Math.min(...xs), minY = Math.min(...ys);
+				        const maxX = Math.max(...xs), maxY = Math.max(...ys);
+				        
+				        // 【重要】元のパーツの「本当の中心」を計算
+				        const centerX = (minX + maxX) / 2;
+				        const centerY = (minY + maxY) / 2;
+
+				        const padding = 20;
+				        const pw = maxX - minX + padding * 2, ph = maxY - minY + padding * 2;
+
+				        const tCanvas = document.createElement('canvas');
+				        tCanvas.width = pw; tCanvas.height = ph;
+				        const tCtx = tCanvas.getContext('2d');
+
+				        tCtx.beginPath();
+				        points.forEach((p, i) => {
+				            const x = p.x - minX + padding;
+				            const y = p.y - minY + padding;
+				            i === 0 ? tCtx.moveTo(x, y) : tCtx.lineTo(x, y);
+				        });
+				        tCtx.closePath();
+				        tCtx.filter = 'blur(6px)';
+				        tCtx.clip();
+				        
+				        // 切り出し。ここでの minX - padding が描画時のズレの原因になりやすい
+				        tCtx.drawImage(originalImage, minX - padding, minY - padding, pw, ph, 0, 0, pw, ph);
+
+				        const imgPart = new Image();
+				        imgPart.src = tCanvas.toDataURL();
+				        
+				        faceParts[key] = { 
+				            img: imgPart, 
+				            w: pw, 
+				            h: ph, 
+				            origX: centerX, 
+				            origY: centerY 
+				        };
+				    });
+
+				    setTimeout(() => {
+				        drawFacelessAndParts();
+				        partsCanvas.style.display = 'block';
+				    }, 200);
+				}
+
+				function drawFacelessAndParts() {
+				    if (!originalImage || !detections) return;
+				    const landmarks = detections.landmarks;
+				    const jawline = landmarks.positions.slice(0, 17);
+				    const skinColor = getSkinColor(originalImage, landmarks);
+
+				    ctx.clearRect(0, 0, partsCanvas.width, partsCanvas.height);
+				    ctx.drawImage(originalImage, 0, 0);
+
+				    // のっぺらぼう化
+				    ctx.save();
+				    ctx.beginPath();
+				    jawline.forEach((p, i) => {
+				        i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y);
+				    });
+				    ctx.fillStyle = skinColor;
+				    ctx.filter = 'blur(15px)';
+				    ctx.fill();
+				    ctx.restore();
+
+				    // パーツ再配置
+						Object.keys(faceParts).forEach(name => {
+						    const p = faceParts[name];
+						    if (p && p.img.src) {
+						        const offsetRange = 6; 
+						        const offsetX = (Math.random() - 0.5) * offsetRange;
+						        const offsetY = (Math.random() - 0.5) * offsetRange;
+						        
+						        const dx = p.origX + offsetX;
+						        const dy = p.origY + offsetY;
+
+						        // 【修正】スケールを1.05〜1.1程度にして、ぼかしによる「痩せ」を補正
+						        const baseScale = 1.1 + (Math.random()) * 0.2; 
+						        const dw = p.w * baseScale;
+						        const dh = p.h * baseScale;
+
+						        ctx.save();
+						        ctx.translate(dx, dy);
+						        
+						        // わずかな回転も違和感（ズレ）を強調するなら有効です
+						        // ctx.rotate((Math.random() - 0.5) * 0.02); 
+
+						        // 中心を合わせて描画
+						        ctx.drawImage(p.img, -dw / 2, -dh / 2, dw, dh);
+						        ctx.restore();
+						    }
+						});
+				    messageDiv.innerText = 'え…誰…？？';
+				}
+
+        function resetParts() { drawFacelessAndParts(); }
+        function saveImage() {
+            const link = document.createElement('a');
+            link.download = 'faceless_bug.png';
+            link.href = partsCanvas.toDataURL();
+            link.click();
+        }
+    </script>
+</body>
+</html>
