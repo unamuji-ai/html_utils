@@ -2,320 +2,295 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>コンカフェ嬢バトルカード生成</title>
     <style>
-        /* 【修正2】全体的にスマホで見やすいサイズ調整 */
+        :root {
+            --primary-color: #801e63;
+            --bg-color: #fce4ec;
+        }
         body { 
             padding: 10px; 
             margin: 0; 
-            font-family: sans-serif; 
-            background-color: #fce4ec; /* コンカフェっぽい背景色 */
+            font-family: 'Helvetica Neue', Arial, sans-serif; 
+            background-color: var(--bg-color); 
             text-align: center;
+            color: #333;
         }
-        h1 { color: #801e63; font-size: 1.2rem; margin: 15px 0; }
+        h1 { color: var(--primary-color); font-size: 1.4rem; margin: 15px 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
         
-        input[type="file"] {
-            margin: 10px 0;
-            width: 90%;
+        .upload-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        input[type="file"] { margin: 10px 0; width: 100%; font-size: 0.9rem; }
+
+        /* Canvasは計算用なので隠す */
+        #cardCanvas { display: none; }
+
+        /* スマホで長押し保存できるメイン画像 */
+        #outputImage {
+            width: 100%;
+            max-width: 350px;
+            height: auto;
+            margin: 10px auto;
+            display: none; /* 生成されるまで隠す */
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: 4px solid white;
+        }
+
+        .hint-text {
+            display: none;
+            background: var(--primary-color);
+            color: white;
+            padding: 8px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin: 10px auto;
+            max-width: 280px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
         }
 
         button {
             width: 90%;
             max-width: 300px;
-            padding: 12px;
-            margin: 10px auto;
+            padding: 14px;
+            margin: 15px auto;
             display: block;
-            background-color: #801e63;
+            background-color: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 25px;
+            border-radius: 30px;
             font-weight: bold;
             font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #5a1446;
+            transition: 0.2s;
         }
+        button:active { transform: translateY(2px); box-shadow: 0 2px 0 #5a1446; }
 
-        /* 【修正3】Canvasの表示幅をスマホ画面いっぱいに広げる */
-        #cardCanvas {
-            width: 95%; /* 画面幅の95%を使う */
-            max-width: 400px; /* PCで見ても大きすぎない制限 */
-            height: auto;
-            margin: 10px auto;
-            display: block;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
-        }
+        .footer-text { font-size: 0.7rem; color: #888; margin-top: 20px; }
     </style>
 </head>
 <body>
 
-<h1>✨ コンカフェ嬢バトルカード生成 ✨</h1>
-<p style="font-size: 0.8rem; color: #666;">自撮り画像を選んでネ💕</p>
-<input type="file" id="imageInput" accept="image/*" onchange="generateCard()"><br>
-<button onclick="downloadCard()">画像を保存するヨ📋</button>
+<h1>✨ コンカフェ嬢バトルカード ✨</h1>
+
+<div class="upload-container">
+    <p style="font-size: 0.9rem; font-weight: bold; color: #801e63;">画像を選んでカードを生成💕</p>
+    <input type="file" id="imageInput" accept="image/*" onchange="generateCard()">
+</div>
+
+<div id="saveHint" class="hint-text">画像を長押しして「"写真"に保存」してネ📸</div>
+
+<img id="outputImage">
+
 <canvas id="cardCanvas" width="300" height="1000"></canvas>
 
+<button onclick="downloadCard()">ファイルとして保存（PC推奨）</button>
+
+<p class="footer-text">※生成された画像は長押しでスマホに保存できます。</p>
+
 <script>
-// =============================
-// 属性リスト
-// =============================
-const positiveAttributes = [
-  "元気","癒し","愛嬌","面白さ","機転","心尽くし","コミュ力"
-];
+const positiveAttributes = ["元気","癒し","愛嬌","面白さ","機転","心尽くし","コミュ力"];
+const negativeAttributes = ["悪ノリ","下ネタ","P活","店外","グリ下","乞食","鬼畜","色営","オラ営","アルハラ","酒雑魚","ホス狂","彼氏持ち","風掛け持ち"];
 
-const negativeAttributes = [
-  "悪ノリ","下ネタ","P活","店外","グリ下","乞食","鬼畜","色営",
-  "オラ営","アルハラ","酒雑魚","ホス狂","彼氏持ち","風掛け持ち"
-];
-
-// =============================
-// SHA-256 ハッシュ
-// =============================
-async function hashImage(file) {
-  const buffer = await file.arrayBuffer();
-  const hash = await crypto.subtle.digest("SHA-256", buffer);
-  return Array.from(new Uint8Array(hash))
-    .map(b => b.toString(16).padStart(2, "0"))
-    .join("");
-}
-
-// =============================
-// シード付き乱数
-// =============================
-function seededRandom(seed) {
-  let h = 0;
-  for (let i = 0; i < seed.length; i++) {
-    h = Math.imul(31, h) + seed.charCodeAt(i) | 0;
-  }
-  return () => {
-    h = Math.imul(48271, h) % 0x7fffffff;
-    return (h & 0xfffffff) / 0x10000000;
-  };
-}
-
-// =============================
-// ステータス生成（固定）
-// =============================
-function randomStatsFromSeed(seed) {
-  const rand = seededRandom(seed);
-  return {
-    beauty: Math.floor(rand() * 101),
-    intelligence: Math.floor(rand() * 101),
-    stamina: Math.floor(rand() * 101),
-    guts: Math.floor(rand() * 101),
-    mental: Math.floor(rand() * 101)
-  };
-}
-
-// =============================
-// 属性生成（固定）
-// =============================
-function randomAttributesFromSeed(seed) {
-  const rand = seededRandom(seed);
-  const pos = [...positiveAttributes].sort(() => rand() - 0.5).slice(0, 2);
-  const neg = [...negativeAttributes].sort(() => rand() - 0.5).slice(0, 1);
-  return [...pos, ...neg];
-}
-
-// =============================
-// キャプション生成（固定）
-// =============================
 const listA = [
-  "夜の光に溶けるように",
-"微笑みの奥に小さな炎を灯し",
-  "夢の続きに迷い込んだまま",
-"誰かの心をそっと照らすように",
-"星の瞬きを指先に集めて",
-"忘れかけた約束をポケットに忍ばせ",
-"雨上がりの匂いに背中を押されて",
-"言葉にできない感情の渦の中で",
-"月明かりが描く影に身を潜め",
-  "秘密の魔法を胸に抱いて"
+    "虚飾の月が瞳に沈むとき",
+    "千年の孤独を紅いドレスに纏い",
+    "理性の鎖が音を立てて崩れ去る",
+    "銀の雨に濡れた羽根を休めて",
+    "魂を切り刻むような旋律の中で",
+    "禁忌の果実をその唇で汚し",
+    "奈落の底から這い寄る影のように",
+    "深紅の記憶が血管を駆け巡り",
+    "鏡の中に閉じ込めた真実と共に",
+    "祈りさえ届かぬ暗黒の聖域で"
 ];
 
 const listB = [
-  "今日もあなたを迎えにいく",
-"静かに強さを隠している",
-  "ふわりと世界を変えてしまう",
-"小さな勇気を積み重ねている",
-"答えのない問いを繰り返している",
-"ほどけそうな絆を結び直している",
-"自分だけの地図を書き換えている",
-"淡い期待を風に乗せて飛ばす",
-"琥珀色の記憶を大切に守っている",
-  "誰よりも優しい嘘をつく"
+    "甘美な毒を注ぎ込み続けている",
+    "終わらない輪廻の螺旋を踊る",
+    "絶望という名の救済を待っている",
+    "運命の歯車を狂わせようとしている",
+    "冷え切った心臓を静かに焦がす",
+    "名前のない悪夢を飼い慣らしている",
+    "硝子の檻の中で羽撃きを忘れた",
+    "背徳の香りにその身を委ねている",
+    "失われた神託をひとり呟いている",
+    "残酷なまでに美しい嘘を紡ぐ"
 ];
 
 const listC = [
-  "そんな私を見つけてくれてありがとう。",
-  "この瞬間が永遠でありますように。",
-  "あなたの物語に寄り添えたら嬉しい。",
-  "今日も少しだけ強くなれた気がする。",
-"明日の風が、あなたに優しく吹きますように。",
-"まだ誰も知らない、次のページをめくろう。",
-"たった一つの光が、ここにあるから。",
-"その足跡が、いつか花を咲かせるはず。",
-"この声が、時を超えて届きますように。",
-  "心のどこかで、あなたを待っている。"
+    "さあ、私と共に堕ちるところまで堕ちよう。",
+    "この夜が明けるとき、貴方は私の一部となる。",
+    "永遠という名の呪いを受けても構わない。",
+    "愛などという戯言、この闇で掻き消してあげる。",
+    "貴方の絶望が、私の最高の糧になるわ。",
+    "再会の約束は、地獄の門で交わしましょう。",
+    "月が朽ち果てるまで、私を見つめていて。",
+    "次に目覚める時、そこはもう異界の入り口よ。",
+    "震える指先で、私の深淵に触れてごらんなさい。",
+    "出口のない迷宮で、永遠に彷徨い続けるがいいわ。"
 ];
 
+async function hashImage(file) {
+    const buffer = await file.arrayBuffer();
+    const hash = await crypto.subtle.digest("SHA-256", buffer);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function seededRandom(seed) {
+    let h = 0;
+    for (let i = 0; i < seed.length; i++) { h = Math.imul(31, h) + seed.charCodeAt(i) | 0; }
+    return () => { h = Math.imul(48271, h) % 0x7fffffff; return (h & 0xfffffff) / 0x10000000; };
+}
+
+function randomStatsFromSeed(seed) {
+    const rand = seededRandom(seed);
+    return { beauty: Math.floor(rand() * 101), intelligence: Math.floor(rand() * 101), stamina: Math.floor(rand() * 101), guts: Math.floor(rand() * 101), mental: Math.floor(rand() * 101) };
+}
+
+function randomAttributesFromSeed(seed) {
+    const rand = seededRandom(seed);
+    const pos = [...positiveAttributes].sort(() => rand() - 0.5).slice(0, 2);
+    const neg = [...negativeAttributes].sort(() => rand() - 0.5).slice(0, 1);
+    return [...pos, ...neg];
+}
+
 function randomCaptionFromSeed(seed) {
-  const rand = seededRandom(seed);
-  const pick = arr => arr[Math.floor(rand() * arr.length)];
-  return pick(listA) + "、" + pick(listB) + "。" + pick(listC);
+    const rand = seededRandom(seed);
+    const pick = arr => arr[Math.floor(rand() * arr.length)];
+    return pick(listA) + "、" + pick(listB) + "。" + pick(listC);
 }
 
-// =============================
-// カード生成（画像選択で自動）
-// =============================
-async function generateCard() {
-  const file = document.getElementById("imageInput").files[0];
-  if (!file) return;
-
-  const seed = await hashImage(file);
-  const stats = randomStatsFromSeed(seed);
-  const attrs = randomAttributesFromSeed(seed);
-  const caption = randomCaptionFromSeed(seed);
-
-  const reader = new FileReader();
-  reader.onload = e => {
-    const img = new Image();
-    img.onload = () => drawCard(img, stats, attrs, caption);
-    img.src = e.target.result;
-  };
-  reader.readAsDataURL(file);
-}
-
-// =============================
-// レア度計算
-// =============================
 function calcRarity(stats) {
-  const values = Object.values(stats);
-  const total = values.reduce((a, b) => a + b, 0);
-  const minVal = Math.min(...values);
-
-  if (total >= 420 && minVal >= 64) return "UR";
-  if (total >= 400 && minVal >= 55) return "SSR";
-  if (total >= 350 && minVal >= 40) return "SR";
-  if (total >= 300) return "R";
-  return "N";
+    const values = Object.values(stats);
+    const total = values.reduce((a, b) => a + b, 0);
+    const minVal = Math.min(...values);
+    if (total >= 420 && minVal >= 64) return "UR";
+    if (total >= 400 && minVal >= 55) return "SSR";
+    if (total >= 350 && minVal >= 40) return "SR";
+    if (total >= 300) return "R";
+    return "N";
 }
 
-// =============================
-// カード描画
-// =============================
-const rarityColor = {
-  "UR":  "#4fc",
-  "SSR": "#d3e",
-  "SR":  "#ca2",
-  "R":   "#e82",
-  "N":   "#27f"
-};
+const rarityColor = { "UR": "#4fc", "SSR": "#d3e", "SR": "#ca2", "R": "#e82", "N": "#27f" };
+
+async function generateCard() {
+    const file = document.getElementById("imageInput").files[0];
+    if (!file) return;
+
+    const seed = await hashImage(file);
+    const stats = randomStatsFromSeed(seed);
+    const attrs = randomAttributesFromSeed(seed);
+    const caption = randomCaptionFromSeed(seed);
+
+    const reader = new FileReader();
+    reader.onload = e => {
+        const img = new Image();
+        img.onload = () => drawCard(img, stats, attrs, caption);
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
 
 function drawCard(userImage, stats, attrs, caption) {
-  const canvas = document.getElementById("cardCanvas");
-  const ctx = canvas.getContext("2d");
+    const canvas = document.getElementById("cardCanvas");
+    const ctx = canvas.getContext("2d");
+    const rarity = calcRarity(stats);
 
-  const rarity = calcRarity(stats);
+    const frameImg = new Image();
+    frameImg.crossOrigin = "anonymous";
+    frameImg.src = rarity.toLowerCase() + ".png"; 
 
-  const frameImg = new Image();
-  frameImg.crossOrigin = "anonymous";
-  frameImg.src = {
-    "UR":  "ur.png",
-    "SSR": "ssr.png",
-    "SR":  "sr.png",
-    "R":   "r.png",
-    "N":   "n.png"
-  }[rarity];
+    frameImg.onload = () => {
+        ctx.fillStyle = "#404060";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  frameImg.onload = () => {
-    ctx.fillStyle = "#404060";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
+        const targetW = 260, targetH = 460;
+        const x = 20, y = 70;
+        const ratio = Math.max(targetW / userImage.width, targetH / userImage.height);
+        const w = userImage.width * ratio;
+        const h = userImage.height * ratio;
+        const cropX = (w - targetW) / 2;
+        const cropY = (h - targetH) / 2;
 
-    // 自撮りトリミング
-    const targetW = 260, targetH = 460;
-    const x = 20, y = 70;
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = targetW;
+        tempCanvas.height = targetH;
+        const tempCtx = tempCanvas.getContext("2d");
+        tempCtx.drawImage(userImage, -cropX, -cropY, w, h);
 
-    const ratio = Math.max(targetW / userImage.width, targetH / userImage.height);
-    const w = userImage.width * ratio;
-    const h = userImage.height * ratio;
-    const cropX = (w - targetW) / 2;
-    const cropY = (h - targetH) / 2;
+        ctx.drawImage(tempCanvas, x, y);
+        ctx.drawImage(frameImg, 0, 0, 300, 600);
+        drawStatusAndText(ctx, stats, attrs, rarity, caption, 610);
 
-    const tempCanvas = document.createElement("canvas");
-    tempCanvas.width = targetW;
-    tempCanvas.height = targetH;
-    const tempCtx = tempCanvas.getContext("2d");
-    tempCtx.drawImage(userImage, -cropX, -cropY, w, h);
-
-    ctx.drawImage(tempCanvas, x, y);
-    ctx.drawImage(frameImg, 0, 0, 300, 600);
-
-    drawStatusAndText(ctx, stats, attrs, rarity, caption, 610);
-  };
+        // 【修正】Canvasをimgに変換して表示
+        const outputImage = document.getElementById("outputImage");
+        outputImage.src = canvas.toDataURL("image/png");
+        outputImage.style.display = "block";
+        document.getElementById("saveHint").style.display = "block";
+    };
 }
 
-// =============================
-// ステータス描画
-// =============================
 function drawStatusAndText(ctx, stats, attrs, rarity, caption, offsetY) {
-  ctx.font = "20px sans-serif";
-  ctx.fillStyle = rarityColor[rarity];
-  ctx.fillText(rarity, 220, offsetY + 20);
+    ctx.font = "bold 20px sans-serif";
+    ctx.fillStyle = rarityColor[rarity];
+    ctx.fillText(rarity, 230, offsetY + 20);
 
-  ctx.fillStyle = "#fff";
-  ctx.font = "18px sans-serif";
-  ctx.fillText("【ステータス】", 20, offsetY + 20);
-
-  function drawBar(label, value, y) {
     ctx.fillStyle = "#fff";
-    ctx.font = "14px sans-serif";
-    ctx.fillText(`${label}: ${value}`, 20, y);
-    ctx.fillStyle = "#ddd";
-    ctx.fillRect(100, y - 10, 150, 8);
-    ctx.fillStyle = "#f20";
-    ctx.fillRect(100, y - 10, (value / 100) * 150, 8);
-  }
+    ctx.font = "bold 18px sans-serif";
+    ctx.fillText("【ステータス】", 20, offsetY + 20);
 
-  drawBar("容姿", stats.beauty, offsetY + 45);
-  drawBar("知力", stats.intelligence, offsetY + 70);
-  drawBar("体力", stats.stamina, offsetY + 95);
-  drawBar("根性", stats.guts, offsetY + 120);
-  drawBar("精神力", stats.mental, offsetY + 145);
+    const drawBar = (label, value, y) => {
+        ctx.fillStyle = "#fff"; ctx.font = "14px sans-serif";
+        ctx.fillText(`${label}: ${value}`, 20, y);
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
+        ctx.fillRect(100, y - 10, 150, 8);
+        ctx.fillStyle = "#f20";
+        ctx.fillRect(100, y - 10, (value / 100) * 150, 8);
+    };
 
-  ctx.fillStyle = "#fff";
-  ctx.font = "18px sans-serif";
-  ctx.fillText("【パッシブスキル】", 20, offsetY + 170);
+    drawBar("容姿", stats.beauty, offsetY + 45);
+    drawBar("知力", stats.intelligence, offsetY + 70);
+    drawBar("体力", stats.stamina, offsetY + 95);
+    drawBar("根性", stats.guts, offsetY + 120);
+    drawBar("精神力", stats.mental, offsetY + 145);
 
-  let ax = 20, ay = offsetY + 195;
-  attrs.forEach(attr => {
-    ctx.fillStyle = positiveAttributes.includes(attr) ? "#fcc" : "#2cf";
-    ctx.font = "16px sans-serif";
-    ctx.fillText(attr, ax, ay);
-    ax += ctx.measureText(attr).width + 15;
-    if (ax > 260) { ax = 20; ay += 20; }
-  });
+    ctx.fillStyle = "#fff"; ctx.font = "bold 18px sans-serif";
+    ctx.fillText("【特性】", 20, offsetY + 185);
 
-  ctx.font = "14px sans-serif";
-  ctx.fillStyle = "#fff";
-  const lines = caption.match(/.{1,15}/g);
-  let cy = ay + 30;
-  lines.forEach(line => {
-    ctx.fillText(line, 20, cy);
-    cy += 16;
-  });
+    let ax = 20, ay = offsetY + 210;
+    attrs.forEach(attr => {
+        ctx.fillStyle = positiveAttributes.includes(attr) ? "#ff80ab" : "#80d8ff";
+        ctx.font = "bold 16px sans-serif";
+        ctx.fillText(attr, ax, ay);
+        ax += ctx.measureText(attr).width + 15;
+    });
+
+    ctx.font = "italic 14px sans-serif"; ctx.fillStyle = "#ddd";
+    const lines = caption.match(/.{1,18}/g) || [];
+    let cy = ay + 35;
+    lines.forEach(line => { ctx.fillText(line, 20, cy); cy += 18; });
 }
-
-
-// =============================
-// ダウンロード
-// =============================
 
 function downloadCard() {
-  const canvas = document.getElementById("cardCanvas");
-  const link = document.createElement("a");
-  link.download = "battle_card.png";
-  link.href = canvas.toDataURL();
-  link.click();
+    const canvas = document.getElementById("cardCanvas");
+    const link = document.createElement("a");
+    link.download = "battle_card.png";
+    link.href = canvas.toDataURL();
+    link.click();
 }
 </script>
 </body>
