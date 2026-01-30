@@ -1,25 +1,100 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>焼肉10タイプ性格診断</title>
-<style>
-  body { font-family: sans-serif; padding: 20px; line-height: 1.7; }
-  h1 { color: #c0392b; }
-  .question-box { margin-top: 30px; padding: 20px; border: 1px solid #ddd; }
-  button { padding: 12px 20px; font-size: 16px; margin-top: 20px; }
-  #result { margin-top: 40px; padding: 20px; border: 2px solid #c0392b; }
-  #progress { font-weight: bold; margin-top: 10px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>焼肉10タイプ性格診断</title>
+    <style>
+        /* 全体のベース設定 */
+        body { 
+            font-family: sans-serif; 
+            padding: 15px; 
+            line-height: 1.6; 
+            background-color: #fffaf0; 
+            color: #333;
+            margin: 0;
+            font-size: 18px; /* スマホで読みやすい基本サイズ */
+        }
+
+        h1 { 
+            color: #c0392b; 
+            font-size: 1.5rem; 
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* 質問エリア */
+        .question-box { 
+            margin-top: 20px; 
+            padding: 20px; 
+            border: 2px solid #ddd; 
+            border-radius: 12px;
+            background-color: #fff;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        /* ボタンを「押しやすく」 */
+        button { 
+            display: block;
+            width: 100%; /* スマホでは全幅が押しやすい */
+            padding: 15px; 
+            font-size: 18px; 
+            margin-top: 15px; 
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: #c0392b;
+            color: white;
+            font-weight: bold;
+            transition: opacity 0.2s;
+        }
+
+        button:active {
+            opacity: 0.7;
+        }
+
+        /* 結果エリア */
+        #result { 
+            margin-top: 30px; 
+            padding: 20px; 
+            border: 3px solid #c0392b; 
+            border-radius: 15px;
+            background-color: #fff;
+            display: none; /* 初期は非表示 */
+        }
+
+        #progress { 
+            font-weight: bold; 
+            margin-top: 15px; 
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        /* 画像などがある場合のハミ出し防止 */
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+    </style>
 </head>
 <body>
 
-<h1>🔥🍖 コンカフェ嬢　焼肉診断🔥🍖</h1>
-<p>あなたはコンカフェ嬢としてどの部位？　10問の質問に答えて</p>
+<h1>🔥🍖 コンカフェ嬢<br>焼肉診断 🔥🍖</h1>
+<div id="progress">第 1 問 / 10</div>
 
-<div id="progress"></div>
-<div id="question-area"></div>
-<div id="result"></div>
+<div id="question-area">
+    <div class="question-box">
+        <p id="question-text">Q. 接客中、お客様が飲み物をこぼしてしまいました。あなたの第一声は？</p>
+        <button onclick="next()">大丈夫ですか！？（即座に拭く）</button>
+        <button onclick="next()">あーあ、ドジですねぇ（笑いを取る）</button>
+    </div>
+</div>
+
+<div id="result">
+    <h2>診断結果：特上カルビタイプ</h2>
+    <p>あなたは華やかで誰からも愛される、お店の看板娘です！</p>
+</div>
 
 <script>
 // =============================
