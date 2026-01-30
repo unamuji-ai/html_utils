@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>おじさん構文エディタ</title>
+    <style>
+        body { font-family: "Helvetica Neue", Arial, sans-serif; background-color: #7494c0; display: flex; justify-content: center; padding: 20px; }
+        .iphone-frame { width: 350px; background: #fff; border-radius: 30px; border: 8px solid #333; height: 750px; position: relative; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        .header { background: #353b48; color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 0.9rem; }
+        .chat-area { flex: 1; background: #7494c0; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; }
+        
+        .msg-container { margin-bottom: 15px; display: flex; flex-direction: column; align-self: flex-start; max-width: 85%; }
+        .msg { padding: 10px; border-radius: 15px; font-size: 0.9rem; line-height: 1.4; background: white; border-bottom-left-radius: 2px; position: relative; word-break: break-all; white-space: pre-wrap; }
+        
+        .copy-btn { margin-top: 5px; background: rgba(255,255,255,0.3); border: none; color: white; font-size: 0.7rem; cursor: pointer; padding: 4px 8px; border-radius: 10px; align-self: flex-start; }
+
+        .input-area { background: #eee; padding: 15px; border-top: 1px solid #ddd; }
+        .name-input { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 5px; box-sizing: border-box; background: #fffde7; font-weight: bold; }
+        textarea { width: 100%; height: 60px; border: 1px solid #ccc; border-radius: 5px; padding: 5px; box-sizing: border-box; resize: none; }
+        .main-btn { width: 100%; padding: 12px; margin-top: 10px; background: #4caf50; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        
+        #toast { visibility: hidden; min-width: 200px; background-color: #333; color: #fff; text-align: center; border-radius: 50px; padding: 10px; position: fixed; z-index: 1; bottom: 50px; left: 50%; transform: translateX(-50%); }
+        #toast.show { visibility: visible; animation: fadein 0.5s, fadeout 0.5s 1.5s; }
+        @keyframes fadein { from {bottom: 0; opacity: 0;} to {bottom: 50px; opacity: 1;} }
+        @keyframes fadeout { from {bottom: 50px; opacity: 1;} to {bottom: 0; opacity: 0;} }
+    </style>
+</head>
+<body>
+
+<div class="iphone-frame">
+    <div class="header">おじさん（54）</div>
+    <div class="chat-area" id="chatArea">
+        <div class="msg-container">
+            <div class="msg">ヤッホー‼️まずは上の欄に相手のお名前を書いてネ💕おじさん、待ってるヨ😋</div>
+        </div>
+    </div>
+    <div class="input-area">
+        <input type="text" id="targetName" class="name-input" placeholder="相手の名前（例：ちま）">
+        <textarea id="userInput" placeholder="おじさんに変換したい文章を入力..."></textarea>
+        <button class="main-btn" onclick="transform()">おじさん変換</button>
+    </div>
+</div>
+
+<div id="toast">コピーしたヨ😋💦</div>
+
+<script>
+    const emojis = ["❗", "‼️", "❓", "💦", "✨", "😋", "💕", "😘", "☀️", "🏃‍♂️💨", "🍑", "🍆💦", "👅", "🚀💦", "👁", "🥖💦", "💋", "💖","😅","🤣","💖", "🤫"];
+    
+		const slotA = [
+		    "NAMEチャンは今、何してるのカナ❓おじさんは今、お風呂上がりで、裸、なんちゃって💕",
+		    "ちなみに、NAMEチャンの今日のパンツ、何色カナ❓おじさん、気になっちゃうナァ（笑）",
+		    "NAMEチャンのために、おじさん、かっこいい自撮り、撮っちゃったヨ✨今度送るネ💕",
+		    "今度、内緒で、二人きりの、特別授業、しちゃうゾ😋NAMEチャン、いいよネ❓",
+		    "おじさんの、たくましい腕、触ってみたく、ないカナ❓NAMEチャンなら特別だヨ💖",
+		    "NAMEチャンの、いい匂いが、こっちまで、漂ってきそうだヨ、クンクン(￣(oo)￣)💕",
+		    "おじさん、今日は、NAMEチャンの事ばかり考えて、仕事が手に付かないヨ💦（汗）",
+		    "さっき、NAMEチャンに似た人を見かけて、ドキドキしちゃったヨ✨運命、感じちゃうネ😘",
+		    "おじさんの胸の中に、飛び込んできてほしいナァ、ナンテネ💕(^_−)−☆",
+		    "NAMEチャンの、柔らかな肌を、想像して、ニヤニヤしちゃうおじさんを許してネ😋"
+		];
+
+		const slotB = [
+		    "そんなことより、今夜、パパと、美味しいワイン、飲まないかい❓NAMEチャンの瞳に乾杯、ダネ✨",
+		    "週末は、おじさんと、ドライブデート、決定だネ‼️NAMEチャンの行きたいところ、どこでも連れていくヨ💨",
+		    "たまには、贅沢して、高級ホテルで、ディナーなんて、どうカナ❓もちろん、NAMEチャンと二人きり、だヨ💋",
+		    "NAMEチャンに、似合いそうな、可愛い下着、見つけちゃったヨ💕今度プレゼントさせてネ😋",
+		    "秘密の、マッサージ、してあげたいな、ナンテネ💦NAMEチャンの体、癒してあげたいヨ💖",
+		    "おじさん、NAMEチャンのために、特製の、手料理、振る舞っちゃおうかナ❓🍴💕",
+		    "二人だけの、秘密の、ビデオ通話、しちゃわないかい❓NAMEチャンの顔が見たいヨ😘",
+		    "NAMEチャンの、耳元で、愛を囁いてあげたいナァ✨ゾクゾク、しちゃうカナ❓（笑）",
+		    "今度、温泉旅行にでも、行こうヨ♨️もちろん、混浴、だヨ(^_−)−☆💦",
+		    "おじさん、NAMEチャンの、専属の、パパに、なりたいナァ💕なんでも買ってあげるヨ😋"
+		];
+
+		const slotC = [
+		    "返信、待ってるヨ、僕の可愛いNAMEチャン💋",
+		    "おじさん、もう、NAMEチャンのこと考えたら、我慢、できないヨ（笑）",
+		    "次は、もっと、すごいこと、しちゃおうネ‼️NAMEチャン、覚悟してネ(^_−)−☆",
+		    "これ、二人だけの、秘密、だヨ(^_−)−☆NAMEチャンを信じてるヨ💕",
+		    "おやすみ、チュッ💕NAMEチャンの夢を、見ちゃうゾ😋💦",
+		    "返信がないと、おじさん、泣いちゃうゾ💦。・゜・(ノД`)・゜・。",
+		    "NAMEチャンの、全てを、おじさんに、預けてほしいナァ💖",
+		    "今夜は、寝かさないゾ💕覚悟してネ(^_−)−☆ナンチャッテ✨",
+		    "あ、おじさんの事、嫌いにならないでネ💦ずっと、愛してるヨ💕",
+		    "じゃあ、また後で、メールしちゃうネ‼️バイバイ、お姫様💋"
+		];
+
+    function getEmoji() {
+        return emojis[Math.floor(Math.random() * emojis.length)];
+    }
+
+    function transform() {
+        const input = document.getElementById('userInput').value;
+        const name = document.getElementById('targetName').value || "〇〇";
+        if (!input) return;
+
+        let segments = input.split(/([、。がはをも！!？?])/);
+        let ojisanResult = "";
+        
+        const calls = [`${name}チャン、オハヨウ〜☀️ `, `ヤッホー‼️${name}チャン✨ `, `ねぇねぇ${name}チャン、今、何してるの❓ `, `お疲れ様〜✨${name}チャン、頑張ってるネ💕 `];
+        ojisanResult += calls[Math.floor(Math.random() * calls.length)];
+
+        segments.forEach((seg) => {
+            if (!seg || seg === "") return;
+            let processed = seg
+                .replace(/[。]/g, "‼️" + getEmoji() + getEmoji())
+                .replace(/[、]/g, "、" + getEmoji())
+                .replace(/です/g, "だヨ" + getEmoji())
+                .replace(/ます/g, "るネ" + getEmoji())
+                .replace(/ない/g, "ナィ💦")
+                .replace(/かな/g, "カナ❓");
+
+            if (Math.random() > 0.4 && !processed.match(/[、‼️❓]/)) {
+                processed += "、" + getEmoji();
+            }
+            ojisanResult += processed;
+        });
+
+        // スロットを追加しつつ、名前を置換
+        ojisanResult += "‼️" + getEmoji();
+        let sA = slotA[Math.floor(Math.random() * slotA.length)].replace(/NAME/g, name);
+        let sB = slotB[Math.floor(Math.random() * slotB.length)].replace(/NAME/g, name);
+        let sC = slotC[Math.floor(Math.random() * slotC.length)].replace(/NAME/g, name);
+
+        ojisanResult += sA + "、" + getEmoji() + sB + "、" + getEmoji() + sC;
+
+        addMessage(ojisanResult);
+        document.getElementById('userInput').value = "";
+    }
+
+    function addMessage(text) {
+        const chatArea = document.getElementById('chatArea');
+        const container = document.createElement('div');
+        container.className = 'msg-container';
+        const msgDiv = document.createElement('div');
+        msgDiv.className = 'msg';
+        msgDiv.innerText = text;
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'copy-btn';
+        copyBtn.innerText = 'コピーするヨ📋';
+        copyBtn.onclick = function() {
+            navigator.clipboard.writeText(text).then(() => showToast());
+        };
+        container.appendChild(msgDiv);
+        container.appendChild(copyBtn);
+        chatArea.appendChild(container);
+        chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    function showToast() {
+        const toast = document.getElementById("toast");
+        toast.className = "show";
+        setTimeout(() => { toast.className = toast.className.replace("show", ""); }, 2000);
+    }
+</script>
+
+</body>
+</html>
