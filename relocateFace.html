@@ -175,7 +175,7 @@
 				            
 				            // 【修正】ピクセル固定ではなく、顔の横幅に対する比率で指定
 				            // 例: 0.02 = 顔の横幅の 2% 分の範囲でランダムに動く
-				            const moveRatio = 0.05; 
+				            const moveRatio = 0.04; 
 				            const offsetRange = faceWidth * moveRatio;
 
 				            const offsetX = (Math.random() - 0.5) * offsetRange;
@@ -185,7 +185,7 @@
 				            const dy = p.origY + offsetY;
 
 				            // スケールも顔の幅に合わせて微調整可能
-				            const baseScale = 1.05; 
+				            const baseScale = 1.1 + (Math.random())*0.2; 
 				            const dw = p.w * baseScale;
 				            const dh = p.h * baseScale;
 
