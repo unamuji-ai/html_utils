@@ -150,6 +150,10 @@
 				    const jawline = landmarks.positions.slice(0, 17);
 				    const skinColor = getSkinColor(originalImage, landmarks);
 
+				    // 顔の横幅を計算（基準とする）
+				    const jawXS = jawline.map(p => p.x);
+				    const faceWidth = Math.max(...jawXS) - Math.min(...jawXS);
+
 				    ctx.clearRect(0, 0, partsCanvas.width, partsCanvas.height);
 				    ctx.drawImage(originalImage, 0, 0);
 
@@ -165,33 +169,35 @@
 				    ctx.restore();
 
 				    // パーツ再配置
-						Object.keys(faceParts).forEach(name => {
-						    const p = faceParts[name];
-						    if (p && p.img.src) {
-						        const offsetRange = 6; 
-						        const offsetX = (Math.random() - 0.5) * offsetRange;
-						        const offsetY = (Math.random() - 0.5) * offsetRange;
-						        
-						        const dx = p.origX + offsetX;
-						        const dy = p.origY + offsetY;
+				    Object.keys(faceParts).forEach(name => {
+				        const p = faceParts[name];
+				        if (p && p.img.src) {
+				            
+				            // 【修正】ピクセル固定ではなく、顔の横幅に対する比率で指定
+				            // 例: 0.02 = 顔の横幅の 2% 分の範囲でランダムに動く
+				            const moveRatio = 0.05; 
+				            const offsetRange = faceWidth * moveRatio;
 
-						        // 【修正】スケールを1.05〜1.1程度にして、ぼかしによる「痩せ」を補正
-						        const baseScale = 1.1 + (Math.random()) * 0.2; 
-						        const dw = p.w * baseScale;
-						        const dh = p.h * baseScale;
+				            const offsetX = (Math.random() - 0.5) * offsetRange;
+				            const offsetY = (Math.random() - 0.5) * offsetRange;
+				            
+				            const dx = p.origX + offsetX;
+				            const dy = p.origY + offsetY;
 
-						        ctx.save();
-						        ctx.translate(dx, dy);
-						        
-						        // わずかな回転も違和感（ズレ）を強調するなら有効です
-						        // ctx.rotate((Math.random() - 0.5) * 0.02); 
+				            // スケールも顔の幅に合わせて微調整可能
+				            const baseScale = 1.05; 
+				            const dw = p.w * baseScale;
+				            const dh = p.h * baseScale;
 
-						        // 中心を合わせて描画
-						        ctx.drawImage(p.img, -dw / 2, -dh / 2, dw, dh);
-						        ctx.restore();
-						    }
-						});
-				    messageDiv.innerText = 'え…誰…？？';
+				            ctx.save();
+				            ctx.translate(dx, dy);
+				            // 回転もわずかに加える（お好みで）
+				            ctx.rotate((Math.random() - 0.5) * 0.02); 
+				            ctx.drawImage(p.img, -dw/2, -dh/2, dw, dh);
+				            ctx.restore();
+				        }
+				    });
+				    messageDiv.innerText = `顔幅(${Math.round(faceWidth)}px)に対して ${moveRatio * 100}% のズレを適用🤪`;
 				}
 
         function resetParts() { drawFacelessAndParts(); }
