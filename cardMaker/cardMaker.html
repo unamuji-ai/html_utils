@@ -1,33 +1,57 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-<meta charset="UTF-8">
-<title>コンカフェ嬢バトルカード生成</title>
-<style>
-  h1 { color: #801e63; font-size: 20px; }
-  body { padding: 10px; }
-	button {
-	  width: 80%;
-	  max-width: 260px;
-	  margin: 10px auto;
-	  display: block;
-	}
-	#cardCanvas {
-	  width: 300px;
-	  max-width: 90vw; /* 画面幅の90%まで縮小は許可 */
-	  height: auto;
-	  margin: 20px auto;
-	  display: block;
-	}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>コンカフェ嬢バトルカード生成</title>
+    <style>
+        /* 【修正2】全体的にスマホで見やすいサイズ調整 */
+        body { 
+            padding: 10px; 
+            margin: 0; 
+            font-family: sans-serif; 
+            background-color: #fce4ec; /* コンカフェっぽい背景色 */
+            text-align: center;
+        }
+        h1 { color: #801e63; font-size: 1.2rem; margin: 15px 0; }
+        
+        input[type="file"] {
+            margin: 10px 0;
+            width: 90%;
+        }
+
+        button {
+            width: 90%;
+            max-width: 300px;
+            padding: 12px;
+            margin: 10px auto;
+            display: block;
+            background-color: #801e63;
+            color: white;
+            border: none;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 1rem;
+        }
+
+        /* 【修正3】Canvasの表示幅をスマホ画面いっぱいに広げる */
+        #cardCanvas {
+            width: 95%; /* 画面幅の95%を使う */
+            max-width: 400px; /* PCで見ても大きすぎない制限 */
+            height: auto;
+            margin: 10px auto;
+            display: block;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+    </style>
 </head>
 <body>
 
 <h1>✨ コンカフェ嬢バトルカード生成 ✨</h1>
-
+<p style="font-size: 0.8rem; color: #666;">自撮り画像を選んでネ💕</p>
 <input type="file" id="imageInput" accept="image/*" onchange="generateCard()"><br>
-<button onclick="downloadCard()">ダウンロード</button>
-
+<button onclick="downloadCard()">画像を保存するヨ📋</button>
 <canvas id="cardCanvas" width="300" height="1000"></canvas>
 
 <script>
@@ -97,27 +121,27 @@ function randomAttributesFromSeed(seed) {
 // =============================
 const listA = [
   "夜の光に溶けるように",
-	"微笑みの奥に小さな炎を灯し",
+"微笑みの奥に小さな炎を灯し",
   "夢の続きに迷い込んだまま",
-	"誰かの心をそっと照らすように",
-	"星の瞬きを指先に集めて",
-	"忘れかけた約束をポケットに忍ばせ",
-	"雨上がりの匂いに背中を押されて",
-	"言葉にできない感情の渦の中で",
-	"月明かりが描く影に身を潜め",
+"誰かの心をそっと照らすように",
+"星の瞬きを指先に集めて",
+"忘れかけた約束をポケットに忍ばせ",
+"雨上がりの匂いに背中を押されて",
+"言葉にできない感情の渦の中で",
+"月明かりが描く影に身を潜め",
   "秘密の魔法を胸に抱いて"
 ];
 
 const listB = [
   "今日もあなたを迎えにいく",
-	"静かに強さを隠している",
+"静かに強さを隠している",
   "ふわりと世界を変えてしまう",
-	"小さな勇気を積み重ねている",
-	"答えのない問いを繰り返している",
-	"ほどけそうな絆を結び直している",
-	"自分だけの地図を書き換えている",
-	"淡い期待を風に乗せて飛ばす",
-	"琥珀色の記憶を大切に守っている",
+"小さな勇気を積み重ねている",
+"答えのない問いを繰り返している",
+"ほどけそうな絆を結び直している",
+"自分だけの地図を書き換えている",
+"淡い期待を風に乗せて飛ばす",
+"琥珀色の記憶を大切に守っている",
   "誰よりも優しい嘘をつく"
 ];
 
@@ -126,11 +150,11 @@ const listC = [
   "この瞬間が永遠でありますように。",
   "あなたの物語に寄り添えたら嬉しい。",
   "今日も少しだけ強くなれた気がする。",
-	"明日の風が、あなたに優しく吹きますように。",
-	"まだ誰も知らない、次のページをめくろう。",
-	"たった一つの光が、ここにあるから。",
-	"その足跡が、いつか花を咲かせるはず。",
-	"この声が、時を超えて届きますように。",
+"明日の風が、あなたに優しく吹きますように。",
+"まだ誰も知らない、次のページをめくろう。",
+"たった一つの光が、ここにあるから。",
+"その足跡が、いつか花を咲かせるはず。",
+"この声が、時を超えて届きますように。",
   "心のどこかで、あなたを待っている。"
 ];
 
@@ -281,9 +305,11 @@ function drawStatusAndText(ctx, stats, attrs, rarity, caption, offsetY) {
   });
 }
 
+
 // =============================
 // ダウンロード
 // =============================
+
 function downloadCard() {
   const canvas = document.getElementById("cardCanvas");
   const link = document.createElement("a");
@@ -292,6 +318,5 @@ function downloadCard() {
   link.click();
 }
 </script>
-
 </body>
 </html>
