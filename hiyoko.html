@@ -173,6 +173,7 @@ micToggleBtn.addEventListener("click", async () => {
       console.log("マイクON");
     } catch (err) {
       console.error("マイク取得失敗:", err);
+			alert("マイクが使えません(safariでマイクを許可していないのでは？): "+err.name);
     }
   }
 });
