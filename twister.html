@@ -5,24 +5,38 @@
 	body {
 	  -webkit-user-select: none;
 	  user-select: none;
-	  margin:0;
-	  padding:0;
+	  margin: 0;
+	  padding: 0;
+	  
+	  /* --- ここから追加 --- */
+	  position: fixed; /* 画面を固定してスクロールを物理的に封じる */
+	  width: 100%;
+	  height: 100%;
+	  overflow: hidden; /* はみ出しによるスクロールを防止 */
+	  touch-action: none; /* ブラウザによるズームやパンをすべて無効化 */
+	  /* ------------------ */
 	}
 
-	/* 盤面 */
+	/* 盤面の circles が画面を突き破らないように調整 */
+	/* 盤面：3列×5行で綺麗に収める */
 	#board {
-	  display:grid; 
-	  pointer-events: none; /* 盤面は触れてもイベントを拾わない */
+	  display: grid; 
 	  grid-template-columns: repeat(3, 1fr); 
 	  grid-template-rows: repeat(5, 1fr);   
-	  gap: 2vw; 
+	  gap: 10px; /* vwだと計算が狂いやすいのでpx固定が安全 */
 	  width: 90vw; 
-	  margin:auto;
+	  max-width: 400px; /* 大きくなりすぎ防止 */
+	  margin: 20px auto;
+	  justify-items: center; /* 円を中央に寄せる */
 	}
+
 	.circle { 
-	  width:20vw; 
-	  height:20vw; 
-	  border-radius:50%; 
+	  width: 25vw; /* 3列ならこれくらいが限界 */
+	  height: 25vw; 
+	  max-width: 80px; 
+	  max-height: 80px;
+	  border-radius: 50%; 
+	  box-shadow: inset 0 0 10px rgba(0,0,0,0.2); /* 少し立体感 */
 	}
 	.board-red { background:red; }
 	.board-blue { background:blue; }
@@ -373,13 +387,23 @@ function checkResult() {
 	activateButton(true);
 }
 
-/* タッチイベントで現在の指数を更新 */
+/* タッチイベントで現在の指数を更新 ＋ 画面の動きを封印 */
 document.body.addEventListener("touchstart", (e) => {
+  // ズームなどのデフォルト動作を無効化
+  if (e.touches.length > 1) {
+    e.preventDefault(); 
+  }
   currentFingers = e.touches.length;
-});
+}, { passive: false });
+
+document.body.addEventListener("touchmove", (e) => {
+  // 移動（スクロール）を完全に禁止
+  e.preventDefault();
+}, { passive: false });
+
 document.body.addEventListener("touchend", (e) => {
   currentFingers = e.touches.length;
-});
+}, { passive: false });
 
 // 初期化
 createBoard();
