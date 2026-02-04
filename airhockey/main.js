@@ -237,4 +237,23 @@ function draw() {
     }
     requestAnimationFrame(draw);
 }
+// --- キャンバスのサイズ設定 ---
+function resizeCanvas() {
+    // 画面の幅の95%くらいに設定
+    const padding = 20;
+    const availableWidth = window.innerWidth - padding;
+    const availableHeight = window.innerHeight - padding;
+    // 比率（2:3）を維持しつつ、画面に収まる最大サイズを計算
+    if (availableWidth * 1.5 < availableHeight) {
+        canvas.width = availableWidth;
+        canvas.height = availableWidth * 1.5;
+    }
+    else {
+        canvas.height = availableHeight;
+        canvas.width = availableHeight / 1.5;
+    }
+}
+resizeCanvas();
+// 初期の配置（resizeCanvasの後に実行）
+resetPositions();
 draw();
