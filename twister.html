@@ -41,24 +41,27 @@
 	.board-yellow { background:yellow; }
 
 	/* UI */
+	#controls { 
+	  display: flex;
+	  justify-content: center;
+	  margin: 5px 0;
+	}
+	button {
+	  font-size: 4.5vw;
+	  padding: 0.5vh 3vw; /* 縦のパディングを大幅に削減 */
+	  border-radius: 5px;
+	}
+	/* 指示テキストも少し詰める */
 	#instruction { 
-	  margin-top:2vh; 
-	  font-size:5vw; 
+	  margin-top: 5px; 
+	  font-size: 5vw;
 	  text-align:center;
 	}
+
 	#result{
 		color: red;
 	  font-size:6vw; 
 	  text-align:center;
-	}
-	#controls { 
-	  display: flex;
-	  justify-content: center;
-	  margin: 2vh 0;
-	}
-	button {
-	  font-size:5vw;
-	  padding:1vh 2vh;
 	}
 	#countdown {
 	  width: 90vw;
@@ -147,21 +150,6 @@
 	  );
 	}
 
-	/* ボタンをスリムに (paddingを半分に) */
-	#controls { 
-	  margin: 5px 0;
-	}
-	button {
-	  font-size: 4.5vw;
-	  padding: 0.5vh 3vw; /* 縦のパディングを大幅に削減 */
-	  border-radius: 5px;
-	}
-
-	/* 指示テキストも少し詰める */
-	#instruction { 
-	  margin-top: 5px; 
-	  font-size: 5vw;
-	}
 	/* 注意：.label-color の別定義（translate(60px)など）は削除。二重定義厳禁 */
 	</style>
 </head>
