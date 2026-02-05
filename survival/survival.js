@@ -108,13 +108,25 @@ function registerName() {
 
 function startPlacingMode() {
     if (registeredNames.length === 0) return;
+
+    // UIの切り替え
     document.getElementById("registration-group").classList.add("hidden");
     document.getElementById("action-group").classList.remove("hidden");
     document.getElementById("start-game-btn").classList.add("hidden");
-    players = [];
+
+    // --- ここでリセットをかける ---
+    players = [];      // プレイヤーの座標情報を空にする
+    isRunning = false; // ゲーム実行フラグを折る
+    isFading = false;  // フェード演出もリセット
+    oni = { x: -1, y: -1 }; // 鬼を画面外へ飛ばす
     placingPlayerIndex = 0;
     isPlacing = true;
+
+    // 壁も新しく作り直したい場合はここに入れる（任意）
+    // walls = generatePotentialWalls([]);
+
     updateStatus();
+    draw(); // 真っさらな状態（または壁だけの状態）を描画
 }
 
 function updateStatus() {
@@ -274,13 +286,34 @@ function draw() {
     
     ctx.globalAlpha = 1.0; 
 
+// --- プレイヤー（および墓石）の描画 ---
     players.forEach(p => {
-        if (!p.alive) return;
-        ctx.fillStyle = p.color;
-        ctx.beginPath(); ctx.arc(p.x * cellSize + cellSize/2, p.y * cellSize + cellSize/2, cellSize/2.5, 0, Math.PI*2); ctx.fill();
-        ctx.strokeStyle = "white"; ctx.stroke();
-        ctx.fillStyle = "black"; ctx.font = `bold ${cellSize/3}px sans-serif`; ctx.textAlign = "center";
-        ctx.fillText(p.name, p.x * cellSize + cellSize/2, p.y * cellSize + cellSize/1.5);
+        if (p.alive) {
+            // 生存しているプレイヤーの描画
+            ctx.fillStyle = p.color;
+            ctx.beginPath(); 
+            ctx.arc(p.x * cellSize + cellSize/2, p.y * cellSize + cellSize/2, cellSize/2.5, 0, Math.PI*2); 
+            ctx.fill();
+            ctx.strokeStyle = "white"; 
+            ctx.stroke();
+            
+            // 名前の描画
+            ctx.fillStyle = "black"; 
+            ctx.font = `bold ${cellSize/3}px sans-serif`; 
+            ctx.textAlign = "center";
+            ctx.fillText(p.name, p.x * cellSize + cellSize/2, p.y * cellSize + cellSize/1.5);
+        } else {
+            // 【追加】死んだプレイヤーの場所に墓石を描画
+            ctx.font = `${cellSize * 0.7}px serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText("🪦", p.x * cellSize + cellSize/2, p.y * cellSize + cellSize/2);
+            
+            // 薄く名前も表示しておくと誰の墓かわかって面白いです
+            ctx.fillStyle = "rgba(0,0,0,0.3)";
+            ctx.font = `${cellSize/4}px sans-serif`;
+            ctx.fillText(p.name, p.x * cellSize + cellSize/2, p.y * cellSize + cellSize/1.2);
+        }
     });
 
     if (isRunning) {
