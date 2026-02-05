@@ -1,21 +1,29 @@
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { 
-            margin: 0; 
-            overflow: hidden; /* スクロール禁止 */
-            background: #222; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            height: 100vh; 
-            width: 100vw;
-        }
-        canvas { 
-            background: #fff; 
-            display: block;
-            box-shadow: 0 0 50px rgba(0,0,0,0.5);
-        }
+	    body { 
+	        margin: 0; 
+	        overflow: hidden; 
+	        background: #222; 
+	        display: flex; 
+	        flex-direction: column; /* 縦に並べる */
+	        justify-content: flex-start; /* 中央ではなく「上」から配置 */
+	        align-items: center; 
+	        height: 100vh; 
+	        width: 100vw;
+	        /* iOSのツールバーなどを考慮した安全な高さを確保 */
+	        height: -webkit-fill-available; 
+	    }
+
+	    canvas { 
+	        background: #fff; 
+	        display: block;
+	        box-shadow: 0 0 50px rgba(0,0,0,0.5);
+	        
+	        /* 上下に少し余白を作る */
+	        margin-top: 5vh;    /* 画面上部から少し離す */
+	        margin-bottom: 80px; /* 下部のアイコンを避けるために大きめのマージンを確保 */
+	    }
     </style>
 </head>
 <body>
