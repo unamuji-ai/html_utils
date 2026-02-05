@@ -1,0 +1,105 @@
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<style>
+		#setup-ui {
+        flex: 0 0 auto; /* 高さを内容に合わせる（固定から可変にして余裕を持たせる） */
+        min-height: 140px;
+        padding: 15px;
+        background: #333;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+    }
+
+    #status { 
+        font-size: 5vw; /* 画面幅に合わせたフォントサイズ */
+        max-size: 20px;
+        color: #ffeb3b; 
+        margin-bottom: 12px; 
+        font-weight: bold; 
+    }
+
+    #input-group, #action-group {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        gap: 10px;
+    }
+
+    /* 入力欄を大きく、押しやすく */
+    input[type="text"] { 
+        font-size: 20px !important; /* 入力時に勝手にズームされない最小サイズ */
+        padding: 12px; 
+        width: 60%; 
+        border-radius: 8px; 
+        border: none;
+        outline: none;
+    }
+
+    /* ボタンを指のサイズ（44px以上）に合わせる */
+    button { 
+        font-size: 18px; 
+        font-weight: bold;
+        padding: 12px 20px; 
+        border-radius: 8px; 
+        border: none;
+        cursor: pointer;
+        min-height: 48px; /* モバイルのタップターゲット基準 */
+    }
+
+    .btn-add { background: #4caf50; color: white; flex: 1; }
+    .btn-start { background: #f44336; color: white; width: 90%; }
+
+
+    #game-container {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        background: #222; /* 背景を統一 */
+    }
+
+    /* キャンバス自体の余白も固定 */
+    canvas {
+        background: #fff;
+        border: 3px solid #555;
+        touch-action: none; /* スマホのスクロール干渉を防止 */
+    }
+		body {
+        margin: 0;
+        background: #222;
+        display: flex;
+        flex-direction: column;
+        height: 100vh; /* 画面の高さ100% */
+        overflow: hidden;
+    }
+    /* スマホで入力中にズームされるのを防ぐ */
+    input { font-size: 16px !important; }
+
+    #status { font-size: 16px; color: #ffeb3b; margin-bottom: 8px; font-weight: bold; }
+    .hidden { display: none !important; }
+</style>
+<body>
+
+<div id="setup-ui">
+    <div id="status">参加者の名前を登録してください</div>
+    
+    <div id="registration-group">
+        <input type="text" id="nameInput" placeholder="名前を入力">
+        <button class="btn-add" onclick="registerName()" style="background: #4caf50; color: white;">登録</button>
+        <button id="finish-reg-btn" class="hidden" onclick="startPlacingMode()" style="background: #2196f3; color: white;">配置へ進む</button>
+    </div>
+
+    <div id="action-group" class="hidden">
+        <button id="start-game-btn" class="btn-start hidden" onclick="startGame()" style="background: #f44336; color: white; width: 100%;">サバイバル開始！</button>
+    </div>
+</div>
+
+<div id="game-container">
+    <canvas id="gameCanvas"></canvas>
+</div>
+
+<script src="survival.js"></script>
+
+</body>
+</html>
