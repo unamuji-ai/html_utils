@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>P2P対戦：背景同期</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 10px; background: #f0f2f5; margin: 0; }
+        .box { background: white; border-radius: 12px; padding: 15px; margin: 5px; width: 95%; max-width: 400px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); box-sizing: border-box; }
+        .game-container { display: flex; flex-direction: column; gap: 10px; width: 100%; align-items: center; }
+        .canvas-wrapper { position: relative; width: 100%; max-width: 280px; }
+        .canvas-label { font-size: 12px; font-weight: bold; margin-bottom: 2px; color: #555; }
+        
+        canvas { border: 2px solid #ddd; background: #fff; touch-action: none; width: 100%; height: 150px; border-radius: 8px; background-size: cover; background-position: center; }
+        #myCanvas { border-color: #4444ff; } /* 自分の枠 */
+        #opponentCanvas { border-color: #ff4444; pointer-events: none; } /* 相手の枠 */
+
+        .emoji-selector { display: flex; justify-content: center; gap: 10px; margin: 10px 0; flex-wrap: wrap; }
+        .emoji-selector label { cursor: pointer; font-size: 20px; padding: 5px; border: 1px solid #eee; border-radius: 5px; }
+        .emoji-selector input { display: none; }
+        .emoji-selector input:checked + span { background: #e3f2fd; border-bottom: 2px solid #2196f3; }
+
+        #log { width: 100%; height: 60px; border: 1px solid #eee; overflow-y: auto; font-size: 11px; margin-top: 10px; text-align: left; background: #fafafa; padding: 5px; box-sizing: border-box; }
+        .hidden { display: none; }
+        #status { font-size: 14px; color: #2196f3; font-weight: bold; }
+        button { cursor: pointer; background: #2196f3; color: white; border: none; padding: 8px 12px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <div id="status">通信準備中...</div>
+        <div id="setup-area">
+            <div id="invite-link-display">URL生成中...</div>
+        </div>
+    </div>
+
+    <div id="game-area" class="game-container hidden">
+        <div class="canvas-wrapper">
+            <div class="canvas-label">相手のフィールド (相手が選んだ背景)</div>
+            <canvas id="opponentCanvas" width="280" height="150"></canvas>
+        </div>
+
+        <div class="box">
+            <div class="canvas-label">あなたのフィールド (自分が選んだ背景)</div>
+            
+            <div style="margin: 10px 0; padding: 10px; border: 1px dashed #ccc; border-radius: 8px;">
+                <span style="font-size: 11px;">自分の背景を設定・送信：</span><br>
+                <input type="file" id="bgInput" accept="image/*" style="font-size: 11px; width: 100%;">
+            </div>
+
+            <div class="emoji-selector">
+                <label><input type="radio" name="emoji" value="🤚" checked onchange="changeEmoji(this.value)"><span>🤚</span></label>
+                <label><input type="radio" name="emoji" value="🔪" onchange="changeEmoji(this.value)"><span>🔪</span></label>
+                <label><input type="radio" name="emoji" value="💉" onchange="changeEmoji(this.value)"><span>💉</span></label>
+                <label><input type="radio" name="emoji" value="👅" onchange="changeEmoji(this.value)"><span>👅</span></label>
+                <label><input type="radio" name="emoji" value="👄" onchange="changeEmoji(this.value)"><span>👄</span></label>
+            </div>
+            
+            <div class="canvas-wrapper">
+                <canvas id="myCanvas" width="280" height="150"></canvas>
+            </div>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <script>
+        const peer = new Peer({ debug: 2 });
+        let conn = null;
+        let myPos = { x: 0.5, y: 0.5 };
+        let opponentPos = { x: 0.5, y: 0.5 };
+        let myEmoji = "🤚";
+        let opponentEmoji = "🤚";
+
+				let myScore = 0;
+				let opponentScore = 0;
+				let lastTouchPos = { x: 0, y: 0 };
+				let comboCount = 0;
+
+				// 絵文字ごとのポイント設定
+				const emojiPower = {
+				    "🤚": 500,
+				    "👁": 300,
+				    "👃": 800,
+				    "👅": 1500,
+				    "👄": 1000
+				};
+
+				// --- 追加：エフェクト管理用変数 ---
+				let myEffectTimer = 0;
+				let oppEffectTimer = 0;
+
+        const myCanvas = document.getElementById("myCanvas");
+        const oppCanvas = document.getElementById("opponentCanvas");
+        const myCtx = myCanvas.getContext("2d");
+        const oppCtx = oppCanvas.getContext("2d");
+        const logDiv = document.getElementById("log");
+
+				const scoreBoard = document.createElement("div");
+				scoreBoard.style = "display:flex; justify-content:around; width:100%; font-weight:bold; margin:10px 0; font-size:18px;";
+				scoreBoard.innerHTML = `
+				    <div style="color:blue;">あなた: <span id="my-score">0</span></div>
+				    <div style="margin:0 20px;">VS</div>
+				    <div style="color:red;">相手: <span id="opp-score">0</span></div>
+				`;
+				document.getElementById("game-area").prepend(scoreBoard);
+
+        function addLog(text) {
+            const div = document.createElement("div");
+            div.textContent = text;
+            logDiv.appendChild(div);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        const urlParams = new URLSearchParams(window.location.search);
+        const roomID = urlParams.get('room');
+
+        peer.on('open', (id) => {
+            document.getElementById('status').textContent = "ID発行完了";
+            if (roomID) {
+                conn = peer.connect(roomID, { reliable: true });
+                setupDataChannel();
+            } else {
+                generateInviteLink(id);
+            }
+        });
+
+        peer.on('connection', (c) => {
+            conn = c;
+            setupDataChannel();
+        });
+
+        function setupDataChannel() {
+            conn.on('open', () => {
+                document.getElementById('setup-area').classList.add('hidden');
+                document.getElementById('game-area').classList.remove('hidden');
+                document.getElementById('status').textContent = "接続成功！";
+                addLog("システム: 通信が確立されました");
+                render();
+            });
+
+						conn.on('data', (payload) => {
+								if (payload.type === 'MOVE') {
+						        opponentPos = { x: payload.x, y: payload.y };
+						        // 相手がクリック（攻撃）した時の演出
+						        if (payload.isClick) {
+						            oppEffectTimer = 10;
+						            showAttackEffect(oppCtx, opponentPos, opponentEmoji);
+						        }
+						    } else if (payload.type === 'SCORE') {
+						        opponentScore = payload.data;
+						        document.getElementById("opp-score").textContent = opponentScore;
+						    } else if (payload.type === 'EMOJI') {
+						        opponentEmoji = payload.data;
+						    } else if (payload.type === 'IMAGE') {
+						        // ★【重要】相手から画像が届いたら、自分のキャンバス（myCanvas）の背景にする
+						        const blob = new Blob([payload.data], { type: payload.mime });
+						        const url = URL.createObjectURL(blob);
+						        myCanvas.style.backgroundImage = `url(${url})`;
+						        addLog("システム: 相手があなたの背景を更新しました！");
+						    }
+						    render();
+						});
+        }
+
+				// 攻撃エフェクト（一瞬だけ大きく表示するなど）
+				function showAttackEffect(ctx, pos, emoji) {
+				    ctx.font = "80px serif"; // 巨大化
+				    ctx.globalAlpha = 0.5;
+				    ctx.fillText(emoji, pos.x * oppCanvas.width, pos.y * oppCanvas.height);
+				    ctx.globalAlpha = 1.0;
+				}
+
+        // 画像選択・送信処理
+				document.getElementById('bgInput').addEventListener('change', (e) => {
+				    const file = e.target.files[0];
+				    if (!file || !conn || !conn.open) return;
+				    
+				    // 1. 自分の画面では「相手のフィールド（oppCanvas）」に反映（相手へのプレビュー的な意味合い）
+				    const previewUrl = URL.createObjectURL(file);
+				    oppCanvas.style.backgroundImage = `url(${previewUrl})`;
+
+				    // 2. 相手にファイルを送信（相手のmyCanvasを書き換えるため）
+				    conn.send({
+				        type: 'IMAGE',
+				        data: file,
+				        mime: file.type
+				    });
+				    addLog("システム: 相手の背景を更新しました");
+				});
+
+        function changeEmoji(val) {
+            myEmoji = val;
+            if (conn && conn.open) conn.send({ type: 'EMOJI', data: val });
+            render();
+        }
+
+				// --- 入力処理の拡張（handleInputを強化） ---
+				function handleInput(clientX, clientY, isClick = false) {
+				    if (!conn || !conn.open) return;
+				    const rect = myCanvas.getBoundingClientRect();
+				    const x = (clientX - rect.left) / rect.width;
+				    const y = (clientY - rect.top) / rect.height;
+				    
+				    myPos = { x, y };
+				    
+				    if (isClick) {
+				        calculatePoint(x, y);
+				        // 自分のエフェクトをセット（例：10フレーム分）
+				        myEffectTimer = 10; 
+				    }
+
+				    conn.send({ type: 'MOVE', x: myPos.x, y: myPos.y, isClick: isClick });
+				    render();
+				}
+
+				function calculatePoint(x, y) {
+				    // 前回の場所から近い（0.05比率以内）か判定
+				    const dist = Math.sqrt(Math.pow(x - lastTouchPos.x, 2) + Math.pow(y - lastTouchPos.y, 2));
+				    
+				    if (dist < 0.05) {
+				        comboCount++;
+				    } else {
+				        comboCount = 1;
+				    }
+				    
+				    lastTouchPos = { x, y };
+
+				    // ポイント計算：基礎点 × コンボ倍率
+				    const basePower = emojiPower[myEmoji] || 10;
+				    const comboMultiplier = 1 + (comboCount * 0.2); // 1回ごとに20%アップ
+				    const earned = Math.floor(basePower * comboMultiplier);
+				    
+				    myScore += earned;
+				    document.getElementById("my-score").textContent = myScore;
+
+				    // 相手にスコアを通知
+				    conn.send({ type: 'SCORE', data: myScore });
+
+				    // 演出：ログに出す
+				    if (comboCount > 2) addLog(`コンボ！ ${comboCount}連撃 (+${earned}点)`);
+				}
+
+				myCanvas.addEventListener("mousedown", (e) => handleInput(e.clientX, e.clientY, true));
+				myCanvas.addEventListener("touchstart", (e) => {
+				    handleInput(e.touches[0].clientX, e.touches[0].clientY, true);
+				    e.preventDefault();
+				}, { passive: false });
+
+				function render() {
+				    // 1. 自分のキャンバス描画
+				    myCtx.clearRect(0, 0, myCanvas.width, myCanvas.height);
+				    
+				    // エフェクト中なら大きく、そうでなければ普通に描画
+				    if (myEffectTimer > 0) {
+				        drawEmoji(myCtx, myEmoji, myPos, myCanvas, 80, 0.5); // 巨大
+				        myEffectTimer--; // タイマーを減らす
+				        // タイマーが残っている間、自動で再描画を予約して「消える」のを遅らせる
+				        requestAnimationFrame(render); 
+				    } else {
+				        drawEmoji(myCtx, myEmoji, myPos, myCanvas, 40, 1.0); // 通常
+				    }
+				    
+				    // 2. 相手のキャンバス描画
+				    oppCtx.clearRect(0, 0, oppCanvas.width, oppCanvas.height);
+				    if (oppEffectTimer > 0) {
+				        drawEmoji(oppCtx, opponentEmoji, opponentPos, oppCanvas, 80, 0.5);
+				        oppEffectTimer--;
+				        requestAnimationFrame(render);
+				    } else {
+				        drawEmoji(oppCtx, opponentEmoji, opponentPos, oppCanvas, 40, 1.0);
+				    }
+				}
+
+				// 引数にサイズと透明度を追加
+				function drawEmoji(ctx, emoji, pos, cv, size, alpha) {
+				    ctx.save(); // 状態を保存
+				    ctx.globalAlpha = alpha;
+				    ctx.font = `${size}px serif`;
+				    ctx.textAlign = "center";
+				    ctx.textBaseline = "middle";
+				    ctx.fillText(emoji, pos.x * cv.width, pos.y * cv.height);
+				    ctx.restore(); // 状態を復元
+				}
+
+        function generateInviteLink(id) {
+            const url = window.location.origin + window.location.pathname + "?room=" + id;
+            const displayArea = document.getElementById('invite-link-display');
+            if (displayArea) {
+                displayArea.innerHTML = `
+                    <p style="font-size:11px;">招待用URL:</p>
+                    <input type="text" value="${url}" id="inviteURL" readonly style="width:80%; padding:5px;">
+                    <button onclick="copyURL()">コピー</button><br>
+										相手にこのURLへアクセスしてもらってください
+                `;
+            }
+        }
+
+        function copyURL() {
+            const target = document.getElementById("inviteURL");
+            target.select();
+            document.execCommand("Copy");
+            alert("URLをコピーしました！");
+        }
+    </script>
+</body>
+</html>
