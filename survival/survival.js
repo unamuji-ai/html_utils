@@ -2,18 +2,23 @@ const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const gridSize = 10;
 let cellSize;
+
+// --- 変数宣言（一箇所に集約） ---
 let walls = [];
-let nextWalls = []; // 次に現れる壁
-let fadeAlpha = 0;   // フェード用の透明度 (0～1)
-let isFading = false; // フェード中かどうかのフラグ
+let nextWalls = []; 
+let fadeAlpha = 0;
+let isFading = false;
 let players = [];
-let registeredNames = []; // 名前だけを保持
+let registeredPlayers = []; 
 let placingPlayerIndex = -1;
-let oni = { x: 0, y: 0 };
+let oni = { x: -1, y: -1 };
 let isRunning = false;
 let isPlacing = false;
 let gameInterval = null;
 let turnCounter = 0;
+let deathCount = 0; // 順位判定用
+
+const emojiList = ["🐤", "🐈", "🐈‍⬛", "🐕", "🦖", "🦊", "🐘", "🐸", "🐰", "🐼", "🍖", "🍙", "🦁", "🐵"];
 
 // --- 1. 初期化とサイズ調整 ---
 function resize() {
@@ -28,12 +33,11 @@ function resize() {
 
 window.addEventListener('resize', resize);
 document.addEventListener('DOMContentLoaded', () => {
-    // 初回は空リストを渡して壁を生成
     walls = generatePotentialWalls([]);
     resize();
 });
 
-// --- 2. 壁生成（戻り値を返す汎用型） ---
+// --- 2. 壁生成ロジック ---
 function generatePotentialWalls(excludeList = []) {
     let tempWalls = [];
     let attempts = 0;
@@ -47,7 +51,6 @@ function generatePotentialWalls(excludeList = []) {
                 tempWalls.push({ x, y });
             }
         }
-        // isAllConnectedが参照するwallsを一時的に差し替えてチェック
         const originalWalls = walls;
         walls = tempWalls;
         const connected = isAllConnected();
@@ -55,7 +58,7 @@ function generatePotentialWalls(excludeList = []) {
         if (connected) return tempWalls;
         attempts++;
     }
-    return walls; // 失敗時は現在の壁を維持
+    return walls;
 }
 
 function isWall(x, y) {
@@ -99,58 +102,66 @@ function registerName() {
     const input = document.getElementById("nameInput");
     const name = input.value.trim();
     if (!name) return;
-    registeredNames.push(name);
+
+    const availableEmojis = emojiList.filter(e => !registeredPlayers.some(p => p.emoji === e));
+    const selectedEmoji = availableEmojis[Math.floor(Math.random() * availableEmojis.length)] || "👤";
+
+    registeredPlayers.push({ name: name, emoji: selectedEmoji });
+    
     input.value = "";
     input.focus();
-    document.getElementById("status").textContent = `登録済み: ${registeredNames.join(", ")}`;
+
+    const displayList = registeredPlayers.map(p => `${p.emoji}${p.name}`);
+    document.getElementById("status").textContent = `登録済み: ${displayList.join(", ")}`;
     document.getElementById("finish-reg-btn").classList.remove("hidden");
 }
 
 function startPlacingMode() {
-    if (registeredNames.length === 0) return;
-
-    // UIの切り替え
+    if (registeredPlayers.length === 0) return;
+    
     document.getElementById("registration-group").classList.add("hidden");
     document.getElementById("action-group").classList.remove("hidden");
     document.getElementById("start-game-btn").classList.add("hidden");
-
-    // --- ここでリセットをかける ---
-    players = [];      // プレイヤーの座標情報を空にする
-    isRunning = false; // ゲーム実行フラグを折る
-    isFading = false;  // フェード演出もリセット
-    oni = { x: -1, y: -1 }; // 鬼を画面外へ飛ばす
+    
+    players = []; 
     placingPlayerIndex = 0;
     isPlacing = true;
-
-    // 壁も新しく作り直したい場合はここに入れる（任意）
-    // walls = generatePotentialWalls([]);
-
+    isRunning = false;
+    isFading = false;
+    oni = { x: -1, y: -1 }; 
+    
     updateStatus();
-    draw(); // 真っさらな状態（または壁だけの状態）を描画
+    draw();
 }
 
 function updateStatus() {
-    document.getElementById("status").textContent = `【${registeredNames[placingPlayerIndex]}】さんの初期位置をタップ！`;
+    const rp = registeredPlayers[placingPlayerIndex];
+    document.getElementById("status").textContent = `${rp.emoji}【${rp.name}】さんの初期位置をタップ！`;
 }
 
 function handleInput(e) {
     if (!isPlacing || isRunning) return;
     const rect = canvas.getBoundingClientRect();
-    const clientX = e.clientX || e.touches[0].clientX;
-    const clientY = e.clientY || e.touches[0].clientY;
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX);
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY);
     const x = Math.floor(((clientX - rect.left) * (canvas.width / rect.width)) / cellSize);
     const y = Math.floor(((clientY - rect.top) * (canvas.height / rect.height)) / cellSize);
 
     if (x >= 0 && x < gridSize && y >= 0 && y < gridSize) {
         if (isWall(x, y) || players.some(p => p.x === x && p.y === y)) return;
+
+        const rp = registeredPlayers[placingPlayerIndex];
         players.push({
-            name: registeredNames[placingPlayerIndex],
+            name: rp.name,
+            emoji: rp.emoji,
             x, y,
-            color: `hsl(${(360 / registeredNames.length) * placingPlayerIndex}, 70%, 50%)`,
-            alive: true
+            alive: true,
+            rank: 0,
+            deathOrder: 0
         });
+
         placingPlayerIndex++;
-        if (placingPlayerIndex < registeredNames.length) {
+        if (placingPlayerIndex < registeredPlayers.length) {
             updateStatus();
         } else {
             isPlacing = false;
@@ -169,7 +180,10 @@ function startGame() {
     if (players.length < 1 || isRunning) return;
     if (gameInterval) clearInterval(gameInterval);
     document.getElementById("start-game-btn").classList.add("hidden");
-    
+
+    deathCount = 0;
+    players.forEach(p => { p.rank = 0; p.deathOrder = 0; p.alive = true; });
+
     do {
         oni.x = Math.floor(Math.random() * gridSize);
         oni.y = Math.floor(Math.random() * gridSize);
@@ -179,22 +193,22 @@ function startGame() {
     turnCounter = 0;
     isFading = false;
     fadeAlpha = 0;
-    
+
     gameInterval = setInterval(() => {
         const alivePlayers = players.filter(p => p.alive);
+
         if (alivePlayers.length <= 1) {
             clearInterval(gameInterval);
-            finishGame(alivePlayers);
+            if (alivePlayers.length === 1) alivePlayers[0].rank = 1;
+            finishGame();
             return;
         }
 
-        // --- 地殻変動ロジック ---
         turnCounter++;
         const cycle = 30;
         const fadeDuration = 5; 
         const currentCyclePos = turnCounter % cycle;
 
-        // 予兆開始 (25, 55, 85... ターン目)
         if (currentCyclePos === cycle - fadeDuration) {
             const exclude = alivePlayers.map(p => ({ x: p.x, y: p.y }));
             exclude.push({ x: oni.x, y: oni.y });
@@ -204,13 +218,11 @@ function startGame() {
             document.getElementById("status").textContent = "⚠️ 地殻変動の予兆...";
         }
 
-        // フェード進行
         if (isFading) {
             fadeAlpha += 1 / fadeDuration;
             if (fadeAlpha > 1) fadeAlpha = 1;
         }
 
-        // 切り替え確定 (30, 60, 90... ターン目)
         if (currentCyclePos === 0 && isFading) {
             walls = [...nextWalls];
             isFading = false;
@@ -218,7 +230,6 @@ function startGame() {
             document.getElementById("status").textContent = "💥 地殻変動完了！";
         }
 
-        // 鬼のターゲット特定
         let target = alivePlayers[0];
         let minDist = 1000;
         alivePlayers.forEach(p => {
@@ -226,7 +237,6 @@ function startGame() {
             if (d < minDist) { minDist = d; target = p; }
         });
 
-        // プレイヤー移動
         alivePlayers.forEach(p => {
             const dir = Math.floor(Math.random() * 5);
             let nx = p.x, ny = p.y;
@@ -237,7 +247,6 @@ function startGame() {
             if (!isWall(nx, ny)) { p.x = nx; p.y = ny; }
         });
 
-        // 鬼の移動
         const dirs = [{ dx: 1, dy: 0 }, { dx: -1, dy: 0 }, { dx: 0, dy: 1 }, { dx: 0, dy: -1 }];
         const possible = dirs.map(d => ({ x: oni.x + d.dx, y: oni.y + d.dy }))
             .filter(p => p.x >= 0 && p.x < gridSize && p.y >= 0 && p.y < gridSize && !isWall(p.x, p.y));
@@ -256,77 +265,103 @@ function startGame() {
             oni.x = m.x; oni.y = m.y;
         }
 
-        players.forEach(p => { if (p.alive && p.x === oni.x && p.y === oni.y) p.alive = false; });
+        players.forEach(p => { 
+            if (p.alive && p.x === oni.x && p.y === oni.y) {
+                p.alive = false;
+                deathCount++;
+                p.deathOrder = deathCount; 
+            }
+        });
+
         draw();
     }, 400);
 }
 
-// --- 5. 描画 ---
+// --- 5. 描画（透明度対策版） ---
 function draw() {
+    ctx.globalAlpha = 1.0;
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
+    ctx.save();
     ctx.strokeStyle = "#ddd";
     for (let i = 0; i <= gridSize; i++) {
         ctx.beginPath(); ctx.moveTo(i * cellSize, 0); ctx.lineTo(i * cellSize, canvas.height); ctx.stroke();
         ctx.beginPath(); ctx.moveTo(0, i * cellSize); ctx.lineTo(canvas.width, i * cellSize); ctx.stroke();
     }
+    ctx.restore();
 
     const drawWall = (w, alpha, color) => {
+        ctx.save();
         ctx.globalAlpha = alpha;
         ctx.fillStyle = color;
         ctx.fillRect(w.x * cellSize + 2, w.y * cellSize + 2, cellSize - 4, cellSize - 4);
+        ctx.restore();
     };
 
     if (isFading) {
         walls.forEach(w => drawWall(w, 1 - fadeAlpha, "#555"));
         nextWalls.forEach(w => drawWall(w, fadeAlpha, "#f44336")); 
     } else {
-        walls.forEach(w => drawWall(w, 1, "#555"));
+        walls.forEach(w => drawWall(w, 1.0, "#555"));
     }
-    
+
     ctx.globalAlpha = 1.0; 
 
-// --- プレイヤー（および墓石）の描画 ---
     players.forEach(p => {
+        ctx.save();
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
         if (p.alive) {
-            // 生存しているプレイヤーの描画
-            ctx.fillStyle = p.color;
-            ctx.beginPath(); 
-            ctx.arc(p.x * cellSize + cellSize/2, p.y * cellSize + cellSize/2, cellSize/2.5, 0, Math.PI*2); 
-            ctx.fill();
-            ctx.strokeStyle = "white"; 
-            ctx.stroke();
-            
-            // 名前の描画
-            ctx.fillStyle = "black"; 
-            ctx.font = `bold ${cellSize/3}px sans-serif`; 
-            ctx.textAlign = "center";
-            ctx.fillText(p.name, p.x * cellSize + cellSize/2, p.y * cellSize + cellSize/1.5);
-        } else {
-            // 【追加】死んだプレイヤーの場所に墓石を描画
             ctx.font = `${cellSize * 0.7}px serif`;
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText("🪦", p.x * cellSize + cellSize/2, p.y * cellSize + cellSize/2);
-            
-            // 薄く名前も表示しておくと誰の墓かわかって面白いです
-            ctx.fillStyle = "rgba(0,0,0,0.3)";
-            ctx.font = `${cellSize/4}px sans-serif`;
-            ctx.fillText(p.name, p.x * cellSize + cellSize/2, p.y * cellSize + cellSize/1.2);
+            ctx.fillText(p.emoji, p.x * cellSize + cellSize / 2, p.y * cellSize + cellSize / 2);
+            ctx.fillStyle = "black";
+            ctx.font = `bold ${cellSize / 4}px sans-serif`;
+            ctx.fillText(p.name, p.x * cellSize + cellSize / 2, p.y * cellSize + cellSize / 1.1);
+        } else {
+            ctx.font = `${cellSize * 0.7}px serif`;
+            ctx.fillText("🪦", p.x * cellSize + cellSize / 2, p.y * cellSize + cellSize / 2);
+            ctx.globalAlpha = 0.5;
+            ctx.fillStyle = "black";
+            ctx.font = `${cellSize / 5}px sans-serif`;
+            ctx.fillText(p.name, p.x * cellSize + cellSize / 2, p.y * cellSize + cellSize / 1.1);
         }
+        ctx.restore();
     });
 
-    if (isRunning) {
-        ctx.font = `${cellSize * 0.8}px serif`; ctx.textAlign = "center"; ctx.textBaseline = "middle";
-        ctx.fillText("👹", oni.x * cellSize + cellSize/2, oni.y * cellSize + cellSize/2);
+    if (isRunning || (isPlacing === false && oni.x !== -1)) {
+        ctx.save();
+        ctx.font = `${cellSize * 0.8}px serif`;
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("👹", oni.x * cellSize + cellSize / 2, oni.y * cellSize + cellSize / 2);
+        ctx.restore();
     }
 }
 
-function finishGame(winners) {
+// --- 6. リザルト ---
+function finishGame() {
     isRunning = false;
-    const name = winners.length === 1 ? winners[0].name : "全滅";
     const status = document.getElementById("status");
-    status.innerHTML = `【🏆勝者：${name}】<br>
-        <button onclick="startPlacingMode()" style="background:#2196f3; color:white; padding:10px; margin:5px; border:none; border-radius:8px;">同じメンバーで再戦</button>
-        <button onclick="location.reload()" style="background:#777; color:white; padding:10px; margin:5px; border:none; border-radius:8px;">最初からやり直す</button>`;
+    
+    const ranking = [...players].sort((a, b) => {
+        if (a.rank === 1) return -1;
+        if (b.rank === 1) return 1;
+        return b.deathOrder - a.deathOrder;
+    });
+
+    let rankingHTML = "<h3>🏆 最終ランキング 🏆</h3><ul style='list-style:none; padding:0;'>";
+    ranking.forEach((p, index) => {
+        const medal = index === 0 ? "🥇" : index === 1 ? "🥈" : index === 2 ? "🥉" : "　";
+        const color = p.alive ? "#d4af37" : "#555";
+        rankingHTML += `<li style='color:${color}; margin-bottom:5px;'>
+            ${medal}${index + 1}位: ${p.emoji} ${p.name} ${p.alive ? "(生存!)" : ""}
+        </li>`;
+    });
+    rankingHTML += "</ul>";
+
+    status.innerHTML = `
+        ${rankingHTML}
+        <button onclick="startPlacingMode()" style="background:#2196f3; color:white; padding:10px; margin:5px; border:none; border-radius:8px; cursor:pointer;">同じメンバーで再戦</button>
+        <button onclick="location.reload()" style="background:#777; color:white; padding:10px; margin:5px; border:none; border-radius:8px; cursor:pointer;">最初からやり直す</button>
+    `;
 }
