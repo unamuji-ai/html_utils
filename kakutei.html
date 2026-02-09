@@ -2,6 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>スマホ確定申告ガイド</title>
 <style>
   body {
@@ -132,6 +133,32 @@
   </div>
 </div>
 
+<!-- STEP 3.5（コンカフェ嬢：契約形態選択） -->
+<div class="step" id="step3_5">
+  <div class="title">STEP 3.5<br>お店との契約形態を選んでください</div>
+  <div class="content">
+    コンカフェでの働き方によって申告方法が変わります。<br><br>
+
+    <strong>雇用（源泉徴収なし）</strong><br>
+    ・時給制 / シフト制<br>
+    ・給与明細はあるが源泉徴収票が出ない<br>
+    ・給与所得として申告<br><br>
+
+    <strong>業務委託（バック制）</strong><br>
+    ・チェキバック / ドリンクバック<br>
+    ・歩合制・出来高制<br>
+    ・事業所得として申告<br><br>
+
+    あなたの働き方を選んでください。
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <button onclick="selectConcafeType('employment')" style="background:#4a7dfc;">雇用（源泉徴収なし）</button>
+    <button onclick="selectConcafeType('business')" style="background:#f57ca1;">業務委託（バック制）</button>
+  </div>
+</div>
+
+
 <!-- STEP 4（会社員：源泉徴収票の読み取り） -->
 <div class="step" id="step4_employee">
   <div class="title">STEP 4 / 12<br>源泉徴収票を読み取ります（会社員）</div>
@@ -154,7 +181,35 @@
   </div>
 </div>
 
-<!-- STEP 4（コンカフェ嬢：所得区分の選択） -->
+
+<!-- STEP 4（コンカフェ嬢：雇用・源泉徴収なし） -->
+<div class="step" id="step4_concafe_employment">
+  <div class="title">STEP 4 / 12<br>給与所得を入力します（源泉徴収なし）</div>
+  <div class="content">
+    源泉徴収票がない場合は、給与明細やメモをもとに<br>
+    <strong>1年間の支払金額を手入力</strong> します。<br><br>
+
+    1. e-Tax の「所得の種類を選択」で<br>
+    　<strong>「給与所得」</strong> を選択<br><br>
+
+    2. 「源泉徴収票がない場合」を選択<br><br>
+
+    3. 以下を入力します<br>
+    　・支払金額（1年間の合計）<br>
+    　・源泉徴収税額：0円<br>
+    　・支払者（店）の名称・住所<br><br>
+
+    ※ マイナンバーは不要です。<br>
+    ※ 給与明細がなくても、メモがあれば入力できます。
+  </div>
+
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<!-- STEP 4（コンカフェ嬢：業務委託） -->
 <div class="step" id="step4_concafe">
   <div class="title">STEP 4 / 12<br>所得の種類を選びます（コンカフェ嬢）</div>
   <div class="content">
@@ -177,7 +232,7 @@
 
 <!-- STEP 5（会社員：控除の入力） -->
 <div class="step" id="step5_employee">
-  <div class="title">STEP 5 / 12<br>控除を入力します（会社員）</div>
+  <div class="title">STEP 5 / 12<br>控除を入力します（給与所得の方）</div>
   <div class="content">
     このステップでは、年末調整で申請し忘れた控除や、<br>
     確定申告が必要になる控除を入力します。<br><br>
@@ -232,7 +287,7 @@
 
 <!-- STEP 6 -->
 <div class="step" id="step6_employee">
-  <div class="title">STEP 6 / 12<br>入力内容を確認します（会社員）</div>
+  <div class="title">STEP 6 / 12<br>入力内容を確認します（給与所得の方）</div>
   <div class="content">
     ここでは、源泉徴収票の内容や控除の入力が正しいか確認します。<br><br>
 
@@ -272,7 +327,7 @@
 
 <!-- STEP 7 -->
 <div class="step" id="step7_employee">
-  <div class="title">STEP 7 / 12<br>住民税の徴収方法を選びます（会社員）</div>
+  <div class="title">STEP 7 / 12<br>住民税の徴収方法を選びます（給与所得の方）</div>
   <div class="content">
     住民税の徴収方法を選びます。<br><br>
 
@@ -311,7 +366,7 @@
 
 <!-- STEP 8 -->
 <div class="step" id="step8_employee">
-  <div class="title">STEP 8 / 12<br>マイナンバーカードで署名します（会社員）</div>
+  <div class="title">STEP 8 / 12<br>マイナンバーカードで署名します（給与所得の方）</div>
   <div class="content">
     申告内容を送信するために、マイナンバーカードで署名します。<br><br>
 
@@ -416,6 +471,13 @@
 <script>
 let current = 0;
 let userType = null;
+let concafeType = null;
+
+function selectConcafeType(type) {
+  concafeType = type;
+  current = 4;
+  showStep();
+}
 
 function showStep() {
   // 全ステップ非表示
@@ -437,57 +499,123 @@ function showStep() {
     return;
   }
 
-  // STEP4（タイプ別）
+  // STEP3.5（コンカフェ嬢の契約形態選択）
+  if (current === 3.5) {
+    document.getElementById('step3_5').classList.add('active');
+    return;
+  }
+
+  // STEP4（タイプ別：3ルート）
   if (current === 4) {
+
+    // 会社員
     if (userType === 'employee') {
       document.getElementById('step4_employee').classList.add('active');
-    } else {
-      document.getElementById('step4_concafe').classList.add('active');
+      return;
     }
-    return;
+
+    // コンカフェ嬢（雇用・源泉徴収なし）
+    if (userType === 'concafe' && concafeType === 'employment') {
+      document.getElementById('step4_concafe_employment').classList.add('active');
+      return;
+    }
+
+    // コンカフェ嬢（業務委託）
+    if (userType === 'concafe' && concafeType === 'business') {
+      document.getElementById('step4_concafe').classList.add('active');
+      return;
+    }
   }
 
-  // STEP5（タイプ別）
+  // STEP5（タイプ別：3ルート）
   if (current === 5) {
+
+    // 会社員
     if (userType === 'employee') {
       document.getElementById('step5_employee').classList.add('active');
-    } else {
-      document.getElementById('step5_concafe').classList.add('active');
+      return;
     }
-    return;
+
+    // コンカフェ嬢（雇用・源泉徴収なし）→ 会社員と同じ控除入力
+    if (userType === 'concafe' && concafeType === 'employment') {
+      document.getElementById('step5_employee').classList.add('active');
+      return;
+    }
+
+    // コンカフェ嬢（業務委託）
+    if (userType === 'concafe' && concafeType === 'business') {
+      document.getElementById('step5_concafe').classList.add('active');
+      return;
+    }
   }
 
-  // STEP6（タイプ別）
+  // STEP6（タイプ別：3ルート）
   if (current === 6) {
+
+    // 会社員
     if (userType === 'employee') {
       document.getElementById('step6_employee').classList.add('active');
-    } else {
-      document.getElementById('step6_concafe').classList.add('active');
+      return;
     }
-    return;
+
+    // コンカフェ嬢（雇用）→ 会社員と同じ確認画面
+    if (userType === 'concafe' && concafeType === 'employment') {
+      document.getElementById('step6_employee').classList.add('active');
+      return;
+    }
+
+    // コンカフェ嬢（業務委託）
+    if (userType === 'concafe' && concafeType === 'business') {
+      document.getElementById('step6_concafe').classList.add('active');
+      return;
+    }
   }
 
-  // STEP7（タイプ別）
+  // STEP7（タイプ別：3ルート）
   if (current === 7) {
+
+    // 会社員
     if (userType === 'employee') {
       document.getElementById('step7_employee').classList.add('active');
-    } else {
-      document.getElementById('step7_concafe').classList.add('active');
+      return;
     }
-    return;
+
+    // コンカフェ嬢（雇用）→ 会社員と同じ住民税設定
+    if (userType === 'concafe' && concafeType === 'employment') {
+      document.getElementById('step7_employee').classList.add('active');
+      return;
+    }
+
+    // コンカフェ嬢（業務委託）
+    if (userType === 'concafe' && concafeType === 'business') {
+      document.getElementById('step7_concafe').classList.add('active');
+      return;
+    }
   }
 
-  // STEP8（タイプ別）
+  // STEP8（タイプ別：3ルート）
   if (current === 8) {
+
+    // 会社員
     if (userType === 'employee') {
       document.getElementById('step8_employee').classList.add('active');
-    } else {
-      document.getElementById('step8_concafe').classList.add('active');
+      return;
     }
-    return;
+
+    // コンカフェ嬢（雇用）→ 会社員と同じ署名画面
+    if (userType === 'concafe' && concafeType === 'employment') {
+      document.getElementById('step8_employee').classList.add('active');
+      return;
+    }
+
+    // コンカフェ嬢（業務委託）
+    if (userType === 'concafe' && concafeType === 'business') {
+      document.getElementById('step8_concafe').classList.add('active');
+      return;
+    }
   }
 
-  // STEP9〜STEP12 は共通として扱う（必要なら後で分岐追加）
+  // STEP9〜STEP12（共通）
   const id = 'step' + current;
   const el = document.getElementById(id);
   if (el) el.classList.add('active');
@@ -500,11 +628,26 @@ function selectType(type) {
 }
 
 function nextStep() {
+
+  // STEP3 → STEP3.5（コンカフェ嬢のみ）
+  if (current === 3 && userType === 'concafe') {
+    current = 3.5;
+    showStep();
+    return;
+  }
+
   current++;
   showStep();
 }
 
 function prevStep() {
+  // STEP4 → STEP3.5（コンカフェ嬢のみ）
+  if (current === 4 && userType === 'concafe') {
+    current = 3.5;
+    showStep();
+    return;
+  }
+
   current--;
   showStep();
 }
