@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>スマホ確定申告ガイド</title>
+<style>
+  body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    background: #f7f7f7;
+  }
+  .step {
+    display: none;
+    padding: 24px;
+  }
+  .step.active {
+    display: block;
+  }
+  .title {
+    font-size: 20px;
+    font-weight: bold;
+    margin-bottom: 12px;
+  }
+  .content {
+    margin-bottom: 24px;
+    line-height: 1.7;
+  }
+  .nav {
+    display: flex;
+    justify-content: space-between;
+  }
+  button {
+    padding: 12px 20px;
+    font-size: 16px;
+    border: none;
+    background: #4a7dfc;
+    color: white;
+    border-radius: 6px;
+  }
+  button:disabled {
+    background: #ccc;
+  }
+  .btn-concafe {
+    background: #f57ca1;
+  }
+</style>
+</head>
+<body>
+
+<!-- STEP 0：タイプ選択 -->
+<div class="step active" id="step0">
+  <div class="title">あなたの働き方を選んでください</div>
+  <div class="content">
+    必要なものや申告手順が異なるため、最初にあなたのタイプを選びます。
+  </div>
+
+  <div style="display:flex; flex-direction:column; gap:16px;">
+    <button onclick="selectType('employee')">会社員（年末調整済）</button>
+    <button onclick="selectType('concafe')" class="btn-concafe">コンカフェ嬢・業務委託・副業</button>
+  </div>
+</div>
+
+<!-- STEP 1（会社員） -->
+<div class="step" id="step1_employee">
+  <div class="title">STEP 1 / 12<br>必要なものを準備します（会社員）</div>
+  <div class="content">
+    このステップでは、会社員の方が確定申告を始める前に必要なものを確認します。<br><br>
+    ・マイナンバーカード<br>
+    ・スマホ（マイナポータルアプリ）<br>
+    ・源泉徴収票<br>
+    ・生命保険料控除証明書（がん保険など）<br>
+    ・ふるさと納税の寄附金受領証明書<br><br>
+    そろっていれば次へ進んでください。
+  </div>
+  <div class="nav">
+    <button onclick="goStep(0)">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<!-- STEP 1（コンカフェ嬢） -->
+<div class="step" id="step1_concafe">
+  <div class="title">STEP 1 / 12<br>必要なものを準備します（コンカフェ嬢）</div>
+  <div class="content">
+    このステップでは、業務委託・コンカフェ嬢の方が申告前に必要なものを確認します。<br><br>
+    ・マイナンバーカード<br>
+    ・スマホ（マイナポータルアプリ）<br>
+    ・売上メモ（現金・PayPay・振込など）<br>
+    ・経費メモ（衣装・カラコン・交通費など）<br>
+    ・振込履歴（あれば）<br>
+    ・ふるさと納税の寄附金受領証明書（使っている場合）<br><br>
+    そろっていれば次へ進んでください。
+  </div>
+  <div class="nav">
+    <button onclick="goStep(0)">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<!-- STEP 2（共通） -->
+<div class="step" id="step2">
+  <div class="title">STEP 2 / 12<br>マイナポータルアプリを開きます</div>
+  <div class="content">
+    スマートフォンでマイナポータルアプリを起動し、<br>
+    「確定申告」メニューをタップします。
+  </div>
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<!-- STEP 3（共通：証明書取得 → e-Taxへ） -->
+<div class="step" id="step3">
+  <div class="title">STEP 3 / 12<br>証明書を取得して e-Tax に進みます</div>
+  <div class="content">
+    以下の流れで e-Tax に進みます。<br><br>
+
+    1. 「証明書等の取得を行いますか？」と表示されたら<br>
+    　<strong>「証明書等の取得へ進む」</strong> をタップ<br><br>
+
+    2. 証明書取得画面の下部にある<br>
+    　<strong>「e-Taxで申告を開始」</strong> をタップ<br><br>
+
+    この操作で自動的に「マイナンバーカード方式」で申告が開始されます。
+  </div>
+
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<!-- STEP 4（会社員：源泉徴収票の読み取り） -->
+<div class="step" id="step4_employee">
+  <div class="title">STEP 4 / 12<br>源泉徴収票を読み取ります（会社員）</div>
+  <div class="content">
+    e-Tax の画面で、給与情報の入力を行います。<br><br>
+
+    1. 「給与所得の入力」画面が表示されたら<br>
+    　<strong>「源泉徴収票を読み取る」</strong> をタップ<br><br>
+
+    2. カメラが起動するので、源泉徴収票を枠内に収めて撮影します<br><br>
+
+    3. 読み取れなかった場合は、手入力を選択できます<br><br>
+
+    ※ 読み取った内容は後で修正できます。
+  </div>
+
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<!-- STEP 4（コンカフェ嬢：所得区分の選択） -->
+<div class="step" id="step4_concafe">
+  <div class="title">STEP 4 / 12<br>所得の種類を選びます（コンカフェ嬢）</div>
+  <div class="content">
+    コンカフェ嬢・業務委託の方は、給与ではなく<br>
+    <strong>「事業所得」</strong> として申告します。<br><br>
+
+    1. e-Tax の「所得の種類を選択」画面で<br>
+    　<strong>「事業所得（営業等）」</strong> をタップ<br><br>
+
+    2. 売上入力画面に進みます<br><br>
+
+    ※ 給与扱いではないため、源泉徴収票は不要です。
+  </div>
+
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<!-- STEP 5（会社員：控除の入力） -->
+<div class="step" id="step5_employee">
+  <div class="title">STEP 5 / 12<br>控除を入力します（会社員）</div>
+  <div class="content">
+    このステップでは、年末調整で申請し忘れた控除や、<br>
+    確定申告が必要になる控除を入力します。<br><br>
+
+    <strong>1. 生命保険料控除（がん保険）</strong><br>
+    ・「所得控除」→「生命保険料控除」を選択<br>
+    ・控除証明書の金額をそのまま入力<br><br>
+
+    <strong>2. ふるさと納税（寄附金控除）</strong><br>
+    ・ワンストップ特例は確定申告をすると無効になるため、<br>
+    　<strong>寄附金控除として全件入力が必要</strong> です<br>
+    ・「寄附金控除」→「ふるさと納税」を選択<br>
+    ・寄附金受領証明書の内容を入力<br><br>
+
+    ※ 会社の団体保険（古い生命保険）は年末調整で処理済みのため、入力不要です。
+  </div>
+
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<!-- STEP 5（コンカフェ嬢：売上入力） -->
+<div class="step" id="step5_concafe">
+  <div class="title">STEP 5 / 12<br>売上を入力します（コンカフェ嬢）</div>
+  <div class="content">
+    このステップでは、コンカフェ・業務委託で得た<br>
+    <strong>1年間の売上（収入）</strong> を入力します。<br><br>
+
+    <strong>1. 「事業所得（営業等）」の売上入力画面が表示されます</strong><br>
+    ・「売上（収入）金額」をタップ<br><br>
+
+    <strong>2. 売上の合計額を入力します</strong><br>
+    ・現金手渡し<br>
+    ・PayPay / LINE Pay<br>
+    ・銀行振込<br>
+    ・チェキ・ドリンクバック<br>
+    など、すべての収入を合計します。<br><br>
+
+    <strong>3. 売上の内訳は入力しなくてもOK</strong><br>
+    合計金額だけで問題ありません。<br><br>
+
+    ※ 売上メモや振込履歴を見ながら入力すると正確です。
+  </div>
+
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<!-- STEP 6 -->
+<div class="step" id="step6_employee">
+  <div class="title">STEP 6 / 12<br>入力内容を確認します（会社員）</div>
+  <div class="content">
+    ここでは、源泉徴収票の内容や控除の入力が正しいか確認します。<br><br>
+
+    ・給与の金額<br>
+    ・源泉徴収税額<br>
+    ・生命保険料控除の金額<br>
+    ・ふるさと納税の寄附金額<br><br>
+
+    間違いがあれば「修正する」から戻れます。
+  </div>
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<div class="step" id="step6_concafe">
+  <div class="title">STEP 6 / 12<br>経費を入力します（コンカフェ嬢）</div>
+  <div class="content">
+    ここでは、仕事のために使った費用（経費）を入力します。<br><br>
+
+    ・衣装代<br>
+    ・カラコン・メイク用品<br>
+    ・交通費<br>
+    ・美容院代（仕事用）<br>
+    ・物販の仕入れ<br>
+    ・スマホ代の按分<br><br>
+
+    合計額だけでもOKです。<br>
+    領収書がなくても、メモがあれば入力できます。
+  </div>
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<!-- STEP 7 -->
+<div class="step" id="step7_employee">
+  <div class="title">STEP 7 / 12<br>住民税の徴収方法を選びます（会社員）</div>
+  <div class="content">
+    住民税の徴収方法を選びます。<br><br>
+
+    <strong>会社に知られたくない場合</strong><br>
+    → 「自分で納付（普通徴収）」を選択<br><br>
+
+    <strong>会社に任せる場合</strong><br>
+    → 「給与から天引き（特別徴収）」を選択<br><br>
+
+    ※ 副業がある人は「自分で納付」を選ぶと安全です。
+  </div>
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<div class="step" id="step7_concafe">
+  <div class="title">STEP 7 / 12<br>住民税の徴収方法を選びます（コンカフェ嬢）</div>
+  <div class="content">
+    住民税の徴収方法を選びます。<br><br>
+
+    <strong>本業の会社に知られたくない場合</strong><br>
+    → 「自分で納付（普通徴収）」を選択<br><br>
+
+    <strong>気にしない場合</strong><br>
+    → 「給与から天引き（特別徴収）」でもOK<br><br>
+
+    ※ 副業バレを防ぐため、多くの人は「自分で納付」を選びます。
+  </div>
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<!-- STEP 8 -->
+<div class="step" id="step8_employee">
+  <div class="title">STEP 8 / 12<br>マイナンバーカードで署名します（会社員）</div>
+  <div class="content">
+    申告内容を送信するために、マイナンバーカードで署名します。<br><br>
+
+    ・スマホの読み取り位置にカードを置く<br>
+    ・暗証番号（4桁）を入力<br><br>
+
+    読み取りが失敗した場合は、スマホを少し動かすと成功しやすいです。
+  </div>
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<div class="step" id="step8_concafe">
+  <div class="title">STEP 8 / 12<br>マイナンバーカードで署名します（コンカフェ嬢）</div>
+  <div class="content">
+    申告内容を送信するために、マイナンバーカードで署名します。<br><br>
+
+    ・スマホの読み取り位置にカードを置く<br>
+    ・暗証番号（4桁）を入力<br><br>
+
+    読み取りが失敗した場合は、スマホを少し動かすと成功しやすいです。
+  </div>
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<!-- STEP 9 -->
+<div class="step" id="step9">
+  <div class="title">STEP 9 / 12<br>送信前の最終確認</div>
+  <div class="content">
+    入力内容に間違いがないか、最終確認します。<br><br>
+
+    ・氏名・住所<br>
+    ・所得金額<br>
+    ・控除金額<br>
+    ・住民税の徴収方法<br><br>
+
+    問題なければ「送信する」をタップします。
+  </div>
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+
+<!-- STEP 10 -->
+<div class="step" id="step10">
+  <div class="title">STEP 10 / 12<br>送信が完了しました</div>
+  <div class="content">
+    確定申告の送信が完了しました。<br><br>
+    これで税務署への提出は完了です。<br><br>
+
+    次へ進んで、控除証明書の保存を行います。
+  </div>
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<!-- STEP 11 -->
+<div class="step" id="step11">
+  <div class="title">STEP 11 / 12<br>控除証明書を保存します</div>
+  <div class="content">
+    送信後の控除証明書や受付番号を保存しておきましょう。<br><br>
+
+    ・受付番号のスクショ<br>
+    ・控除証明書のPDF保存<br><br>
+
+    来年の申告がスムーズになります。
+  </div>
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<!-- STEP 12 -->
+<div class="step" id="step12">
+  <div class="title">STEP 12 / 12<br>来年のためのメモ</div>
+  <div class="content">
+    お疲れさまでした！<br><br>
+
+    来年のために、以下をメモしておくと便利です。<br><br>
+
+    ・売上や経費の記録方法<br>
+    ・控除証明書の保管場所<br>
+    ・ふるさと納税の寄附先<br><br>
+
+    これで全ステップ完了です。
+  </div>
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+  </div>
+</div>
+
+<script>
+let current = 0;
+let userType = null;
+
+function showStep() {
+  // 全ステップ非表示
+  document.querySelectorAll('.step').forEach(s => s.classList.remove('active'));
+
+  // STEP0（タイプ選択）
+  if (current === 0) {
+    document.getElementById('step0').classList.add('active');
+    return;
+  }
+
+  // STEP1（タイプ別）
+  if (current === 1) {
+    if (userType === 'employee') {
+      document.getElementById('step1_employee').classList.add('active');
+    } else {
+      document.getElementById('step1_concafe').classList.add('active');
+    }
+    return;
+  }
+
+  // STEP4（タイプ別）
+  if (current === 4) {
+    if (userType === 'employee') {
+      document.getElementById('step4_employee').classList.add('active');
+    } else {
+      document.getElementById('step4_concafe').classList.add('active');
+    }
+    return;
+  }
+
+  // STEP5（タイプ別）
+  if (current === 5) {
+    if (userType === 'employee') {
+      document.getElementById('step5_employee').classList.add('active');
+    } else {
+      document.getElementById('step5_concafe').classList.add('active');
+    }
+    return;
+  }
+
+  // STEP6（タイプ別）
+  if (current === 6) {
+    if (userType === 'employee') {
+      document.getElementById('step6_employee').classList.add('active');
+    } else {
+      document.getElementById('step6_concafe').classList.add('active');
+    }
+    return;
+  }
+
+  // STEP7（タイプ別）
+  if (current === 7) {
+    if (userType === 'employee') {
+      document.getElementById('step7_employee').classList.add('active');
+    } else {
+      document.getElementById('step7_concafe').classList.add('active');
+    }
+    return;
+  }
+
+  // STEP8（タイプ別）
+  if (current === 8) {
+    if (userType === 'employee') {
+      document.getElementById('step8_employee').classList.add('active');
+    } else {
+      document.getElementById('step8_concafe').classList.add('active');
+    }
+    return;
+  }
+
+  // STEP9〜STEP12 は共通として扱う（必要なら後で分岐追加）
+  const id = 'step' + current;
+  const el = document.getElementById(id);
+  if (el) el.classList.add('active');
+}
+
+function selectType(type) {
+  userType = type;
+  current = 1;
+  showStep();
+}
+
+function nextStep() {
+  current++;
+  showStep();
+}
+
+function prevStep() {
+  current--;
+  showStep();
+}
+
+function goStep(n) {
+  current = n;
+  showStep();
+}
+</script>
+
+</body>
+</html>
