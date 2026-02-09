@@ -59,8 +59,8 @@
 
 		        <div class="emoji-selector">
 		            <label><input type="radio" name="emoji" value="🤚" checked onchange="changeEmoji(this.value)"><span>🤚</span></label>
-		            <label><input type="radio" name="emoji" value="🔪" onchange="changeEmoji(this.value)"><span>🔪</span></label>
-		            <label><input type="radio" name="emoji" value="💉" onchange="changeEmoji(this.value)"><span>💉</span></label>
+		            <label><input type="radio" name="emoji" value="👁" onchange="changeEmoji(this.value)"><span>👁</span></label>
+		            <label><input type="radio" name="emoji" value="👃" onchange="changeEmoji(this.value)"><span>👃</span></label>
 		            <label><input type="radio" name="emoji" value="👅" onchange="changeEmoji(this.value)"><span>👅</span></label>
 		            <label><input type="radio" name="emoji" value="👄" onchange="changeEmoji(this.value)"><span>👄</span></label>
 		        </div>
@@ -106,8 +106,8 @@
 				    "👅": 1500,
 				    "👄": 1000
 				};
-				let myCounts = { "🤚": 0, "🔪": 0, "💉": 0, "👅": 0, "👄": 0 };
-				let opponentCounts = { "🤚": 0, "🔪": 0, "💉": 0, "👅": 0, "👄": 0 };
+				let myCounts = { "🤚": 0, "👁": 0, "👃": 0, "👅": 0, "👄": 0 };
+				let opponentCounts = { "🤚": 0, "👁": 0, "👃": 0, "👅": 0, "👄": 0 };
 
 				// --- 追加：エフェクト管理用変数 ---
 				let myEffectTimer = 0;
@@ -181,7 +181,11 @@
 										opponentCounts = payload.counts; // 相手の内訳を保存
 						        // 1. もし自分がまだゲーム中なら、自分の最終スコアを相手に返してあげる
 						        if (conn && conn.open && !document.getElementById('game-area').classList.contains('hidden')) {
-						            conn.send({ type: 'QUIT_RESPONSE', score: myScore });
+												conn.send({ 
+						                type: 'QUIT_RESPONSE', 
+						                score: myScore,
+						                counts: myCounts // ★ここが抜けていました！
+						            });
 						        }
 						        showExitScreen("相手がチェック（お会計）しました。", "opponent");
 						    } else if (payload.type === 'QUIT_RESPONSE') {
@@ -364,7 +368,7 @@
 				            // 自分のスコアを送りつつ、相手に「終わるよ」と伝える
 				            conn.send({ 
 				                type: 'QUIT', 
-				                score: myScore 
+				                score: myScore, 
 												counts: myCounts // 自分の内訳を送る
 				            });
 				            
@@ -394,6 +398,7 @@
 				    const targetCounts = (who === "me") ? myCounts : opponentCounts;
 
 				    document.getElementById('final-bill').textContent = `￥${targetScore.toLocaleString()}`;
+            document.getElementById('status').textContent = "清算中…";
 
 				    // 内訳表示の生成
 				    let detailHtml = '<div style="text-align:left; font-size:12px; font-family:monospace; border-top:1px solid #ccc; padding-top:10px; margin-top:10px;">';
