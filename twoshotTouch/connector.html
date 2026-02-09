@@ -36,34 +36,54 @@
         </div>
     </div>
 
-    <div id="game-area" class="game-container hidden">
-        <div class="canvas-wrapper">
-            <div class="canvas-label">相手のフィールド (相手が選んだ背景)</div>
-            <canvas id="opponentCanvas" width="280" height="150"></canvas>
-        </div>
+		<div id="game-area" class="game-container hidden">
+		    
+		    <div style="width: 95%; max-width: 400px; text-align: right; margin-bottom: 5px;">
+		        <button onclick="quitGame()" style="background: #ff4444; font-size: 12px; padding: 8px 15px; border-radius: 20px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+		            対戦を終了する
+		        </button>
+		    </div>
 
-        <div class="box">
-            <div class="canvas-label">あなたのフィールド (自分が選んだ背景)</div>
-            
-            <div style="margin: 10px 0; padding: 10px; border: 1px dashed #ccc; border-radius: 8px;">
-                <span style="font-size: 11px;">自分の背景を設定・送信：</span><br>
-                <input type="file" id="bgInput" accept="image/*" style="font-size: 11px; width: 100%;">
-            </div>
+		    <div class="canvas-wrapper">
+		        <div class="canvas-label">相手のフィールド (相手が選んだ背景)</div>
+		        <canvas id="opponentCanvas" width="280" height="150"></canvas>
+		    </div>
 
-            <div class="emoji-selector">
-                <label><input type="radio" name="emoji" value="🤚" checked onchange="changeEmoji(this.value)"><span>🤚</span></label>
-                <label><input type="radio" name="emoji" value="🔪" onchange="changeEmoji(this.value)"><span>🔪</span></label>
-                <label><input type="radio" name="emoji" value="💉" onchange="changeEmoji(this.value)"><span>💉</span></label>
-                <label><input type="radio" name="emoji" value="👅" onchange="changeEmoji(this.value)"><span>👅</span></label>
-                <label><input type="radio" name="emoji" value="👄" onchange="changeEmoji(this.value)"><span>👄</span></label>
-            </div>
-            
-            <div class="canvas-wrapper">
-                <canvas id="myCanvas" width="280" height="150"></canvas>
-            </div>
-            <div id="log"></div>
-        </div>
-    </div>
+		    <div class="box">
+		        <div class="canvas-label">あなたのフィールド (自分が選んだ背景)</div>
+		        
+		        <div style="margin: 10px 0; padding: 10px; border: 1px dashed #ccc; border-radius: 8px;">
+		            <span style="font-size: 11px;">自分の背景を設定・送信：</span><br>
+		            <input type="file" id="bgInput" accept="image/*" style="font-size: 11px; width: 100%;">
+		        </div>
+
+		        <div class="emoji-selector">
+		            <label><input type="radio" name="emoji" value="🤚" checked onchange="changeEmoji(this.value)"><span>🤚</span></label>
+		            <label><input type="radio" name="emoji" value="🔪" onchange="changeEmoji(this.value)"><span>🔪</span></label>
+		            <label><input type="radio" name="emoji" value="💉" onchange="changeEmoji(this.value)"><span>💉</span></label>
+		            <label><input type="radio" name="emoji" value="👅" onchange="changeEmoji(this.value)"><span>👅</span></label>
+		            <label><input type="radio" name="emoji" value="👄" onchange="changeEmoji(this.value)"><span>👄</span></label>
+		        </div>
+		        
+		        <div class="canvas-wrapper">
+		            <canvas id="myCanvas" width="280" height="150"></canvas>
+		        </div>
+		        <div id="log"></div>
+		    </div>
+		</div>
+
+		<div id="exit-area" class="box hidden">
+		    <h2 style="color: #ff4444;">伝票：お会計</h2>
+		    <p id="exit-message" style="font-size: 14px; margin-bottom: 10px;"></p>
+		    <div style="background: #fff9c4; padding: 15px; border: 2px dashed #fbc02d; border-radius: 8px; margin: 10px 0;">
+		        <span style="font-size: 12px; color: #666;">プレイ料金</span><br>
+		        <span id="final-bill" style="font-size: 28px; font-weight: bold; color: #d32f2f;">0</span><br>
+		        <span style="font-size: 16px; font-weight: bold;">をお相手に請求してください</span>
+		    </div>
+		    <div style="margin-top: 20px;">
+		        <button onclick="location.href=location.pathname" style="background: #2196f3;">トップに戻る</button>
+		    </div>
+		</div>
 
     <script>
         const peer = new Peer({ debug: 2 });
@@ -86,6 +106,8 @@
 				    "👅": 1500,
 				    "👄": 1000
 				};
+				let myCounts = { "🤚": 0, "🔪": 0, "💉": 0, "👅": 0, "👄": 0 };
+				let opponentCounts = { "🤚": 0, "🔪": 0, "💉": 0, "👅": 0, "👄": 0 };
 
 				// --- 追加：エフェクト管理用変数 ---
 				let myEffectTimer = 0;
@@ -153,6 +175,22 @@
 						        document.getElementById("opp-score").textContent = opponentScore;
 						    } else if (payload.type === 'EMOJI') {
 						        opponentEmoji = payload.data;
+								} else if (payload.type === 'QUIT') {
+										// 相手からQUITが届いた＝相手の最終スコアが確定
+						        opponentFinalScore = payload.score;
+										opponentCounts = payload.counts; // 相手の内訳を保存
+						        // 1. もし自分がまだゲーム中なら、自分の最終スコアを相手に返してあげる
+						        if (conn && conn.open && !document.getElementById('game-area').classList.contains('hidden')) {
+						            conn.send({ type: 'QUIT_RESPONSE', score: myScore });
+						        }
+						        showExitScreen("相手がチェック（お会計）しました。", "opponent");
+						    } else if (payload.type === 'QUIT_RESPONSE') {
+						        // 自分がQUITを送った後、相手から返ってきた最終スコア
+						        opponentFinalScore = payload.score;
+										opponentCounts = payload.counts; // 相手の内訳を保存
+						        showExitScreen("あなたがチェック（お会計）しました。", "opponent");
+						        peer.destroy();
+
 						    } else if (payload.type === 'IMAGE') {
 						        // ★【重要】相手から画像が届いたら、自分のキャンバス（myCanvas）の背景にする
 						        const blob = new Blob([payload.data], { type: payload.mime });
@@ -162,7 +200,13 @@
 						    }
 						    render();
 						});
+
+				    // 相手がブラウザを閉じた、またはpeer.destroy()したとき
+				    conn.on('close', () => {
+				        showExitScreen("通信が切断されました。");
+				    });
         }
+
 
 				// 攻撃エフェクト（一瞬だけ大きく表示するなど）
 				function showAttackEffect(ctx, pos, emoji) {
@@ -226,6 +270,11 @@
 				    }
 				    
 				    lastTouchPos = { x, y };
+
+						// カウントアップ
+				    if (myCounts[myEmoji] !== undefined) {
+				        myCounts[myEmoji]++;
+				    }
 
 				    // ポイント計算：基礎点 × コンボ倍率
 				    const basePower = emojiPower[myEmoji] || 10;
@@ -303,6 +352,73 @@
             document.execCommand("Copy");
             alert("URLをコピーしました！");
         }
+
+				// --- 0. 相手の最終スコアを保持する変数を追加 ---
+				let opponentFinalScore = 0; 
+
+
+				// --- 2. 終了ボタンが押された時の処理 ---
+				function quitGame() {
+				    if (confirm("プレイを終了（お会計）してもよろしいですか？")) {
+				        if (conn && conn.open) {
+				            // 自分のスコアを送りつつ、相手に「終わるよ」と伝える
+				            conn.send({ 
+				                type: 'QUIT', 
+				                score: myScore 
+												counts: myCounts // 自分の内訳を送る
+				            });
+				            
+				            // 相手からの 'QUIT_RESPONSE' を待つために、ここではすぐ destroy しない
+				            // 万が一相手が反応しない時のためにタイムアウトも設定
+				            setTimeout(() => {
+				                if (!document.getElementById('game-area').classList.contains('hidden')) {
+				                    showExitScreen("通信待機タイムアウト：お会計を終了します。", "opponent");
+				                    peer.destroy();
+				                }
+				            }, 2000); 
+				        } else {
+				            showExitScreen("プレイを終了しました。", "me");
+				        }
+				    }
+				}
+
+				// --- 3. 終了画面への切り替え（表示ロジックの修正） ---
+				function showExitScreen(msg, who) {
+				    document.getElementById('setup-area').classList.add('hidden');
+				    document.getElementById('game-area').classList.add('hidden');
+				    const exitArea = document.getElementById('exit-area');
+				    exitArea.classList.remove('hidden');
+				    document.getElementById('exit-message').textContent = msg;
+
+				    const targetScore = (who === "me") ? myScore : opponentFinalScore;
+				    const targetCounts = (who === "me") ? myCounts : opponentCounts;
+
+				    document.getElementById('final-bill').textContent = `￥${targetScore.toLocaleString()}`;
+
+				    // 内訳表示の生成
+				    let detailHtml = '<div style="text-align:left; font-size:12px; font-family:monospace; border-top:1px solid #ccc; padding-top:10px; margin-top:10px;">';
+				    detailHtml += '<b>【オーダー内訳】</b><br>';
+				    
+				    for (let key in targetCounts) {
+				        if (targetCounts[key] > 0) {
+				            const price = emojiPower[key] || 0;
+				            detailHtml += `${key} × ${targetCounts[key]}回 … ￥${(price * targetCounts[key]).toLocaleString()}<br>`;
+				        }
+				    }
+				    detailHtml += '</div>';
+
+				    // 既存のbillElementの後に挿入、または専用のdivをHTMLに追加してください
+				    const billElement = document.getElementById('final-bill');
+				    // すでに内訳がある場合は消してから追加
+				    const oldDetail = document.getElementById('bill-detail');
+				    if (oldDetail) oldDetail.remove();
+				    
+				    const detailDiv = document.createElement('div');
+				    detailDiv.id = 'bill-detail';
+				    detailDiv.innerHTML = detailHtml;
+				    billElement.parentNode.appendChild(detailDiv);
+				}
+
     </script>
 </body>
 </html>
