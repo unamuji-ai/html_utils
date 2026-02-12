@@ -96,7 +96,7 @@ TOTAL_STEPS = len(questions)
 
 # --- メインロジック ---
 if st.session_state.step == 0:
-    st.title("🧪 コンカフェ嬢・営業精密診断 PRO")
+    st.title("🌐コンカフェ嬢としてのあなたに対するネット上の評価")
     name = st.text_input("源氏名を入力してください", key="name_input")
     if st.button("診断を開始"):
         if name:
@@ -127,13 +127,13 @@ else:
     st.balloons()
     st.title(f"📊 {st.session_state.name} さんの分析結果")
     
-    # スコア計算
+    # --- スコア計算（あなたの配点を維持） ---
     s = min(st.session_state.points["sales"] // 6, 100)
     m = max(min(st.session_state.points["mental"] // 4, 100), 0)
     r = max(min(st.session_state.points["risk"] // 5, 100), 0)
     c = min(st.session_state.points["compliance"] // 5, 100)
 
-    # レーダーチャートの作成
+    # --- レーダーチャートの表示 ---
     df = pd.DataFrame(dict(
         r=[s, m, r, c],
         theta=['沼らせ', '痛客耐性', '炎上リスク', 'プロ意識']
@@ -150,7 +150,7 @@ else:
 
     st.divider()
 
-    # --- 強化版：タイプ判定バリエーション ---
+    # --- 1. タイプ判定ロジック ---
     if c > 80 and s > 80:
         style = "伝説の1000万プレイヤー"
         desc = "プロ意識と営業力を兼ね備えた、非の打ち所がない夜の女王です。"
@@ -173,21 +173,57 @@ else:
     st.success(f"あなたの営業スタイル： **【{style}】**")
     st.write(desc)
     
-    # --- 強化版：SNSスレ反応 ---
-    st.subheader("💬 SNSまとめスレの反応")
-    
-    possible_replies = [
-        f"「{st.session_state.name}、完全に{style}で草。現場で見ると迫力違うぞｗ」",
-        f"「{st.session_state.name}に10万溶かした俺が通りますよ」" if s > 60 else "「最近あそこの店、{st.session_state.name}が目立ってるな」",
-        f"「リスク{r}%とか爆弾すぎて近寄れんｗ」" if r > 70 else "「↑でもあのタイプが一番モテるんだわ…」",
-        f"「{st.session_state.name}のプロ意識{c}%はガチ。連絡先交換とか100%無理」" if c > 80 else "「誰か{st.session_state.name}の裏垢特定してくれ」",
-        f"「耐性{m}%かよ。説教しても無駄だなｗ」" if m > 70 else "「この子、すぐ病むから優しくしてやれよ」"
+    # --- 2. タイプ別：SNSスレ反応 ---
+    if style == "伝説の1000万プレイヤー":
+        type_specific_replies = [
+            f"「{st.session_state.name}様、昨日もタワー立ててて震えたわ。格が違いすぎる」",
+            f"「このレベルになると、もはや宗教。俺たちの給料じゃ{st.session_state.name}の視界にすら入れない」",
+            f"「{st.session_state.name}のプロ意識、全キャストが見習うべきだろこれ」"
+        ]
+    elif style == "界隈の劇薬・爆弾娘":
+        type_specific_replies = [
+            f"「【悲報】{st.session_state.name}、また裏垢で爆弾投下。これ半分テロだろｗ」",
+            f"「{st.session_state.name}に沼ってる奴、生きて帰ってこれないぞ。通帳の中身空にされる」",
+            f"「リスク{r}%ってマジか。運営もよくこれ放置してるな。ハラハラするわｗ」"
+        ]
+    elif style == "鉄壁のプロ・公務員系キャスト":
+        type_specific_replies = [
+            f"「{st.session_state.name}のガードの固さは異常。DM送っても全部定型文で返ってくるぞ」",
+            f"「繋がり報告が一切ないのが{st.session_state.name}。安心感だけはあるんだよな」",
+            f"「↑でももう少し隙を見せてほしいわ。ロボットと喋ってる気分になる時あるｗ」"
+        ]
+    elif style == "鋼のメンタル・守銭奴マスター":
+        type_specific_replies = [
+            f"「{st.session_state.name}、1時間説教されても真顔で『で、ドリンクは？』って言ったの伝説すぎる」",
+            f"「病みツイート一つもしない{st.session_state.name}のメンタルどうなってんの？サイボーグか？」",
+            f"「{st.session_state.name}の目的は金、ただそれだけ。清々しくて逆に好きだわ」"
+        ]
+    elif style == "迷い込んだ一般人（研修中）":
+        type_specific_replies = [
+            f"「{st.session_state.name}の素人感がたまらん。まだ世の中に汚されてない感じがする」",
+            f"「お願いだから、{st.session_state.name}を悪い太客から守ってくれ。スレ民の総意」",
+            f"「今のうちに{st.session_state.name}とチェキ撮っとけ。すぐ辞めるか化けるかのどっちかだぞ」"
+        ]
+    else:
+        type_specific_replies = [
+            f"「{st.session_state.name}は安定感あるよな。迷ったらとりあえず会いに行けば間違いない」",
+            f"「いい意味で王道。{st.session_state.name}こそがコンカフェ嬢の模範解答だわ」",
+            f"「最近あそこの店、{st.session_state.name}が目立ってるな。次期エース候補だろ」"
+        ]
+
+    general_replies = [
+        f"「お前ら{st.session_state.name}の話しすぎ。本人見てたらどうすんだよｗ」",
+        f"「↑どうせ本人はパトロンとご飯行ってるよ。夢見すぎ」",
+        f"「診断結果、完全に{st.session_state.name}の今の立ち回りと同じで笑った」"
     ]
-    
-    # ランダムに3つ選んでチャット形式で表示
-    for rep in random.sample(possible_replies, 3):
+
+    display_replies = random.sample(type_specific_replies, 2) + random.sample(general_replies, 1)
+
+    st.subheader("💬 SNSまとめスレの反応")
+    for rep in display_replies:
         st.chat_message("user").write(rep)
 
+    # --- やり直すボタン ---
     if st.button("やり直す"):
         for key in list(st.session_state.keys()): del st.session_state[key]
         st.rerun()
