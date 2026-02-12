@@ -49,8 +49,18 @@
 </head>
 <body>
 
+
+<div class="step active" id="step00">
+  <div class="title">
+		作ってみたものの汎用性の維持が困難でその人に合わせて逐一AIに聞きながらやった方がいいのでクローズしました。<br>
+		とにかく必要情報の管理が杜撰だとしにます<br>
+		（所得や経費の証明書、ふるさと納税や各種保険、副業収入などの年間の金銭の出入り情報を管理しておくこと）
+	</div>
+</div>
+
+
 <!-- STEP 0：タイプ選択 -->
-<div class="step active" id="step0">
+<div class="step" id="step0">
   <div class="title">あなたの働き方を選んでください</div>
   <div class="content">
     必要なものや申告手順が異なるため、最初にあなたのタイプを選びます。
@@ -112,28 +122,7 @@
   </div>
 </div>
 
-<!-- STEP 3（共通：証明書取得 → e-Taxへ） -->
-<div class="step" id="step3">
-  <div class="title">STEP 3 / 12<br>証明書を取得して e-Tax に進みます</div>
-  <div class="content">
-    以下の流れで e-Tax に進みます。<br><br>
-
-    1. 「証明書等の取得を行いますか？」と表示されたら<br>
-    　<strong>「証明書等の取得へ進む」</strong> をタップ<br><br>
-
-    2. 証明書取得画面の下部にある<br>
-    　<strong>「e-Taxで申告を開始」</strong> をタップ<br><br>
-
-    この操作で自動的に「マイナンバーカード方式」で申告が開始されます。
-  </div>
-
-  <div class="nav">
-    <button onclick="prevStep()">戻る</button>
-    <button onclick="nextStep()">次へ</button>
-  </div>
-</div>
-
-<!-- STEP 3.5（コンカフェ嬢：契約形態選択） -->
+<!-- STEP 2.5（コンカフェ嬢：契約形態選択） -->
 <div class="step" id="step3_5">
   <div class="title">STEP 3.5<br>お店との契約形態を選んでください</div>
   <div class="content">
@@ -158,6 +147,76 @@
   </div>
 </div>
 
+
+<!-- STEP 3（共通：証明書取得 → e-Taxへ） -->
+<div class="step" id="step3_employee">
+  <div class="title">STEP 3 / 12<br>控除証明書を取得します（給与所得の方）</div>
+  <div class="content">
+    「証明書等の取得をはじめる」をタップすると、マイナポータルが開きます。<br><br>
+
+    そこで行うことは次の2つだけです。<br><br>
+
+    <strong>① 控除証明書を選ぶ</strong><br>
+    ・がん保険（生命保険料控除）<br>
+    ・ふるさと納税（寄附金控除）<br><br>
+    ※ 迷ったら「すべて選択」でOK<br>
+    ※ 会社の社会保険料や団体保険は年末調整済みなので不要<br><br>
+
+    <strong>② 画面下の「収入（給与・年金など）」は選ばない</strong><br>
+    → ここは確定申告では使いません<br><br>
+
+    その後「取得する」→「e-Taxに戻る」をタップします。
+  </div>
+
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<div class="step" id="step3_concafe_employment">
+  <div class="title">STEP 3 / 12<br>控除証明書を取得します（コンカフェ嬢・雇用）</div>
+  <div class="content">
+    「証明書等の取得をはじめる」をタップすると、マイナポータルが開きます。<br><br>
+
+    <strong>① 控除証明書を選ぶ</strong><br>
+    ・がん保険（生命保険料控除）<br>
+    ・ふるさと納税（寄附金控除）<br><br>
+    ※ 迷ったら「すべて選択」でOK<br><br>
+
+    <strong>② 下の「収入（給与・年金など）」は選ばない</strong><br>
+    → あなたの給与は e-Tax で手入力するため、ここは触りません<br><br>
+
+    その後「取得する」→「e-Taxに戻る」をタップします。
+  </div>
+
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
+
+<div class="step" id="step3_concafe_business">
+  <div class="title">STEP 3 / 12<br>控除証明書を取得します（コンカフェ嬢・業務委託）</div>
+  <div class="content">
+    「証明書等の取得をはじめる」をタップすると、マイナポータルが開きます。<br><br>
+
+    <strong>① 控除証明書を選ぶ</strong><br>
+    ・がん保険（生命保険料控除）<br>
+    ・ふるさと納税（寄附金控除）<br><br>
+    ※ 迷ったら「すべて選択」でOK<br><br>
+
+    <strong>② 下の「収入（給与・年金など）」は選ばない</strong><br>
+    → あなたの売上は e-Tax で入力するため、ここは触りません<br><br>
+
+    その後「取得する」→「e-Taxに戻る」をタップします。
+  </div>
+
+  <div class="nav">
+    <button onclick="prevStep()">戻る</button>
+    <button onclick="nextStep()">次へ</button>
+  </div>
+</div>
 
 <!-- STEP 4（会社員：源泉徴収票の読み取り） -->
 <div class="step" id="step4_employee">
@@ -475,7 +534,7 @@ let concafeType = null;
 
 function selectConcafeType(type) {
   concafeType = type;
-  current = 4;
+  current = 3;
   showStep();
 }
 
@@ -499,11 +558,30 @@ function showStep() {
     return;
   }
 
-  // STEP3.5（コンカフェ嬢の契約形態選択）
-  if (current === 3.5) {
-    document.getElementById('step3_5').classList.add('active');
+  // STEP2.5（コンカフェ嬢の契約形態選択）
+  if (current === 2.5) {
+    document.getElementById('step2_5').classList.add('active');
     return;
   }
+
+	// STEP3（タイプ別）
+	if (current === 3) {
+
+	  if (userType === 'employee') {
+	    document.getElementById('step3_employee').classList.add('active');
+	    return;
+	  }
+
+	  if (userType === 'concafe' && concafeType === 'employment') {
+	    document.getElementById('step3_concafe_employment').classList.add('active');
+	    return;
+	  }
+
+	  if (userType === 'concafe' && concafeType === 'business') {
+	    document.getElementById('step3_concafe_business').classList.add('active');
+	    return;
+	  }
+	}
 
   // STEP4（タイプ別：3ルート）
   if (current === 4) {
@@ -629,9 +707,9 @@ function selectType(type) {
 
 function nextStep() {
 
-  // STEP3 → STEP3.5（コンカフェ嬢のみ）
-  if (current === 3 && userType === 'concafe') {
-    current = 3.5;
+  // STEP2 → STEP2.5（コンカフェ嬢のみ）
+  if (current === 2 && userType === 'concafe') {
+    current = 2.5;
     showStep();
     return;
   }
@@ -641,9 +719,9 @@ function nextStep() {
 }
 
 function prevStep() {
-  // STEP4 → STEP3.5（コンカフェ嬢のみ）
-  if (current === 4 && userType === 'concafe') {
-    current = 3.5;
+  // STEP3 → STEP2.5（コンカフェ嬢のみ）
+  if (current === 3 && userType === 'concafe') {
+    current = 2.5;
     showStep();
     return;
   }
