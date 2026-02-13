@@ -137,7 +137,7 @@ TOTAL_STEPS = len(questions)
 
 # --- 画面描画 ---
 if st.session_state.step == 0:
-    st.title("🌐 コンカフェ嬢のあなたのまとめ")
+    st.title("🌐 コンカフェ嬢・営業精密診断 PRO")
     st.warning("⚠️ **診断の際のお願い**\n\n特定の個人や状況に限定せず、**平均的な自身の振る舞い**をイメージして回答してください。")
     name = st.text_input("源氏名を入力してください", key="name_input")
     if st.button("診断を開始"):
@@ -167,18 +167,15 @@ else:
     st.balloons()
     st.title(f"📊 {st.session_state.name} さんの分析結果")
     
-    # --- スコア計算（平滑化防止のため分母を調整） ---
-    s = max(min(st.session_state.points["sales"] // 4, 100), 0)
-    m = max(min(st.session_state.points["mental"] // 4, 100), 0)
-    r = max(min(st.session_state.points["risk"] // 4, 100), 0)
+    # --- スコア計算（シミュレーション済みの分母調整） ---
+    s = max(min(st.session_state.points["sales"] // 5, 100), 0)
+    m = max(min(st.session_state.points["mental"] // 6, 100), 0)
+    r = max(min(st.session_state.points["risk"] // 6, 100), 0)
     c = max(min(st.session_state.points["compliance"] // 4, 100), 0)
 
-    # --- レーダーチャート ---
-    df = pd.DataFrame(dict(
-        r=[s, m, r, c],
-        theta=['営業火力', '対人胆力', '爆弾指数', '規律遵守']
-    ))
-    fig = px.line_polar(df, r='r', theta='theta', line_close=True, range_r=[0,100])
+    # レーダーチャート
+    df_plot = pd.DataFrame(dict(r=[s, m, r, c], theta=['営業火力', '対人胆力', '爆弾指数', '規律遵守']))
+    fig = px.line_polar(df_plot, r='r', theta='theta', line_close=True, range_r=[0,100])
     fig.update_traces(fill='toself', line_color='#FF4B4B')
     st.plotly_chart(fig)
 
@@ -190,42 +187,75 @@ else:
 
     st.divider()
 
-    # --- タイプ判定ロジック ---
-    if c > 75 and s > 75:
-        style, desc = "伝説の1000万プレイヤー", "高い規律と圧倒的な営業火力を両立。業界の模範となるトップキャストです。"
-    elif r > 70 and m > 70:
-        style, desc = "界隈の劇薬・爆弾娘", "対人胆力は最強。リスクを承知で客を沼に沈める、取り扱い注意なカリスマ。"
-    elif c > 80 and r < 30:
-        style, desc = "鉄壁のプロ・ホワイト嬢", "店のルールを完璧に守る。繋がりを一切感じさせない、運営が最も安心するタイプ。"
-    elif m > 80 and s < 40:
-        style, desc = "鋼のメンタル・職人職", "痛客の攻撃を真正面から受け流し、淡々と売上を回収するメンタルモンスター。"
-    elif s < 30 and c < 40:
-        style, desc = "迷い込んだ一般人", "まだ業界の毒に染まっていない。その危うさと純粋さが一部のファンを狂わせます。"
-    else:
-        style, desc = "バランス型アイドル嬢", "全てのバランスが取れた万能型。立ち回り次第でどんな色にも染まれます。"
+    # --- クラスター判定ロジック ---
+    style, desc = "バランス型アイドル嬢", "全てのステータスが平均的。王道の立ち回りで安定した人気を誇るエース候補です。"
+    titles = ["【安定】〇〇ちゃんは安定感あるよな。迷ったらとりあえず行け。"]
+    replies = ["「診断結果、完全に今の立ち回りと一致してて草」", "「最近あそこの店、この子が目立ってるな。次期エースだろ」"]
 
+    # 1. 超・極端タイプ (特筆すべき突き抜け)
+    if s > 85 and c > 80:
+        style, desc = "伝説のプロキャスト", "高い規律と圧倒的な営業火力を両立。運営・客の双方から神格化される完成形。"
+        titles = ["【神】〇〇店の『伝説の嬢』、ついに見つかるｗ"]
+        replies = [f"「{st.session_state.name}様、昨日もタワー立ててて格が違いすぎたわ」", "「プロ意識の塊。店外誘ったら笑顔で高額シャンパン空けさせられたｗ」"]
+        
+    elif r > 80 and c < 30:
+        style, desc = "界隈の劇薬・爆弾娘", "リスク度外視の攻撃スタイル。ネット掲示板で『絶対に関わるな』と晒されるスリル担当。"
+        titles = ["【警告】ガチ恋泥棒・〇〇ちゃん、今日も元気に繋がり発覚ｗ"]
+        replies = [f"「昨日{st.session_state.name}と外歩いてるの見たぞ。運営寝てるんか？」", "「爆弾指数高すぎｗもはや清々しいな、お前ら絶対近づくなよ」"]
+        
+    # 2. 意外な2軸の組み合わせ (相関を逆手に取った個性)
+    elif m > 65 and c > 70:
+        style, desc = "裏番長・フィクサー嬢", "感情に流されず、規律を守りつつ客を統治する。運営の信頼が最も厚い影の支配者。"
+        titles = ["【最強】〇〇店の番長、客の喧嘩を『一瞥』で鎮圧ｗｗ"]
+        replies = ["「客が揉め始めた瞬間、無言で圧かけて黙らせてて震えたわ」", f"「{st.session_state.name}が辞めたらこの店終わるって店長が泣いてたぞ」"]
+
+    elif s > 70 and r > 60:
+        style, desc = "計算高いビジネス地雷", "営業のために『病み』や『危うさ』を武器にする。どこまでが演技か不明なプロ地雷。"
+        titles = ["【職人芸】〇〇ちゃんの『ビジネス病み』に釣られた被害者の会"]
+        replies = ["「病みツイートに釣られてシャンパン入れた俺が馬鹿だった。裏で笑ってそう」", "「どこまでが演技なんだ…？ 怖すぎて逆にハマるわ」"]
+
+    elif s < 40 and c > 75:
+        style, desc = "愛され天然・養われ型", "必死な営業は皆無。ただそこに『純粋』に存在することで、客の保護欲をカンストさせる才。"
+        titles = ["【絶滅危惧種】ガツガツしてない〇〇ちゃん、おじさんの財布を無自覚に破壊ｗ"]
+        replies = ["「この子にだけは『金ないならいいよ』って言わせたくない。俺が稼ぐ。」", f"「{st.session_state.name}に営業されたことないけど、気づいたら月50使ってたわ」"]
+
+    elif m > 75 and c < 40:
+        style, desc = "無敵のサイコパス営業", "メンタルが強すぎて、客を詰めたりルールを無視しても心が痛まない、ある意味で最強の女。"
+        titles = ["【悲報】〇〇店のキャスト、客の説教を『BGM』扱いしててワロタ"]
+        replies = ["「客にブスって言われて『えーｗお揃いですねｗ』って返してて草生えた」", "「鋼のメンタルすぎて詰めが効かない。最終的にこっちが謝ってたわ」"]
+
+    elif s > 70 and m < 40:
+        style, desc = "ガラスの特攻隊長", "高い営業火力を持つが、メンタルは繊細。売上の波で情緒が激しく揺れ動く、目が離せないタイプ。"
+        titles = ["【不安定】〇〇店のNo.1、今日もシャンパン飲んで泣いてるｗ"]
+        replies = [f"「{st.session_state.name}、売上えぐいのにすぐ病むから目が離せん」", "「情緒がジェットコースターすぎて、支えてあげなきゃ感がすごいわ」"]
+
+    elif r < 30 and s < 30:
+        style, desc = "清廉潔白な置物(地蔵)", "悪いことは一切しないが、営業も一切しない。清らかすぎてコンカフェの空気を浄化する専門。"
+        titles = ["【浄化】〇〇店の新人、ただ座ってるだけで時給発生ｗｗ"]
+        replies = ["「挨拶して以降ずっと黙っててワロタ。逆に出勤してるのが奇跡だろ」", "「この子だけは絶対に汚しちゃいけない気がする。拝むための存在」"]
+
+    # 3. バランス型の中の細分化
+    elif s > 50 and m > 50:
+        style, desc = "王道・次期エース候補", "全ての項目が平均以上で、特に攻めの姿勢がある。安定した人気を誇る将来の看板嬢。"
+        titles = ["【朗報】〇〇店の期待の新人、非の打ち所がない王道スタイル。"]
+        replies = ["「非の打ち所がないな。このままいけば半年後には看板だわ」", "「対応に隙がない。教育が行き届いてるのか、本人のセンスか…」"]
+    
+    # 判定なし（上記すべてに漏れた場合）
+    else:
+        style, desc = "愛想笑いのプロ(八方美人)", "誰からも嫌われないが、決定打に欠ける器用貧乏タイプ。毒にも薬にもならない安定感。"
+        titles = ["【安定】〇〇ちゃんは安定感あるよな。迷ったらとりあえず行け。"]
+        replies = ["「良くも悪くも普通。とりあえず誰が行っても外れはない感じ」", "「愛想はいいんだけど、もう一押し欲しいよな。頑張れ」"]
+
+    # --- 表示処理 ---
     st.success(f"あなたの営業スタイル： **【{style}】**")
     st.write(desc)
-    
-    # --- タイプ別：SNSスレ反応 ---
-    type_replies = {
-        "伝説の1000万プレイヤー": [f"「{st.session_state.name}様、昨日もタワー立ててて震えた」「規律遵守も火力もMAXとか、もはやサイボーグだろｗ」"],
-        "界隈の劇薬・爆弾娘": [f"「【悲報】{st.session_state.name}、また裏垢投下。これ半分テロだろ」「胆力{m}%は伊達じゃないな。沼ったら最後だぞ」"],
-        "鉄壁のプロ・ホワイト嬢": [f"「{st.session_state.name}のガードは鉄壁。DM返信も完璧にマニュアル通りｗ」「でもそこが信頼できるんだよな」"],
-        "鋼のメンタル・職人職": [f"「説教1時間耐えて最後に『で、次は何飲む？』って言った{st.session_state.name}マジで強すぎる」「メンタル鋼かよ」"],
-        "迷い込んだ一般人": [f"「{st.session_state.name}の素人感がたまらん。悪い太客に捕まる前に通わなきゃ」「今のうちにチェキ撮っとけ」"],
-        "バランス型アイドル嬢": [f"「{st.session_state.name}は安定感ある。迷ったらとりあえず会いに行くべき」「最近あそこの店で一番目立ってるわ」"]
-    }
-
-    general_replies = [
-        f"「お前ら{st.session_state.name}の話しすぎｗ」「↑本人は今頃パトロンと美味い飯食ってるよ、夢見すぎ」「診断結果リアルすぎて草」"
-    ]
 
     st.subheader("💬 SNSまとめスレの反応")
-    all_replies = type_replies.get(style, type_replies["バランス型アイドル嬢"]) + general_replies
-    for rep in random.sample(all_replies, min(len(all_replies), 3)):
+    st.info(f"📁 {random.choice(titles)}")
+    for rep in replies:
         st.chat_message("user").write(rep)
 
-    if st.button("やり直す"):
+
+    if st.button("最初からやり直す"):
         for key in list(st.session_state.keys()): del st.session_state[key]
         st.rerun()
