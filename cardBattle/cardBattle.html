@@ -12,90 +12,40 @@
         .header { background: #1a1a2e; padding: 10px; border-bottom: 2px solid var(--accent); }
         .arena { display: flex; flex-direction: column; gap: 10px; padding: 10px; max-width: 500px; margin: 0 auto; }
         
-				.card {
-				    position: relative;
-				    width: 200px;
-				    height: 280px;
-				    background: #1a1a1a;
-				    border: 3px solid #444;
-				    border-radius: 15px;
-				    color: white;
-				}
+        .card { position: relative; width: 200px; height: 280px; background: #1a1a1a; border: 3px solid #444; border-radius: 15px; color: white; margin: 0 auto; }
+        .card-rank { position: absolute; top: 12px; left: 15px; font-size: 1.4rem; font-weight: 900; color: #fff; text-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .card-name { position: absolute; top: 15px; right: 15px; font-size: 0.8rem; color: rgba(255,255,255,0.8); font-weight: bold; }
+        .card-icon { position: absolute; top: 35px; left: 50%; transform: translateX(-50%); font-size: 4.5rem; filter: drop-shadow(0 0 10px rgba(0,0,0,0.3)); }
 
-				.card-rank { position: absolute; top: 10px; left: 10px; font-weight: bold; color: gold; font-size: 1.2rem; }
-				.card-icon { position: absolute; top: 35px; left: 50%; transform: translateX(-50%); font-size: 4rem; }
-				.card-name { position: absolute; top: 10px; right: 10px; font-size: 0.9rem; color: #ddd; }
-				        .rank-SSR { border-color: #ff00ff; animation: rainbow 2s linear infinite; }
-				        @keyframes rainbow { 0%{border-color:#ff00ff} 33%{border-color:#00ffff} 66%{border-color:#ffff00} 100%{border-color:#ff00ff} }
+        .hp-bar-fill { height: 100%; background: linear-gradient(90deg, #ff4d4d, #ff944d); transition: width 0.3s ease; }
+        .stat-row { padding: 0 15px; margin-bottom: 6px; }
+        .stat-label-container { display: flex; justify-content: space-between; font-size: 0.65rem; margin-bottom: 2px; font-weight: bold; }
+        .stat-label { color: #aaa; } .stat-value { color: #fff; }
+        .bar-bg { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+        .stat-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+        .atk-color { background: #ff4757; } .def-color { background: #1e90ff; } .spd-color { background: #2ed573; }
 
-        .rank-badge { position: absolute; top: -10px; right: -10px; padding: 2px 10px; border-radius: 6px; font-weight: bold; border: 2px solid #fff; z-index: 10; }
-        .badge-N { background: #a0522d; } .badge-R { background: #c0c0c0; color: #000; } .badge-SR { background: #ffd700; color: #000; } .badge-SSR { background: linear-gradient(45deg, #ff00ff, #00ffff); }
-
-        .hp-bar { background: #444; height: 16px; border-radius: 8px; margin: 8px 0; overflow: hidden; position: relative; }
-        .hp-fill { background: #00ff44; height: 100%; transition: width 0.3s; }
-        .hp-text { position: absolute; width: 100%; text-align: center; font-size: 0.8rem; line-height: 16px; font-weight: bold; text-shadow: 1px 1px 2px #000; }
-        
-        .info-section { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 150px; margin-top: 10px; }
+        .info-section { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 200px; margin-top: 10px; }
         .log-area { background: #16213e88; overflow-y: auto; padding: 8px; border-radius: 10px; font-size: 0.75rem; text-align: left; border: 1px solid #333; }
         
-        #tap-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); display: none; z-index: 100; cursor: pointer; align-items: center; justify-content: center; }
-        #tap-msg { background: var(--accent); padding: 20px 40px; border-radius: 40px; font-weight: bold; box-shadow: 0 0 20px rgba(233,69,96,0.5); }
+        #tap-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; z-index: 100; cursor: pointer; align-items: center; justify-content: center; flex-direction: column; }
+        #tap-msg { background: var(--accent); padding: 15px 30px; border-radius: 40px; font-weight: bold; font-size: 1.2rem; }
         #result-screen { display: none; padding: 40px 20px; }
         .btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
-
-				/* ステータス行のレイアウト */
-				.stat-row {
-				    padding: 0 15px;
-				    margin-bottom: 6px;
-				}
-
-				.stat-label-container {
-				    display: flex;
-				    justify-content: space-between;
-				    font-size: 0.65rem;
-				    margin-bottom: 2px;
-				    font-weight: bold;
-				}
-
-				.stat-label { color: #aaa; }
-				.stat-value { color: #fff; }
-
-				/* バーの共通設定 */
-				.bar-bg {
-				    height: 6px;
-				    background: rgba(255,255,255,0.1);
-				    border-radius: 3px;
-				    overflow: hidden;
-				}
-
-				.stat-bar-fill {
-				    height: 100%;
-				    border-radius: 3px;
-				    transition: width 0.3s ease;
-				}
-
-				/* ステータスごとの色 */
-				.hp-bar-fill { height: 100%; background: linear-gradient(90deg, #ff4d4d, #ff944d); transition: width 0.3s ease; }
-				.atk-color { background: #ff4757; } /* 赤：攻撃 */
-				.def-color { background: #1e90ff; border: 1px solid #70a1ff; } /* 青：防御（明るいドジャーブルー） */
-				.spd-color { background: #2ed573; } /* 緑：素早さ（鮮やかなエメラルドグリーン） */
-
-				/* カード内の絶対配置パーツ */
-				.card-rank { position: absolute; top: 12px; left: 15px; font-size: 1.4rem; font-weight: 900; color: #fff; text-shadow: 0 0 10px rgba(0,0,0,0.5); }
-				.card-name { position: absolute; top: 15px; right: 15px; font-size: 0.8rem; color: rgba(255,255,255,0.8); font-weight: bold; }
-				.card-icon { position: absolute; top: 35px; left: 50%; transform: translateX(-50%); font-size: 4.5rem; filter: drop-shadow(0 0 10px rgba(0,0,0,0.3)); }
-
     </style>
 </head>
 <body>
 
-    <div id="tap-overlay" onclick="resolveTap()"><div id="tap-msg">Next</div></div>
+    <div id="tap-overlay" onclick="resolveTap()">
+        <div style="color:white; margin-bottom:15px; font-size:0.9rem;">ホストの操作を待機中...</div>
+        <div id="tap-msg">Next</div>
+    </div>
 
     <div id="game-ui">
         <div class="header"><b>ALL-100 Survival</b></div>
         <div class="arena">
             <div id="enemy-view"></div>
-            <div id="battle-msg" style="height:60px; font-size:1.1rem; color:#f9d423; font-weight:bold; display:flex; align-items:center; justify-content:center;">対戦相手を待っています...</div>
+            <div id="battle-msg" style="height:70px; font-size:1.1rem; color:#f9d423; font-weight:bold; display:flex; align-items:center; justify-content:center; text-align:center;">接続中...</div>
             <div id="player-view"></div>
             <div class="info-section">
                 <div id="wait-list" class="log-area"><h3>👥 生存</h3><div id="wait-content"></div></div>
@@ -104,14 +54,14 @@
         </div>
     </div>
 
-    <div id="result-screen">
-        <h2>🏆 最終順位 🏆</h2>
-        <div id="rank-list" style="max-width:300px; margin: 0 auto; background:#1a1a2e; padding:20px; border-radius:15px; border:2px solid var(--accent);"></div>
-        <button class="btn" style="margin-top:20px;" onclick="location.href='lobby.html'">ロビーへ戻る</button>
-    </div>
+		<div id="result-screen">
+		    <h2>🏆 最終順位 🏆</h2>
+		    <div id="rank-list" ...></div>
+		    <button id="exit-btn" class="btn" style="margin-top:20px;">戻る</button>
+		</div>
 
 <script>
-    // --- Firebase設定 (Lobbyと同じものを貼り付け) ---
+    // --- Firebase設定 ---
     const firebaseConfig = {
         apiKey: "AIzaSyBIWXpu0NjMHZnAEYItt-AQ35JOpMOt3Sk",
         authDomain: "cardbattle-86925.firebaseapp.com",
@@ -125,400 +75,296 @@
     const db = firebase.database();
 
     const ELEMENTS = [{name:"火", icon:"🔥"}, {name:"水", icon:"💧"}, {name:"木", icon:"🍃"}, {name:"土", icon:"⛰️"}];
-    const MATRIX = [[1.0, 0.7, 2.0, 1.2], [1.5, 1.0, 0.7, 1.0], [0.7, 1.5, 1.0, 1.5], [1.0, 1.0, 0.7, 1.0]];
+    const MATRIX = [[1, 0.8, 1.2, 1], [1.2, 1, 0.8, 1], [0.8, 1.2, 1, 1], [1, 1, 1, 1]];
 
     let roomId = localStorage.getItem('multi_roomId');
     let myName = localStorage.getItem('multi_myName');
     let players = [];
     let isHost = false;
-		let currentResolve = null;
+    let currentResolve = null;
+    let ranking = [];
 
-		async function hostWaitNext(btnText) {
-		    const overlay = document.getElementById('tap-overlay');
-		    const msg = document.getElementById('tap-msg');
+    // --- 1. 初期化処理 ---
+    async function init() {
+        if (!roomId || !myName) { window.location.href = 'lobby.html'; return; }
 
-		    if (!overlay || !msg) return Promise.resolve();
+        const snap = await db.ref(`rooms/${roomId}`).once('value');
+        const data = snap.val();
+        if (!data) return;
 
-		    // 💡 画面表示の更新
-		    msg.innerText = btnText; 
-		    overlay.style.display = 'flex'; // オーバーレイを表示
+        // プレイヤーデータ構築
+        players = Object.values(data.members).map(m => {
+            const p = {
+                name: m.name,
+                isHost: m.isHost || false,
+                cards: Array.isArray(m.cards) ? JSON.parse(JSON.stringify(m.cards)) : []
+            };
+            if (p.name === myName && p.isHost) isHost = true;
 
-		    return new Promise(resolve => {
-		        // resolve を外部（resolveTap）から呼べるように保存
-		        currentResolve = resolve;
-		    });
-		}
+            p.cards.forEach(c => {
+                let hpF = c.elmIdx === 3 ? 3.0 : 2.5; 
+                c.atk = c.raw.atk * 0.6;
+                c.maxHp = Math.floor(c.raw.hp * hpF);
+                c.currentHp = c.maxHp;
+                c.spd = c.raw.spd;
+                c.def = c.raw.def * 0.3;
+            });
+            return p;
+        });
 
-		// 💡 HTMLの onclick="resolveTap()" から呼ばれる関数
-		async function resolveTap() {
-		    if (!isHost || !currentResolve) return;
-
-		    console.log("Nextがタップされました。Firebaseに通知します。");
-
-		    // 1. Firebaseに「次へ」を通知（これで自分を含む全員の updateUI が走り、オーバーレイが消える）
-		    await db.ref(`rooms/${roomId}/sync`).set({ 
-		        type: 'next',
-		        time: Date.now() 
-		    });
-
-		    // 2. プロミスを解決して、runHostLogic のループを再開させる
-		    const resolve = currentResolve;
-		    currentResolve = null;
-		    resolve();
-		}
-
-		// --- 1. 初期化処理 ---
-		async function init() {
-		    roomId = localStorage.getItem('multi_roomId');
-		    myName = localStorage.getItem('multi_myName');
-
-		    if (!roomId || !myName) {
-		        alert("セッションが切れました。ロビーに戻ります。");
-		        window.location.href = 'lobby.html';
-		        return;
-		    }
-
-		    const snap = await db.ref(`rooms/${roomId}`).once('value');
-		    const data = snap.val();
-		    
-		    if (!data || !data.members) {
-		        document.getElementById('battle-msg').innerText = "データが見つかりません";
-		        return;
-		    }
-
-		    // プレイヤーリストの構築（深いコピーで参照を切る）
-		    players = Object.values(data.members).map(m => {
-		        const p = {
-		            name: m.name,
-		            isHost: m.isHost || false,
-		            cards: Array.isArray(m.cards) ? JSON.parse(JSON.stringify(m.cards)) : []
-		        };
-		        if (p.name === myName && p.isHost === true) isHost = true;
-
-		        p.cards.forEach(c => {
-		            let hpF = c.elmIdx === 3 ? 3.0 : 2.5; 
-		            c.atk = c.raw.atk * 0.6;
-		            c.maxHp = Math.floor(c.raw.hp * hpF);
-		            c.currentHp = c.maxHp;
-		            c.spd = c.raw.spd;
-		            c.def = c.raw.def * 0.3;
-		        });
-		        return p;
-		    });
-
-		    updateWaitList();
-
-		    // 🌟 データの変更と描画の司令塔
-		    const syncRef = db.ref(`rooms/${roomId}/sync`);
-		    syncRef.off(); 
-		    syncRef.on('value', snap => {
-		        const syncData = snap.val();
-		        if (syncData) {
-		            // 💡 手順: 1.データを更新する -> 2.そのデータで描画する
-		            syncState(syncData); 
-		            updateUI(syncData);
-		        }
-		    });
-
-		    setTimeout(() => {
-		        if (isHost) {
-		            document.getElementById('battle-msg').innerText = "対戦カードを組んでいます...";
-		            runHostLogic(); 
-		        } else {
-		            document.getElementById('battle-msg').innerText = "ホストの通信を待っています...";
-		        }
-		    }, 1500);
-		}
-
-		// --- 2. データ更新専用ロジック (State Layer) ---
-		// この関数は「実体データ(players)」をいじるだけで、DOMはいじらない
-		function syncState(data) {
-		    if (data.type === 'match') {
-		        const p1 = players.find(p => p.name === data.p1Name);
-		        const p2 = players.find(p => p.name === data.p2Name);
-		        // ホストの送ってきたHPにメモリを同期
-		        if (p1 && p1.cards[0]) p1.cards[0].currentHp = data.p1Hp;
-		        if (p2 && p2.cards[0]) p2.cards[0].currentHp = data.p2Hp;
-
-		    } else if (data.type === 'turn') {
-		        const p1 = players.find(p => p.name === data.p1Name);
-		        const p2 = players.find(p => p.name === data.p2Name);
-		        // 攻撃側の特定は不要だが、HPの数値は常に最新を維持
-		        if (p1 && p1.cards[0]) p1.cards[0].currentHp = data.p1Hp;
-		        if (p2 && p2.cards[0]) p2.cards[0].currentHp = data.p2Hp;
-
-		    } else if (data.type === 'result') {
-		        const loser = players.find(p => p.name === data.loserName);
-		        if (loser && loser.cards.length > 0) {
-								if(!isHost){
-				            loser.cards.shift(); // 💡 負けたカードを1枚だけ捨てる（ここで唯一の処理）
-								}
-		        }
-		    }
-		}
-
-		// --- 3. 描画専用ロジック (View Layer) ---
-		// playersの状態を見てHTMLを作るだけ（副作用なし）
-		function updateUI(data) {
-		    const roles = ["先鋒", "中堅", "大将"];
-
-		    if (data.type === 'match') {
-		        const p1 = players.find(p => p.name === data.p1Name);
-		        const p2 = players.find(p => p.name === data.p2Name);
-		        
-		        // 役職は現在の「残り枚数」から逆算（Stateがshift済みなので正しい表示になる）
-		        const r1 = roles[Math.max(0, 3 - p1.cards.length)];
-		        const r2 = roles[Math.max(0, 3 - p2.cards.length)];
-
-		        if (p1 && p1.cards[0]) {
-		            document.getElementById('player-view').innerHTML = renderCard(p1.cards[0]);
-		            updateHpBar('#player-view', p1.cards[0].currentHp);
-		        }
-		        if (p2 && p2.cards[0]) {
-		            document.getElementById('enemy-view').innerHTML = renderCard(p2.cards[0]);
-		            updateHpBar('#enemy-view', p2.cards[0].currentHp);
-		        }
-
-		        document.getElementById('battle-msg').innerHTML = 
-		            `<span style="color:var(--accent)">${data.p1Name}の${r1}</span><br>VS<br><span style="color:#4da6ff">${data.p2Name}の${r2}</span>`;
-		            
-		    } else if (data.type === 'turn') {
-		        updateHpBar('#player-view', data.p1Hp);
-		        updateHpBar('#enemy-view', data.p2Hp);
-		        const log = document.getElementById('log-content');
-		        log.innerHTML = `<div>${data.turn}T: ${data.atkName}の攻撃！ ${data.dmg}のダメージ</div>` + log.innerHTML;
-				} else if (data.type === 'next') {
-		        // 💡 修正：ここでオーバーレイを非表示にする
-		        const overlay = document.getElementById('tap-overlay');
-		        if (overlay) {
-		            overlay.style.display = 'none';
-		        }
-		        console.log("次へ進みます（オーバーレイ非表示）");
-				} else if (data.type === 'result') {
-				    // HPバーを0にする処理などはそのまま
-				    if (data.loserSide === 'player') updateHpBar('#player-view', 0);
-				    else updateHpBar('#enemy-view', 0);
-
-						// 💡 追加：カードが減った後の生存リストを再描画する
-				    updateWaitList();
-
-				    // 💡 data.msg を表示（ここが "〇〇の先鋒が..." になります）
-				    const msgHtml = `<div style="color:gold; font-weight:bold; font-size:1.2rem; text-shadow: 0 0 10px rgba(255,215,0,0.5);">
-				                        📢 ${data.msg}
-				                      </div>`;
-				    document.getElementById('battle-msg').innerHTML = msgHtml;
-
-				    // ログにも詳細を残す
-				    const log = document.getElementById('log-content');
-				    if (log) {
-				        log.innerHTML = `<div style="background:rgba(255,215,0,0.1); padding:8px; border-radius:5px; margin:5px 0; border-left:4px solid gold;">
-				                            ⚔️ ${data.msg}
-				                          </div>` + log.innerHTML;
-				    }
-				} else if (data.type === 'finish') {
-		        showFinalResult(data.ranking);
-		    }
-		}
-
-		// --- 4. ホストロジック (Controller Layer) ---
-		// 計算してFirebaseに送るだけ。自分のUIを直接叩かない
-		async function runHostLogic() {
-		    let ranking = [];
-		    const roles = ["先鋒", "中堅", "大将"];
-		    const MATRIX = [[1, 0.8, 1.2, 1], [1.2, 1, 0.8, 1], [0.8, 1.2, 1, 1], [1, 1, 1, 1]];
-
-		    await db.ref(`rooms/${roomId}/sync`).set(null);
-
-		    while (true) {
-		        let alives = players.filter(p => p.cards && p.cards.length > 0);
-		        
-		        // 脱落ランキング更新
-		        players.forEach(p => { 
-		            if(p.cards.length === 0 && !ranking.includes(p.name)) ranking.unshift(p.name); 
-		        });
-
-		        if (alives.length <= 1) {
-		            if(alives.length === 1) ranking.unshift(alives[0].name);
-		            await db.ref(`rooms/${roomId}/sync`).set({ type: 'finish', ranking: ranking });
-		            break; 
-		        }
-
-		        let p1 = alives[Math.floor(Math.random() * alives.length)];
-		        let p2; do { p2 = alives[Math.floor(Math.random() * alives.length)]; } while(p1 === p2);
-
-		        let c1 = p1.cards[0], c2 = p2.cards[0];
-
-		        // 💡 命令を送る。自分も on('value') でこれを受け取り、描画が走る。
-		        await db.ref(`rooms/${roomId}/sync`).set({ 
-		            type: 'match', p1Name: p1.name, p1Hp: c1.currentHp, p2Name: p2.name, p2Hp: c2.currentHp 
-		        });
-		        
-		        await hostWaitNext("試合開始！");
-
-		        let turn = 0;
-		        while (c1.currentHp > 0 && c2.currentHp > 0) {
-		            turn++;
-		            let volt = turn > 20 ? 1 + (turn - 20) * 0.05 : 1.0;
-		            const isP1Attack = Math.random() * (c1.spd + c2.spd) < c1.spd;
-		            const atk = isP1Attack ? c1 : c2;
-		            const def = isP1Attack ? c2 : c1;
-		            const dmg = Math.max(1, Math.floor((atk.atk * volt) * MATRIX[atk.elmIdx][def.elmIdx] - def.def));
-		            def.currentHp -= dmg;
-
-		            await db.ref(`rooms/${roomId}/sync`).set({ 
-		                type: 'turn', turn, atkName: (isP1Attack ? p1.name : p2.name), dmg, p1Hp: c1.currentHp, p2Hp: c2.currentHp,
-		                p1Name: p1.name, p2Name: p2.name // syncState用
-		            });
-		            await new Promise(r => setTimeout(r, 600));
-		        }
-		        
-		        const isP1Win = c1.currentHp > 0;
-						const winPlayer = isP1Win ? p1 : p2;
-						const losePlayer = isP1Win ? p2 : p1;
-
-						// 💡 役職名を現在のカード枚数から取得（shiftする前の枚数で判定）
-						const winRole = roles[Math.max(0, 3 - winPlayer.cards.length)];
-						const loseRole = roles[Math.max(0, 3 - losePlayer.cards.length)];
-
-						const resultData = {
-						    type: 'result',
-						    winner: winPlayer.name,
-						    winRole: winRole,        // 🔥 追加
-						    loserName: losePlayer.name,
-						    loseRole: loseRole,      // 🔥 追加
-						    p1Hp: c1.currentHp,
-						    p2Hp: c2.currentHp,
-						    loserSide: (isP1Win ? 'enemy' : 'player'),
-						    // 💡 メッセージに役職を組み込む
-						    msg: `${winPlayer.name}の${winRole}が、${losePlayer.name}の${loseRole}を撃破！`
-						};
-
-						//	カード一枚削除
-						losePlayer.cards.shift();
-
-						// この後で Firebase に set する
-						await db.ref(`rooms/${roomId}/sync`).set(resultData);
-
-		        await hostWaitNext("次の試合へ");
-		    }
-		}
+        // 司令塔：Firebaseの sync ノードを監視
+				db.ref(`rooms/${roomId}/sync`).on('value', snap => {
+        const state = snap.val();
+        if (state) {
+            // データが届いたらUIを更新（これで「接続中」が消える）
+            updateUI(state);
+        } else if (!isHost) {
+            // 💡 データがまだ無い（ホストがまだ開始していない）ゲストへの表示
+            document.getElementById('battle-msg').innerText = "ホストの対戦開始を待っています...";
+        }
+    });
 
 
-		function runGuestLogic() {
-		    // ゲストはFirebaseの更新を監視して、届いたらUIを更新するだけ
-		    db.ref(`rooms/${roomId}/sync`).on('value', (snap) => {
-		        const data = snap.val();
-		        updateUI(data);
-		    });
-		}
-
-		function updateHpBar(targetSelector, currentHp) {
-		    const container = document.querySelector(targetSelector);
-		    if (!container) return;
-
-		    const cardEl = container.querySelector('.card');
-		    
-		    // 💡 ここが重要！カードがない、あるいは dataset が無い場合は何もしない
-		    if (!cardEl || !cardEl.dataset) {
-		        console.log("まだカードが描画されていないためHP更新をスキップします");
-		        return; 
-		    }
-
-		    const maxHp = parseFloat(cardEl.dataset.maxHp);
-		    if (isNaN(maxHp)) return;
-
-		    const hpBar = cardEl.querySelector('.hp-bar-fill');
-		    if (hpBar) {
-		        const percent = Math.max(0, (currentHp / maxHp) * 100);
-		        hpBar.style.width = percent + "%";
-		    }
-		}
-
-		function renderCard(c) {
-		    if (!c) return `<div class="card empty"><div>NO CARD</div></div>`;
-		    
-		    const icons = ["🔥", "💧", "🍃", "⛰️"];
-		    
-		    // バーの長さを計算 (最大値を100として%算出)
-		    const atkWidth = Math.min(100, (c.raw.atk / 100) * 100);
-		    const defWidth = Math.min(100, (c.raw.def / 100) * 100);
-		    const spdWidth = Math.min(100, (c.raw.spd / 100) * 100);
-
-		    return `
-		        <div class="card element-${c.elmIdx}" data-max-hp="${c.maxHp}">
-		            <div class="card-rank">${c.rank}</div>
-		            <div class="card-name">${c.pName}</div>
-		            <div class="card-icon">${icons[c.elmIdx]}</div>
-
-		            <div class="stat-row" style="margin-top: 110px;">
-		                <div class="stat-label-container">
-		                    <span class="stat-label">HP</span>
-		                    <span class="stat-value">${Math.floor(c.maxHp)}</span>
-		                </div>
-		                <div class="bar-bg">
-		                    <div class="hp-bar-fill" style="width: 100%;"></div>
-		                </div>
-		            </div>
-
-		            <div class="stat-row">
-		                <div class="stat-label-container">
-		                    <span class="stat-label">ATK</span>
-		                    <span class="stat-value">${Math.floor(c.raw.atk)}</span>
-		                </div>
-		                <div class="bar-bg">
-		                    <div class="stat-bar-fill atk-color" style="width: ${atkWidth}%;"></div>
-		                </div>
-		            </div>
-
-		            <div class="stat-row">
-		                <div class="stat-label-container">
-		                    <span class="stat-label">DEF</span>
-		                    <span class="stat-value">${Math.floor(c.raw.def)}</span>
-		                </div>
-		                <div class="bar-bg">
-		                    <div class="stat-bar-fill def-color" style="width: ${defWidth}%;"></div>
-		                </div>
-		            </div>
-
-		            <div class="stat-row">
-		                <div class="stat-label-container">
-		                    <span class="stat-label">SPD</span>
-		                    <span class="stat-value">${Math.floor(c.raw.spd)}</span>
-		                </div>
-		                <div class="bar-bg">
-		                    <div class="stat-bar-fill spd-color" style="width: ${spdWidth}%;"></div>
-		                </div>
-		            </div>
-		        </div>
-		    `;
-		}
-
-		function updateWaitList() {
-		    const container = document.getElementById('wait-content');
-		    if (!container) return;
-
-		    // カードが1枚以上ある人だけを表示する、または残り枚数を表示する
-		    let html = "";
-		    players.forEach(p => {
-		        const count = p.cards ? p.cards.length : 0;
-		        const status = count > 0 ? "生存" : "脱落";
-		        const color = count > 0 ? "#4da6ff" : "#888";
-		        
-		        html += `<div style="margin-bottom:5px; color:${color}">
-		                    ${p.name} : ${'★'.repeat(count)}${'☆'.repeat(3-count)} (${status})
-		                 </div>`;
-		    });
-		    container.innerHTML = html;
-		}
-
-    function showFinalResult(ranking) {
-        document.getElementById('game-ui').style.display = 'none';
-        document.getElementById('result-screen').style.display = 'block';
-        document.getElementById('rank-list').innerHTML = ranking.map((name, i) => `
-            <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #333; ${i===0?'color:gold; font-weight:bold;':''}">
-                <span>${i+1}位</span><span>${name}</span>
-            </div>`).join('');
+        if (isHost) {
+            setTimeout(runHostLogic, 1000);
+        }
     }
+
+    // --- 2. 状態放送 (Host Only) ---
+    async function broadcastState(phase, extra = {}) {
+        if (!isHost) return;
+        const state = {
+            phase: phase,
+            players: players.map(p => ({
+                name: p.name,
+                cardCount: p.cards.length,
+                hp: p.cards[0] ? p.cards[0].currentHp : 0,
+                maxHp: p.cards[0] ? p.cards[0].maxHp : 0
+            })),
+            battle: {
+                p1Name: extra.p1Name || "",
+                p2Name: extra.p2Name || "",
+                msg: extra.msg || "",
+                log: extra.log || "",
+                btnText: extra.btnText || "次へ"
+            },
+            ranking: ranking,
+            time: Date.now()
+        };
+        await db.ref(`rooms/${roomId}/sync`).set(state);
+    }
+
+    // --- 3. 描画・同期ロジック (View Layer) ---
+    function updateUI(state) {
+        // A. データの完全同期（自己修復）
+        state.players.forEach(remoteP => {
+            const localP = players.find(p => p.name === remoteP.name);
+            if (localP) {
+                // 枚数を合わせる
+                while (localP.cards.length > remoteP.cardCount) localP.cards.shift();
+                // 現在のカードのHPを合わせる
+                if (localP.cards[0]) {
+                    localP.cards[0].currentHp = remoteP.hp;
+                    localP.cards[0].maxHp = remoteP.maxHp;
+                }
+            }
+        });
+        ranking = state.ranking || [];
+
+        // B. バトル画面の描画
+        const p1 = players.find(p => p.name === state.battle.p1Name);
+        const p2 = players.find(p => p.name === state.battle.p2Name);
+
+        if (p1 && p1.cards[0]) {
+            document.getElementById('player-view').innerHTML = renderCard(p1.cards[0]);
+            updateHpBar('#player-view', p1.cards[0].currentHp);
+        }
+        if (p2 && p2.cards[0]) {
+            document.getElementById('enemy-view').innerHTML = renderCard(p2.cards[0]);
+            updateHpBar('#enemy-view', p2.cards[0].currentHp);
+        }
+
+        // C. メッセージとログ
+        if (state.battle.msg) document.getElementById('battle-msg').innerHTML = state.battle.msg;
+        if (state.battle.log) {
+            const logContent = document.getElementById('log-content');
+            logContent.innerHTML = `<div>${state.battle.log}</div>` + logContent.innerHTML;
+        }
+
+        // D. 各種リスト
+        updateWaitList();
+
+        // E. オーバーレイ
+        const overlay = document.getElementById('tap-overlay');
+        if (state.phase === 'wait_next') {
+            if (isHost) {
+                document.getElementById('tap-msg').innerText = state.battle.btnText;
+                overlay.style.display = 'flex';
+            }
+        } else {
+            overlay.style.display = 'none';
+        }
+
+        if (state.phase === 'finish') showFinalResult(ranking);
+    }
+
+    // --- 4. ホストロジック (Logic Layer) ---
+    async function runHostLogic() {
+        ranking = [];
+        const roles = ["先鋒", "中堅", "大将"];
+
+				// 開始直後にまず「準備中」の状態をブロードキャストする
+		    await broadcastState('ready', { msg: "対戦カードを組んでいます..." });
+		    await new Promise(r => setTimeout(r, 1000)); // 少し待機してゲストの接続時間を確保
+
+        while (true) {
+            let alives = players.filter(p => p.cards.length > 0);
+            
+            if (alives.length <= 1) {
+                if (alives.length === 1 && !ranking.includes(alives[0].name)) ranking.unshift(alives[0].name);
+                await broadcastState('finish');
+                break;
+            }
+
+            // マッチング
+            let p1 = alives[Math.floor(Math.random() * alives.length)];
+            let p2; do { p2 = alives[Math.floor(Math.random() * alives.length)]; } while(p1 === p2);
+
+            const r1 = roles[Math.max(0, 3 - p1.cards.length)];
+            const r2 = roles[Math.max(0, 3 - p2.cards.length)];
+
+            await broadcastState('match', { 
+                p1Name: p1.name, p2Name: p2.name, 
+                msg: `<span style="color:var(--accent)">${p1.name}の${r1}</span> VS <span style="color:#4da6ff">${p2.name}の${r2}</span>` 
+            });
+            await hostWaitNext("試合開始！");
+
+            // バトル
+            let c1 = p1.cards[0], c2 = p2.cards[0];
+            let turn = 0;
+            while (c1.currentHp > 0 && c2.currentHp > 0) {
+                turn++;
+                let volt = turn > 20 ? 1 + (turn - 20) * 0.05 : 1.0;
+                const isP1Attack = Math.random() * (c1.spd + c2.spd) < c1.spd;
+                const atk = isP1Attack ? c1 : c2;
+                const def = isP1Attack ? c2 : c1;
+                const dmg = Math.max(1, Math.floor((atk.atk * volt) * MATRIX[atk.elmIdx][def.elmIdx] - def.def));
+                def.currentHp -= dmg;
+
+                await broadcastState('turn', { 
+                    p1Name: p1.name, p2Name: p2.name,
+                    log: `${turn}T: ${isP1Attack?p1.name:p2.name}の攻撃！ ${dmg}dmg` 
+                });
+                await new Promise(r => setTimeout(r, 600));
+            }
+
+            // 決着処理
+            const winPlayer = c1.currentHp > 0 ? p1 : p2;
+            const losePlayer = c1.currentHp > 0 ? p2 : p1;
+            const winRole = roles[Math.max(0, 3 - winPlayer.cards.length)];
+            const loseRole = roles[Math.max(0, 3 - losePlayer.cards.length)];
+
+            await broadcastState('result', { 
+                p1Name: p1.name, p2Name: p2.name,
+                msg: `<div style="color:gold">📢 ${winPlayer.name}の${winRole}が<br>${losePlayer.name}の${loseRole}を撃破！</div>` 
+            });
+            await hostWaitNext("次の試合へ");
+
+            losePlayer.cards.shift(); // ホスト側でカードを減らす
+            if (losePlayer.cards.length === 0) ranking.unshift(losePlayer.name);
+        }
+    }
+
+    // --- その他ツール関数 ---
+    async function hostWaitNext(btnText) {
+        await broadcastState('wait_next', { btnText: btnText });
+        return new Promise(resolve => { currentResolve = resolve; });
+    }
+
+    async function resolveTap() {
+        if (!isHost || !currentResolve) return;
+        const res = currentResolve;
+        currentResolve = null;
+        res();
+    }
+
+    function updateHpBar(selector, currentHp) {
+        const cardEl = document.querySelector(`${selector} .card`);
+        if (!cardEl) return;
+        const maxHp = parseFloat(cardEl.dataset.maxHp);
+        const hpBar = cardEl.querySelector('.hp-bar-fill');
+        if (hpBar) hpBar.style.width = Math.max(0, (currentHp / maxHp) * 100) + "%";
+    }
+
+    function renderCard(c) {
+        if (!c) return "";
+        const icons = ["🔥", "💧", "🍃", "⛰️"];
+        return `
+            <div class="card" data-max-hp="${c.maxHp}">
+                <div class="card-rank">${c.rank}</div>
+                <div class="card-name">${c.pName}</div>
+                <div class="card-icon">${icons[c.elmIdx]}</div>
+                <div class="stat-row" style="margin-top: 110px;">
+                    <div class="stat-label-container"><span class="stat-label">HP</span><span class="stat-value">${Math.floor(c.currentHp)}</span></div>
+                    <div class="bar-bg"><div class="hp-bar-fill" style="width:100%"></div></div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-label-container"><span class="stat-label">ATK</span><span class="stat-value">${Math.floor(c.raw.atk)}</span></div>
+                    <div class="bar-bg"><div class="stat-bar-fill atk-color" style="width:${Math.min(100, c.raw.atk)}%"></div></div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-label-container"><span class="stat-label">DEF</span><span class="stat-value">${Math.floor(c.raw.def)}</span></div>
+                    <div class="bar-bg"><div class="stat-bar-fill def-color" style="width:${Math.min(100, c.raw.def)}%"></div></div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-label-container"><span class="stat-label">SPD</span><span class="stat-value">${Math.floor(c.raw.spd)}</span></div>
+                    <div class="bar-bg"><div class="stat-bar-fill spd-color" style="width:${Math.min(100, c.raw.spd)}%"></div></div>
+                </div>
+            </div>`;
+    }
+
+    function updateWaitList() {
+        const container = document.getElementById('wait-content');
+        if (!container) return;
+        container.innerHTML = players.map(p => {
+            const count = p.cards.length;
+            return `<div style="margin-bottom:5px; color:${count>0?'#4da6ff':'#888'}">
+                ${p.name} : ${'★'.repeat(count)}${'☆'.repeat(3-count)}
+            </div>`;
+        }).join('');
+    }
+
+		function showFinalResult(ranking) {
+		    document.getElementById('game-ui').style.display = 'none';
+		    document.getElementById('result-screen').style.display = 'block';
+		    
+		    // ランキング描画
+		    document.getElementById('rank-list').innerHTML = ranking.map((name, i) => `
+		        <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #333; ${i===0?'color:gold; font-weight:bold;':''}">
+		            <span>${i+1}位</span><span>${name}</span>
+		        </div>`).join('');
+
+		    // 💡 ボタンの切り替えロジック
+		    const exitBtn = document.getElementById('exit-btn');
+		    if (isHost) {
+		        exitBtn.innerText = "ロビーへ戻る";
+		        exitBtn.onclick = () => {
+		            // ホストは部屋を片付けてから戻る（必要に応じて）
+		            location.href = 'lobby.html';
+		        };
+		    } else {
+		        exitBtn.innerText = "終了する";
+		        exitBtn.onclick = () => {
+		            // タブを閉じる試行
+		            window.opener = null;
+		            window.open('', '_self').close();
+		            window.close();
+		            
+		            // 万が一閉じられなかった時のためのメッセージ
+		            alert("対戦ありがとうございました！このタブを閉じて終了してください。");
+		        };
+		    }
+		}
 
     init();
 </script>

@@ -93,7 +93,7 @@
 		</div>
 
     <div id="host-qr-area" class="section hidden">
-        <h2 style="margin:0;">READY TO BATTLE</h2>
+        <h2 style="margin:0;">参加者はQRコードを読み取ってください</h2>
         <div id="qrcode"></div>
         <p style="font-size:0.8rem; color:#aaa; margin-bottom:5px;">招待URL（コピーして送信）</p>
         <div id="display-invite-url" class="invite-url-box"></div>
@@ -112,6 +112,7 @@
     <div id="setup-area" class="section hidden">
         <h2 id="display-name"></h2>
         <div id="card-list"></div>
+				↑↓を押して出陣順番を決めてください。<br>
         <button class="btn" onclick="sendReady()">準備完了！</button>
     </div>
 
@@ -236,7 +237,7 @@ const firebaseConfig = {
                 if (setupBtn) {
                     const canGo = memberArray.length >= 2;
                     setupBtn.disabled = !canGo;
-                    if (canGo) setupBtn.innerText = "全員揃ったので設定へ進む";
+                    if (canGo) setupBtn.innerText = "全員揃ったら次へ進む";
                 }
 
                 const startBtn = document.getElementById('start-btn');
