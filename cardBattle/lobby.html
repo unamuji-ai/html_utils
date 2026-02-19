@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Multi-Lobby - ALL-100</title>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root { --bg: #0b0e14; --accent: #e94560; }
+        body { font-family: sans-serif; background: var(--bg); color: white; text-align: center; padding: 20px; }
+        .section { background: #1a1a2e; padding: 20px; border-radius: 12px; max-width: 400px; margin: 20px auto; border: 1px solid #333; }
+        input { padding: 15px; width: 85%; margin: 15px 0; border-radius: 8px; border: none; font-size: 1.1rem; background: #222; color: white; text-align: center; }
+        .btn { background: var(--accent); color: white; border: none; padding: 15px 24px; border-radius: 30px; cursor: pointer; font-weight: bold; width: 90%; margin: 10px 0; font-size: 1rem; transition: 0.3s; }
+        .btn:disabled { background: #444; cursor: not-allowed; opacity: 0.6; }
+        #qrcode { background: white; padding: 15px; display: inline-block; margin: 15px 0; border-radius: 12px; }
+        
+        /* 招待URLの表示スタイル */
+        .invite-url-box { 
+            background: #0b0e14; padding: 10px; border-radius: 8px; font-size: 0.75rem; 
+            word-break: break-all; color: #aaa; border: 1px solid #333; margin: 10px 0;
+            user-select: all; /* クリックで全選択しやすくする */
+        }
+        
+        .member-tag { display: inline-block; background: #16213e; padding: 8px 15px; margin: 5px; border-radius: 20px; border: 1px solid var(--accent); font-size: 0.9rem; }
+        .setup-item { display: flex; justify-content: space-between; align-items: center; background: #16213e; padding: 12px; margin: 8px 0; border-radius: 8px; border-left: 4px solid var(--accent); }
+        .hidden { display: none; }
+        h1 { font-size: 1.8rem; letter-spacing: 2px; color: var(--accent); margin-bottom: 0; }
+        .status-msg { font-size: 0.9rem; color: #888; margin-bottom: 20px; }
+
+		/* --- 名前入力欄の強化スタイル --- */
+		    .input-container {
+		        margin: 25px 0;
+		        text-align: left;
+		    }
+		    .input-label {
+		        font-size: 0.8rem;
+		        font-weight: bold;
+		        color: var(--accent);
+		        margin-left: 10px;
+		        margin-bottom: 5px;
+		        display: block;
+		        letter-spacing: 1px;
+		    }
+		    input#user-name {
+		        padding: 18px;
+		        width: 100%;
+		        box-sizing: border-box; /* 幅のズレ防止 */
+		        border-radius: 12px;
+		        border: 2px solid #333;
+		        font-size: 1.2rem;
+		        background: #1a1a2e;
+		        color: white;
+		        text-align: center;
+		        transition: all 0.3s ease;
+		        outline: none;
+		        box-shadow: inset 0 2px 4px rgba(0,0,0,0.5);
+		    }
+		    /* フォーカス（選択）された時の派手な演出 */
+		    input#user-name:focus {
+		        border-color: var(--accent);
+		        background: #252545;
+		        box-shadow: 0 0 15px rgba(233, 69, 96, 0.4);
+		        transform: translateY(-2px);
+		    }
+		    /* プレースホルダーの色を少し明るく */
+		    input#user-name::placeholder {
+		        color: #aaa;
+		        font-size: 1rem;
+		    }
+
+    </style>
+</head>
+<body>
+
+		<div id="auth-area" class="section">
+		    <h1>ALL-100</h1>
+		    <p class="status-msg">Survival Card Battle</p>
+		    
+		    <div class="input-container">
+		        <label class="input-label">PLAYER NAME</label>
+		        <input type="text" id="user-name" placeholder="名前を入力してください" maxlength="10">
+		    </div>
+		    
+		    <div id="init-buttons">
+		        <button class="btn" id="btn-create" onclick="startAsHost()">新しく部屋を作る</button>
+		        <div id="guest-mode-msg" class="hidden" style="color: gold; margin-top: 10px; background: rgba(255,215,0,0.1); padding: 10px; border-radius: 8px;">
+		            <p style="margin: 0 0 10px 0;">🎮 招待URLから参加中</p>
+		            <button class="btn" onclick="startAsGuest()">この名前で参加する</button>
+		        </div>
+		    </div>
+		</div>
+
+    <div id="host-qr-area" class="section hidden">
+        <h2 style="margin:0;">READY TO BATTLE</h2>
+        <div id="qrcode"></div>
+        <p style="font-size:0.8rem; color:#aaa; margin-bottom:5px;">招待URL（コピーして送信）</p>
+        <div id="display-invite-url" class="invite-url-box"></div>
+        
+        <div id="host-member-list" style="min-height: 60px; margin: 15px 0; border-top: 1px solid #333; padding-top: 15px;">
+        </div>
+        <button id="btn-go-setup" class="btn" onclick="broadcastSetup()" disabled>参加者を待っています...</button>
+    </div>
+
+    <div id="guest-wait-area" class="section hidden">
+        <h2>参加しました！</h2>
+        <p>ホストが開始するまでお待ちください...</p>
+        <div id="guest-member-list"></div>
+    </div>
+
+    <div id="setup-area" class="section hidden">
+        <h2 id="display-name"></h2>
+        <div id="card-list"></div>
+        <button class="btn" onclick="sendReady()">準備完了！</button>
+    </div>
+
+    <div id="waiting-area" class="section hidden">
+        <h2>最終確認</h2>
+        <div id="ready-member-list" style="margin: 20px 0;"></div>
+        <button id="start-btn" class="btn hidden" onclick="triggerBattle()">バトル開始！</button>
+    </div>
+
+<script>
+const firebaseConfig = {
+        apiKey: "AIzaSyBIWXpu0NjMHZnAEYItt-AQ35JOpMOt3Sk",
+        authDomain: "cardbattle-86925.firebaseapp.com",
+        databaseURL: "https://cardbattle-86925-default-rtdb.firebaseio.com",
+        projectId: "cardbattle-86925",
+        storageBucket: "cardbattle-86925.firebasestorage.app",
+        messagingSenderId: "1014522332791",
+        appId: "1:1014522332791:web:d515e72f3547744ef06872"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    // 💡 エラー防止：lobby.htmlではこの関数は何もしないように定義
+    function updateHpBar() { return; }
+
+    let myCards = [];
+    let myName = "";
+    let roomId = "";
+    let isHost = false;
+
+    const params = new URLSearchParams(window.location.search);
+    const urlRoomId = params.get('room');
+
+    window.onload = () => {
+        if (urlRoomId) {
+            document.getElementById('btn-create').classList.add('hidden');
+            document.getElementById('guest-mode-msg').classList.remove('hidden');
+            roomId = urlRoomId;
+        }
+    };
+
+    // 💡 ホスト開始処理：順番を「UI確定 → 通信開始」に徹底分離
+    async function startAsHost() {
+        myName = document.getElementById('user-name').value;
+        if (!myName) return alert("名前を入力してください");
+        
+        isHost = true;
+        roomId = Math.floor(1000 + Math.random() * 9000).toString();
+
+        // 1. UIを先に切り替える
+        document.getElementById('auth-area').classList.add('hidden');
+        document.getElementById('host-qr-area').classList.remove('hidden');
+
+        // 2. 招待URLとQRを表示
+        const joinUrl = window.location.origin + window.location.pathname + "?room=" + roomId;
+        document.getElementById('display-invite-url').innerText = joinUrl;
+        const qrEl = document.getElementById("qrcode");
+        qrEl.innerHTML = ""; 
+        new QRCode(qrEl, { text: joinUrl, width: 180, height: 180 });
+
+        // 💡 3. ブラウザの描画完了を待ってからFirebaseを触る (最重要)
+        setTimeout(async () => {
+            listenMembers(); // リスナー開始
+
+            // 一括更新(update)で通信回数を減らし、SDKの負荷を下げる
+            const updates = {};
+            updates[`rooms/${roomId}/state`] = 'waiting';
+            updates[`rooms/${roomId}/members/${myName}`] = { 
+                name: myName, 
+                isHost: true, 
+                ready: false 
+            };
+            
+            try {
+                await db.ref().update(updates);
+            } catch (e) {
+                console.error("Firebase初期化エラー:", e);
+            }
+        }, 300); 
+    }
+
+    async function startAsGuest() {
+        myName = document.getElementById('user-name').value;
+        if (!myName) return alert("名前を入力してください");
+        
+        isHost = false;
+        
+        // ゲストもUI切り替えを先に行う
+        document.getElementById('auth-area').classList.add('hidden');
+        document.getElementById('guest-wait-area').classList.remove('hidden');
+
+        setTimeout(async () => {
+            await db.ref(`rooms/${roomId}/members/${myName}`).set({ name: myName, isHost: false, ready: false });
+            listenMembers();
+        }, 300);
+    }
+
+    function listenMembers() {
+        if (!roomId) return;
+        
+        const memberRef = db.ref(`rooms/${roomId}/members`);
+        memberRef.off(); // 二重登録防止
+
+        memberRef.on('value', snap => {
+            const members = snap.val() || {};
+            const memberArray = Object.values(members);
+            const listHtml = memberArray.map(m => `<span class="member-tag">👤 ${m.name}</span>`).join('');
+            
+            // 各要素の存在を確認しながら更新（datasetエラー対策のガード）
+            const readyList = document.getElementById('ready-member-list');
+            if (readyList) {
+                readyList.innerHTML = memberArray.map(m => 
+                    `<div style="margin:10px; font-size:1.1rem;">${m.ready ? '✅' : '⏳'} ${m.name}</div>`
+                ).join('');
+            }
+
+            if (isHost) {
+                const hostList = document.getElementById('host-member-list');
+                if (hostList) hostList.innerHTML = listHtml;
+
+                const setupBtn = document.getElementById('btn-go-setup');
+                if (setupBtn) {
+                    const canGo = memberArray.length >= 2;
+                    setupBtn.disabled = !canGo;
+                    if (canGo) setupBtn.innerText = "全員揃ったので設定へ進む";
+                }
+
+                const startBtn = document.getElementById('start-btn');
+                if (startBtn && memberArray.length >= 2 && memberArray.every(m => m.ready)) {
+                    startBtn.classList.remove('hidden');
+                }
+            } else {
+                const guestList = document.getElementById('guest-member-list');
+                if (guestList) guestList.innerHTML = listHtml;
+            }
+        });
+
+        const stateRef = db.ref(`rooms/${roomId}/state`);
+        stateRef.off();
+        stateRef.on('value', snap => {
+            const state = snap.val();
+            if (state === 'start') {
+                localStorage.setItem('multi_roomId', roomId);
+                localStorage.setItem('multi_myName', myName);
+                window.location.href = `cardBattle.html?room=${roomId}&name=${encodeURIComponent(myName)}`;
+            } else if (state === 'setup') {
+                // すでにsetup画面なら二重に実行しない
+                if (document.getElementById('setup-area').classList.contains('hidden')) {
+                    startSetup();
+                }
+            }
+        });
+    }
+
+    function broadcastSetup() {
+        db.ref(`rooms/${roomId}/state`).set('setup');
+        startSetup();
+    }
+
+    function startSetup() {
+        document.getElementById('host-qr-area').classList.add('hidden');
+        document.getElementById('guest-wait-area').classList.add('hidden');
+        document.getElementById('setup-area').classList.remove('hidden');
+        document.getElementById('display-name').innerText = myName;
+        
+        // カード生成
+        myCards = [generateCard(myName), generateCard(myName), generateCard(myName)];
+        renderSetup();
+    }
+
+    function generateCard(pName) {
+        const raw = { 
+            atk: Math.floor(Math.random()*91)+10, 
+            hp: Math.floor(Math.random()*91)+10, 
+            spd: Math.floor(Math.random()*91)+10, 
+            def: Math.floor(Math.random()*101), 
+            elm: Math.floor(Math.random()*4) 
+        };
+        const total = raw.atk + raw.hp + raw.spd + raw.def;
+        let rank = total >= 320 ? "SSR" : total >= 240 ? "SR" : total >= 160 ? "R" : "N";
+        return { pName: pName, rank: rank, raw: raw, elmIdx: raw.elm };
+    }
+
+    function renderSetup() {
+        const icons = ["🔥", "💧", "🍃", "⛰️"];
+        const listEl = document.getElementById('card-list');
+        if (!listEl) return;
+        
+        listEl.innerHTML = myCards.map((c, i) => `
+            <div class="setup-item">
+                <span style="font-weight:bold; color:var(--accent)">[${c.rank}]</span>
+                <span>${icons[c.elmIdx]} ${c.raw.atk}/${c.raw.hp}/${c.raw.spd}</span>
+                <div>
+                    <button style="padding:5px 10px;" onclick="swap(${i},${i-1})">↑</button>
+                    <button style="padding:5px 10px;" onclick="swap(${i},${i+1})">↓</button>
+                </div>
+            </div>`).join('');
+    }
+
+    function swap(i, j) {
+        if(j<0 || j>2) return;
+        [myCards[i], myCards[j]] = [myCards[j], myCards[i]];
+        renderSetup();
+    }
+
+    function sendReady() {
+        db.ref(`rooms/${roomId}/members/${myName}`).update({ cards: myCards, ready: true });
+        document.getElementById('setup-area').classList.add('hidden');
+        document.getElementById('waiting-area').classList.remove('hidden');
+    }
+
+    function triggerBattle() {
+        localStorage.setItem('multi_roomId', roomId);
+        localStorage.setItem('multi_myName', myName);
+        db.ref(`rooms/${roomId}/state`).set('start');
+    }
+</script>
+
+</body>
+</html>
