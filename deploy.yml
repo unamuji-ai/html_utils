@@ -1,7 +1,7 @@
 name: Deploy to GitHub Pages
 on:
   push:
-    branches: [main] # ‚ ‚È‚½‚Ìƒuƒ‰ƒ“ƒ`–¼‚É‡‚í‚¹‚Ä‚­‚¾‚³‚¢
+    branches: [main] # ã‚ãªãŸã®ãƒ–ãƒ©ãƒ³ãƒåã«åˆã‚ã›ã¦ãã ã•ã„
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -20,5 +20,5 @@ jobs:
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: cyber-app/dist # ƒrƒ‹ƒhŒã‚ÌƒtƒHƒ‹ƒ_
-          branch: gh-pages # ŒöŠJê—p‚Ìƒuƒ‰ƒ“ƒ`‚ğ©“®ì¬
+          folder: cyber-app/dist # ãƒ“ãƒ«ãƒ‰å¾Œã®ãƒ•ã‚©ãƒ«ãƒ€
+          branch: gh-pages # å…¬é–‹å°‚ç”¨ã®ãƒ–ãƒ©ãƒ³ãƒã‚’è‡ªå‹•ä½œæˆ
