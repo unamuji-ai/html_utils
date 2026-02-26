@@ -38,6 +38,7 @@ function App() {
       backgroundColor: '#000', 
       color: isAlert ? '#ff0000' : '#00ff41', 
       height: '100vh', 
+      width: '100vw',
       padding: '20px', 
       fontFamily: '"Courier New", Courier, monospace',
       display: 'flex',
