@@ -1,9 +1,5 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-// https://vite.dev/config/
+// fakeControllApp/cyber-app/vite.config.js
 export default defineConfig({
   plugins: [react()],
-  // ブラウザが JS や CSS を探しに行けるように、公開URLのルートを指定します
-  base: '/html_utils/',
+  base: '/html_utils/fakeControllApp/cyber-app/dist/', 
 })
