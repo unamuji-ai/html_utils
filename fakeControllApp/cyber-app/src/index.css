@@ -1,14 +1,50 @@
-/* 余計な余白を消して、画面いっぱいに広げる */
-body, html {
+/* ブラウザの基本設定をリセット */
+html, body {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
+  background-color: #000;
   overflow: hidden; /* スクロールを禁止してアプリ感を出す */
-  background-color: black;
+  position: fixed; /* スマホの引っ張り更新などを防ぐ */
 }
 
 #root {
   width: 100%;
   height: 100%;
+}
+
+/* 心電図（ECG）走査アニメーションの定義 */
+@keyframes ecg-scan {
+  0% { stroke-dashoffset: 1000; } 
+  100% { stroke-dashoffset: 0; } 
+}
+
+/* 心電図のフェードアウトマスク移動アニメーション */
+@keyframes ecg-trace-mask {
+  0% { 
+    transform: translateX(-100px); /* マスクの幅分、左から開始 */
+  }
+  100% { 
+    transform: translateX(500px); /* 画面の一番右（SVGの500）まで突き抜ける */
+  }
+}
+
+/* src/index.css に追加 */
+
+/* 周辺の赤色が「鼓動」するように明滅するアニメーション */
+@keyframes vignette-pulse {
+  0% { 
+    opacity: 0.1; /* ほぼ透明から開始 */
+    transform: scale(1);
+  }
+  50% { 
+    /* JSで計算された「syncに応じた濃さ」まで上げる */
+    opacity: var(--max-opacity); 
+    transform: scale(1.1);
+  }
+  100% { 
+    opacity: 0.1; 
+    transform: scale(1);
+  }
 }
