@@ -1,12 +1,12 @@
-/* ƒuƒ‰ƒEƒU‚ÌŠî–{İ’è‚ğƒŠƒZƒbƒg */
+/* ãƒ–ãƒ©ã‚¦ã‚¶ã®åŸºæœ¬è¨­å®šã‚’ãƒªã‚»ãƒƒãƒˆ */
 html, body {
   margin: 0;
   padding: 0;
   width: 100%;
   height: 100%;
   background-color: #000;
-  overflow: hidden; /* ƒXƒNƒ[ƒ‹‚ğ‹Ö~‚µ‚ÄƒAƒvƒŠŠ´‚ğo‚· */
-  position: fixed; /* ƒXƒ}ƒz‚Ìˆø‚Á’£‚èXV‚È‚Ç‚ğ–h‚® */
+  overflow: hidden; /* ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«ã‚’ç¦æ­¢ã—ã¦ã‚¢ãƒ—ãƒªæ„Ÿã‚’å‡ºã™ */
+  position: fixed; /* ã‚¹ãƒãƒ›ã®å¼•ã£å¼µã‚Šæ›´æ–°ãªã©ã‚’é˜²ã */
 }
 
 #root {
@@ -14,32 +14,32 @@ html, body {
   height: 100%;
 }
 
-/* S“d}iECGj‘–¸ƒAƒjƒ[ƒVƒ‡ƒ“‚Ì’è‹` */
+/* å¿ƒé›»å›³ï¼ˆECGï¼‰èµ°æŸ»ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã®å®šç¾© */
 @keyframes ecg-scan {
   0% { stroke-dashoffset: 1000; } 
   100% { stroke-dashoffset: 0; } 
 }
 
-/* S“d}‚ÌƒtƒF[ƒhƒAƒEƒgƒ}ƒXƒNˆÚ“®ƒAƒjƒ[ƒVƒ‡ƒ“ */
+/* å¿ƒé›»å›³ã®ãƒ•ã‚§ãƒ¼ãƒ‰ã‚¢ã‚¦ãƒˆãƒã‚¹ã‚¯ç§»å‹•ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ */
 @keyframes ecg-trace-mask {
   0% { 
-    transform: translateX(-100px); /* ƒ}ƒXƒN‚Ì••ªA¶‚©‚çŠJn */
+    transform: translateX(-100px); /* ãƒã‚¹ã‚¯ã®å¹…åˆ†ã€å·¦ã‹ã‚‰é–‹å§‹ */
   }
   100% { 
-    transform: translateX(500px); /* ‰æ–Ê‚Ìˆê”Ô‰EiSVG‚Ì500j‚Ü‚Å“Ë‚«”²‚¯‚é */
+    transform: translateX(500px); /* ç”»é¢ã®ä¸€ç•ªå³ï¼ˆSVGã®500ï¼‰ã¾ã§çªãæŠœã‘ã‚‹ */
   }
 }
 
-/* src/index.css ‚É’Ç‰Á */
+/* src/index.css ã«è¿½åŠ  */
 
-/* ü•Ó‚ÌÔF‚ªuŒÛ“®v‚·‚é‚æ‚¤‚É–¾–Å‚·‚éƒAƒjƒ[ƒVƒ‡ƒ“ */
+/* å‘¨è¾ºã®èµ¤è‰²ãŒã€Œé¼“å‹•ã€ã™ã‚‹ã‚ˆã†ã«æ˜æ»…ã™ã‚‹ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ */
 @keyframes vignette-pulse {
   0% { 
-    opacity: 0.1; /* ‚Ù‚Ú“§–¾‚©‚çŠJn */
+    opacity: 0.1; /* ã»ã¼é€æ˜ã‹ã‚‰é–‹å§‹ */
     transform: scale(1);
   }
   50% { 
-    /* JS‚ÅŒvZ‚³‚ê‚½usync‚É‰‚¶‚½”Z‚³v‚Ü‚Åã‚°‚é */
+    /* JSã§è¨ˆç®—ã•ã‚ŒãŸã€Œsyncã«å¿œã˜ãŸæ¿ƒã•ã€ã¾ã§ä¸Šã’ã‚‹ */
     opacity: var(--max-opacity); 
     transform: scale(1.1);
   }
@@ -47,4 +47,27 @@ html, body {
     opacity: 0.1; 
     transform: scale(1);
   }
+}
+/* src/index.css ã®æœ«å°¾ã«è¿½åŠ  */
+
+/* 100%æ™‚ã®ç”»é¢å…¨ä½“ã®ã‚·ã‚§ã‚¤ã‚¯ï¼ˆéœ‡ãˆï¼‰ */
+@keyframes max-shake {
+  0% { transform: translate(1px, 1px); }
+  25% { transform: translate(-1px, -1px); }
+  50% { transform: translate(1px, -1px); }
+  75% { transform: translate(-1px, 1px); }
+  100% { transform: translate(1px, 1px); }
+}
+
+/* æ”¯é…ãƒ†ã‚­ã‚¹ãƒˆã®ç¥¸ã€…ã—ã„ç‚¹æ»…ï¼ˆstepsé–¢æ•°ã§ãƒ‘ã‚­ãƒ‘ã‚­ç‚¹æ»…ï¼‰ */
+@keyframes text-blink {
+  0% { opacity: 1; filter: brightness(1.5) contrast(2); }
+  100% { opacity: 0.2; filter: brightness(0.5) contrast(0.5); }
+}
+
+/* ã‚²ãƒ¼ã‚¸æ˜æ»…ç”¨ï¼ˆæ—¢å­˜ã®ã‚‚ã®ã‚’æµç”¨ãƒ»èª¿æ•´ï¼‰ */
+@keyframes vignette-pulse {
+  0% { opacity: 1; }
+  50% { opacity: 0.4; }
+  100% { opacity: 1; }
 }
