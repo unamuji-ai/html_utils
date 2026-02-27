@@ -1,24 +1,43 @@
 name: Deploy to GitHub Pages
+
 on:
   push:
-    branches: [main] # あなたのブランチ名に合わせてください
+    branches: [main]
+
+# GitHub Actions モードでデプロイするために必要な権限設定
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: 20
+
       - name: Install and Build
         run: |
           cd cyber-app
           npm install
           npm run build
-      - name: Deploy
-        uses: JamesIves/github-pages-deploy-action@v4
+
+      # --- ここからが GitHub Actions モード専用の書き方 ---
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
         with:
-          folder: cyber-app/dist # ビルド後のフォルダ
-          branch: gh-pages # 公開専用のブランチを自動作成
+          # ビルドされたフォルダを指定
+          path: 'cyber-app/dist'
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

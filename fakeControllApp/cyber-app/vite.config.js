@@ -5,5 +5,5 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   // ブラウザが JS や CSS を探しに行けるように、公開URLのルートを指定します
-  base: '/html_utils/fakeControllApp/cyber-app/dist/',
+  base: '/html_utils/',
 })
