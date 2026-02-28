@@ -5,5 +5,5 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   // リポジトリ名に合わせてパスを指定
-  base: '/html_utils/', 
+  base: '/html_utils/fakeControllApp/cyber-app/dist/', 
 })
