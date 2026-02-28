@@ -1,11 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
+const base = import.meta.env.BASE_URL; // これが '/html_utils/fakeControllApp/cyber-app/dist/' になります
 
 function App() {
   const [sync, setSync] = useState(0) // 0からスタート
   const [logs, setLogs] = useState(['> INITIALIZING...', '> WAITING FOR NEURAL INPUT...'])
   const [isAlert, setIsAlert] = useState(false)
   const [isMax, setIsMax] = useState(false)
-  const [image, setImage] = useState("https://via.placeholder.com/500x700?text=NO+TARGET+DATA")
+  const [image, setImage] = useState(`${base}bg.jpg`);
   
   // 自動減少用のタイマー管理
   const lastTouchTime = useRef(Date.now());
