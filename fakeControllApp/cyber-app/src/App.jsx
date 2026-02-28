@@ -49,7 +49,7 @@ function App() {
     
     setSync(prev => {
       // スワイプするごとに少しずつ加算（感度は0.8程度に調整）
-      const nextVal = Math.min(100, prev + 0.04);
+      const nextVal = Math.min(100, prev + 0.05);
       
       if (nextVal >= 100) {
         setIsMax(true);
