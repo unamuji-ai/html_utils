@@ -31,3 +31,5 @@ jobs:
           folder: fakeControllApp/cyber-app/dist # ビルドした成果物
           target-folder: fakeControllApp/cyber-app/dist # gh-pagesブランチ内の「ここ」に配置
           branch: gh-pages
+          preserve: true   # 既存のファイルを維持する
+          clean: false      # デプロイ時に他のファイルを削除しない
