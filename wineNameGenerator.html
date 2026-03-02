@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8">
+  <title>ワイン風ネームジェネレーター</title>
+	<style>
+	  body {
+	    font-family: system-ui, sans-serif;
+	    padding: 16px;
+	    background:#f7f3ec;
+	    max-width: 600px;
+	    margin: 0 auto;
+	  }
+
+	  h1 {
+	    font-size: 1.3rem;
+	    margin-bottom: 12px;
+	    text-align: center;
+	  }
+
+	  label {
+	    display:block;
+	    margin-top:14px;
+	    font-weight:bold;
+	    font-size: 0.95rem;
+	  }
+
+	  select, input, textarea {
+	    width:100%;
+	    padding:10px;
+	    margin-top:6px;
+	    font-size:1rem;
+	    border-radius:6px;
+	    border:1px solid #ccc;
+	    box-sizing: border-box;
+	  }
+
+	  button {
+	    margin-top:20px;
+	    padding:12px;
+	    width:100%;
+	    font-size:1.1rem;
+	    background:#8b1e3f;
+	    color:white;
+	    border:none;
+	    border-radius:6px;
+	    cursor:pointer;
+	  }
+
+	  button:active {
+	    opacity:0.8;
+	  }
+
+	  .result {
+	    margin-top:24px;
+	    padding:16px;
+	    background:#fff;
+	    border-radius:8px;
+	    border:1px solid #ddd;
+	  }
+
+	  .wine-name {
+	    font-size:1.3rem;
+	    font-weight:bold;
+	    margin-bottom:8px;
+	    text-align:center;
+	  }
+
+	  .wine-sub {
+	    color:#555;
+	    font-size:1rem;
+	    text-align:center;
+	    line-height:1.4;
+	  }
+
+		.grade-gold {
+		  background: linear-gradient(135deg, #f7e9a8, #e6c75f);
+		}
+
+		.grade-silver {
+		  background: linear-gradient(135deg, #e6e6e6, #cfcfcf);
+		}
+
+		.grade-beige {
+		  background: #f5f0e6;
+		}
+
+		.grade-white {
+		  background: #ffffff;
+		}
+	  @media (max-width: 480px) {
+	    body { padding: 12px; }
+	    h1 { font-size: 1.2rem; }
+	    .wine-name { font-size:1.2rem; }
+	    .wine-sub { font-size:0.95rem; }
+	  }
+	</style>
+</head>
+<body>
+  <h1>ワイン風ネームジェネレーター</h1>
+
+  <label>あなたの名前（ひらがな）</label>
+  <input id="name" placeholder="例：うなむじ">
+
+	<label>出身地（国・地域名）</label>
+	<input id="origin" placeholder="例：大阪、北海道、東京、福岡、New York など">
+
+  <label>国のスタイル</label>
+  <select id="country">
+    <option value="it">イタリア</option>
+    <option value="fr">フランス</option>
+    <option value="es">スペイン</option>
+    <option value="za">南アフリカ</option>
+  </select>
+
+  <label>性格・雰囲気（単語入力）</label>
+  <textarea id="personality" rows="3" placeholder="例：大胆　知的　冷徹"></textarea>
+
+	<label>甘さ（5段階）</label>
+	<select id="sweetness">
+	  <option value="0">超辛口</option>
+	  <option value="1">辛口</option>
+	  <option value="2">中間</option>
+	  <option value="3">甘口</option>
+	  <option value="4">極甘口</option>
+	</select>
+
+	<label>発泡（5段階）</label>
+	<select id="sparkle">
+	  <option value="0">非発泡</option>
+	  <option value="1">弱め</option>
+	  <option value="2">中間</option>
+	  <option value="3">強め</option>
+	  <option value="4">超強め</option>
+	</select>
+
+  <button onclick="generate()">ワイン名を生成</button>
+
+  <div id="result" class="result" style="display:none;">
+    <div class="wine-name" id="wineName"></div>
+    <div class="wine-sub" id="wineSub"></div>
+  </div>
+
+<script>
+/* ------------------------------
+   名前ローマ字化（簡易）
+------------------------------ */
+function normalizeName(raw) {
+  if (!raw) return "noname";
+
+  // 拗音（ゃゅょ）対応の2文字マップ
+  const comboMap = {
+    "きゃ":"kya","きゅ":"kyu","きょ":"kyo",
+    "ぎゃ":"gya","ぎゅ":"gyu","ぎょ":"gyo",
+    "しゃ":"sha","しゅ":"shu","しょ":"sho",
+    "じゃ":"ja","じゅ":"ju","じょ":"jo",
+    "ちゃ":"cha","ちゅ":"chu","ちょ":"cho",
+    "にゃ":"nya","にゅ":"nyu","にょ":"nyo",
+    "ひゃ":"hya","ひゅ":"hyu","ひょ":"hyo",
+    "びゃ":"bya","びゅ":"byu","びょ":"byo",
+    "ぴゃ":"pya","ぴゅ":"pyu","ぴょ":"pyo",
+    "みゃ":"mya","みゅ":"myu","みょ":"myo",
+    "りゃ":"rya","りゅ":"ryu","りょ":"ryo"
+  };
+
+  // 単音マップ
+  const hiraMap = {
+    "あ":"a","い":"i","う":"u","え":"e","お":"o",
+    "か":"ka","き":"ki","く":"ku","け":"ke","こ":"ko",
+    "さ":"sa","し":"shi","す":"su","せ":"se","そ":"so",
+    "た":"ta","ち":"chi","つ":"tsu","て":"te","と":"to",
+    "な":"na","に":"ni","ぬ":"nu","ね":"ne","の":"no",
+    "は":"ha","ひ":"hi","ふ":"fu","へ":"he","ほ":"ho",
+    "ま":"ma","み":"mi","む":"mu","め":"me","も":"mo",
+    "や":"ya","ゆ":"yu","よ":"yo",
+    "ら":"ra","り":"ri","る":"ru","れ":"re","ろ":"ro",
+    "わ":"wa","を":"wo","ん":"n",
+    "が":"ga","ぎ":"gi","ぐ":"gu","げ":"ge","ご":"go",
+    "ざ":"za","じ":"ji","ず":"zu","ぜ":"ze","ぞ":"zo",
+    "だ":"da","ぢ":"ji","づ":"zu","で":"de","ど":"do",
+    "ば":"ba","び":"bi","ぶ":"bu","べ":"be","ぼ":"bo",
+    "ぱ":"pa","ぴ":"pi","ぷ":"pu","ぺ":"pe","ぽ":"po",
+    "ぁ":"a","ぃ":"i","ぅ":"u","ぇ":"e","ぉ":"o",
+    "ゃ":"ya","ゅ":"yu","ょ":"yo",
+    "っ":"" // 促音は後で処理
+  };
+
+  // 促音（っ）→ 次の子音を重ねる
+  function doubleConsonant(next) {
+    if (!next) return "";
+    const roma = hiraMap[next] || "";
+    const c = roma.charAt(0);
+    return /[bcdfghjklmnpqrstvwxyz]/.test(c) ? c : "";
+  }
+
+  let result = "";
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    const next = raw[i + 1];
+
+    // ① 拗音（ゃゅょ）チェック
+    if (next && comboMap[ch + next]) {
+      result += comboMap[ch + next];
+      i++; // 2文字進める
+      continue;
+    }
+
+    // ② 促音（っ）
+    if (ch === "っ") {
+      result += doubleConsonant(next);
+      continue;
+    }
+
+    // ③ 通常の1文字
+    result += hiraMap[ch] || ch;
+  }
+
+  return result.replace(/[^a-zA-Z]/g, "");
+}
+
+/* ------------------------------
+   生産者名
+------------------------------ */
+function buildProducer(name, country) {
+  const base = normalizeName(name) || "noname";
+  switch (country) {
+		case "it":
+		  return /[aeiou]$/.test(base)
+		    ? "Cantina " + base + "i"
+		    : "Cantina " + base;
+    case "fr": return "Domaine " + base;
+    case "es": return "Bodega " + base;
+    case "za": return base + " Estate";
+    default: return base;
+  }
+}
+
+/* ------------------------------
+   性格スコア辞書
+------------------------------ */
+const personalityDict = {
+  night:   { keywords: ["夜","暗","月","星","静","深","影"], score:0 },
+  passion: { keywords: ["情熱","熱","激","燃","強","衝動","赤"], score:0 },
+  calm:    { keywords: ["落ち着","穏","静","冷静","知的","優","柔"], score:0 },
+  light:   { keywords: ["明","陽","元気","光","輝","笑","爽"], score:0 },
+  mystic:  { keywords: ["不思議","神秘","謎","夢","幻想","霧"], score:0 },
+  wild:    { keywords: ["自由","大胆","冒険","野性","強気","奔放"], score:0 }
+};
+
+/* ------------------------------
+   性格 → カテゴリ
+------------------------------ */
+function analyzePersonality(text) {
+  const t = text.toLowerCase();
+
+  for (const key in personalityDict) {
+    personalityDict[key].score = 0;
+  }
+
+  for (const key in personalityDict) {
+    const entry = personalityDict[key];
+    entry.keywords.forEach(word => {
+      if (t.includes(word)) entry.score += 1;
+    });
+  }
+
+  let best = null;
+  let bestScore = -1;
+
+  for (const key in personalityDict) {
+    if (personalityDict[key].score > bestScore) {
+      bestScore = personalityDict[key].score;
+      best = key;
+    }
+  }
+
+  return best;
+}
+
+/* ------------------------------
+   カテゴリ → キュヴェ名
+------------------------------ */
+function pickCuvee(category, country) {
+  const table = {
+    night:   { it:"Notturno", fr:"Nuit", es:"Nocturno", za:"Nightfall" },
+    passion: { it:"Passione", fr:"Passion", es:"Fuego", za:"Flame" },
+    calm:    { it:"Saggio", fr:"Serein", es:"Sereno", za:"Calm Harmony" },
+    light:   { it:"Allegro", fr:"Lumière", es:"Brillo", za:"Sunrise" },
+    mystic:  { it:"Mistero", fr:"Mystère", es:"Misterio", za:"Mystic Shade" },
+    wild:    { it:"Selvaggio", fr:"Sauvage", es:"Salvaje", za:"Wild Spirit" }
+  };
+  return table[category][country];
+}
+
+/* ------------------------------
+   甘さ・発泡
+------------------------------ */
+function mapSweetness(level, country) {
+  const it = ["Molto Secco","Secco","Amabile","Dolce","Dolce Intenso"];
+  const fr = ["Très Sec","Sec","Demi-sec","Moelleux","Doux Intense"];
+  const es = ["Muy Seco","Seco","Semi-seco","Dulce","Dulce Intenso"];
+  const za = ["Bone Dry","Dry","Medium","Sweet","Very Sweet"];
+  return { it, fr, es, za }[country][level];
+}
+
+function mapSparkle(level, country) {
+  const it = ["Tranquillo","Leggermente Frizzante","Frizzante","Spumante","Spumante Forte"];
+  const fr = ["Tranquille","Légèrement Pétillant","Pétillant","Mousseux","Mousseux Fort"];
+  const es = ["Tranquilo","Aguja Suave","Aguja","Espumoso","Espumoso Fuerte"];
+  const za = ["Still","Lightly Sparkling","Semi Sparkling","Sparkling","High Sparkling"];
+  return { it, fr, es, za }[country][level];
+}
+
+/* ------------------------------
+   出身地 → 産地表記
+------------------------------ */
+function mapOrigin(country, origin) {
+  const o = origin || "Unknown";
+  switch (country) {
+    case "it": return "IGT " + o;
+    case "fr": return "Vin de Table " + o;
+    case "es": return "Vino de la Casa " + o;
+    case "za": return "Wine of Origin " + o;
+    default: return "Table Wine";
+  }
+}
+
+/* ------------------------------
+   名前＋出身地 → 固定スコア
+------------------------------ */
+function calcScore(name, origin) {
+  const str = (name + origin).toLowerCase();
+  let score = 0;
+  for (let i = 0; i < str.length; i++) {
+    score += str.charCodeAt(i);
+  }
+  return score % 100;
+}
+
+/* ------------------------------
+   スコア → 格付け
+------------------------------ */
+function gradeByScore(country, score) {
+  if (country === "it") {
+    if (score < 5) return "DOCG";
+    if (score < 20) return "DOC";
+    if (score < 60) return "IGT";
+    return "Vino";
+  }
+  if (country === "fr") {
+    if (score < 5) return "Grand Cru";
+    if (score < 20) return "Premier Cru";
+    if (score < 60) return "AOC";
+    return "Vin de Table";
+  }
+  if (country === "es") {
+    if (score < 5) return "DOCa";
+    if (score < 20) return "DO";
+    if (score < 60) return "Vino de la Tierra";
+    return "Vino de Mesa";
+  }
+  if (country === "za") {
+    if (score < 10) return "Estate Wine";
+    if (score < 60) return "WO";
+    return "Table Wine";
+  }
+  return "Table Wine";
+}
+
+function gradeToClass(grade) {
+  if (["DOCG", "Grand Cru", "DOCa", "Estate Wine"].includes(grade)) {
+    return "grade-gold";
+  }
+  if (["DOC", "Premier Cru", "DO", "WO"].includes(grade)) {
+    return "grade-silver";
+  }
+  if (["AOC", "IGT", "Vino de la Tierra"].includes(grade)) {
+    return "grade-beige";
+  }
+  return "grade-white";
+}
+/* ------------------------------
+   カタカナ読み
+------------------------------ */
+function toKatakana(str) {
+  const dict = {
+    "Cantina":"カンティーナ","Domaine":"ドメーヌ","Bodega":"ボデガ","Estate":"エステート",
+    "Notturno":"ノットゥルノ","Nuit":"ニュイ","Nocturno":"ノクトゥルノ","Nightfall":"ナイトフォール",
+    "Passione":"パッショーネ","Passion":"パッション","Fuego":"フエゴ","Flame":"フレイム",
+    "Saggio":"サッジョ","Serein":"スラン","Sereno":"セレーノ","Calm Harmony":"カーム・ハーモニー",
+    "Allegro":"アレグロ","Lumière":"リュミエール","Brillo":"ブリジョ","Sunrise":"サンライズ",
+    "Mistero":"ミステロ","Mystère":"ミステール","Misterio":"ミステリオ","Mystic Shade":"ミスティック・シェイド",
+    "Selvaggio":"セルヴァッジョ","Sauvage":"ソヴァージュ","Salvaje":"サルバヘ","Wild Spirit":"ワイルド・スピリット"
+  };
+
+  let result = str;
+  for (const key in dict) {
+    result = result.replace(key, dict[key]);
+  }
+  return result;
+}
+
+/* ------------------------------
+   メイン生成
+------------------------------ */
+function generate() {
+  const name = document.getElementById("name").value;
+  const originInput = document.getElementById("origin").value;
+  const country = document.getElementById("country").value;
+  const personality = document.getElementById("personality").value;
+  const sweetness = document.getElementById("sweetness").value;
+  const sparkle = document.getElementById("sparkle").value;
+
+  const producer = buildProducer(name, country);
+  const category = analyzePersonality(personality);
+  const cuvee = pickCuvee(category, country);
+
+  const sweetLabel = mapSweetness(sweetness, country);
+  const sparkleLabel = mapSparkle(sparkle, country);
+  const origin = mapOrigin(country, originInput);
+
+  const score = calcScore(name, originInput);
+  const grade = gradeByScore(country, score);
+
+  const wineName = producer + " " + cuvee;
+  const wineNameKana = toKatakana(wineName);
+
+  const sub = grade + " ／ " + origin + " ／ " + sweetLabel + " ／ " + sparkleLabel;
+
+  document.getElementById("wineName").textContent = wineName;
+  document.getElementById("wineSub").innerHTML = sub + "<br>" + wineNameKana;
+
+	const resultBox = document.getElementById("result");
+	// 既存の背景クラスを全部消す
+	resultBox.classList.remove("grade-gold", "grade-silver", "grade-beige", "grade-white");
+	// 格付けに応じて背景色クラスを付ける
+	resultBox.classList.add(gradeToClass(grade));
+  document.getElementById("result").style.display = "block";
+}
+</script>
+</body>
+</html>

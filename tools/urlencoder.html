@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>返信指定メールエンコーダー</title>
+</head>
+<body>
+
+<h2>返信指定メールエンコーダー</h2>
+
+宛先：<br>
+<input id="to" style="width:400px"><br><br>
+
+CC：<br>
+<input id="cc" style="width:400px"><br><br>
+
+BCC：<br>
+<input id="bcc" style="width:400px"><br><br>
+
+件名：<br>
+<input id="subject" style="width:400px"><br><br>
+
+本文：<br>
+<textarea id="body" style="width:400px;height:150px"></textarea><br><br>
+
+<button onclick="generate()">URLエンコード</button>
+
+<h3>結果</h3>
+<textarea id="result" style="width:400px;height:150px"></textarea><br>
+<div id="len"></div>
+
+<button onclick="copyToClipboard()">クリップボードへコピー</button>
+
+<script>
+function generate() {
+    const to = document.getElementById("to").value.trim();
+    const cc = document.getElementById("cc").value.trim();
+    const bcc = document.getElementById("bcc").value.trim();
+    const subject = document.getElementById("subject").value.trim();
+    let body = document.getElementById("body").value;
+
+    if (!to) {
+        alert("宛先は必須です");
+        return;
+    }
+    if (!subject) {
+        alert("件名は必須です");
+        return;
+    }
+
+    // 改行を CRLF に統一
+    body = body.replace(/\r\n/g, "\n").replace(/\r/g, "\n").replace(/\n/g, "\r\n");
+
+    let url = "mailto:" + encodeURIComponent(to);
+
+    const params = [];
+
+    if (cc) params.push("cc=" + encodeURIComponent(cc));
+    if (bcc) params.push("bcc=" + encodeURIComponent(bcc));
+    if (subject) params.push("subject=" + encodeURIComponent(subject));
+    if (body) params.push("body=" + encodeURIComponent(body));
+
+    if (params.length > 0) {
+        url += "?" + params.join("&");
+    }
+
+    document.getElementById("result").value = url;
+    document.getElementById("len").innerText =
+        "URL長: " + url.length + "文字（Outlookは1500文字以内推奨）";
+}
+
+function copyToClipboard() {
+    const text = document.getElementById("result").value;
+    navigator.clipboard.writeText(text).then(() => {
+        alert("クリップボードにコピーしました");
+    }).catch(err => {
+        alert("コピーに失敗しました: " + err);
+    });
+}
+</script>
+
+</body>
+</html>

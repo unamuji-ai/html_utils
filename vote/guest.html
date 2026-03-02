@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <title>参加者ページ</title>
+  <style>
+		/* 全体のレイアウト */
+		body {
+		  font-family: sans-serif;
+		  margin: 10px;
+		  padding: 0;
+		}
+
+		/* 質問テキスト */
+		#question {
+		  font-size: 1.2em;
+		  margin-bottom: 12px;
+		}
+
+		/* 投票ボタン */
+		#choices button {
+		  display: block;
+		  width: 100%;          /* 横幅いっぱい */
+		  padding: 14px;
+		  margin: 8px 0;
+		  font-size: 1em;
+		  border-radius: 6px;
+		  border: 1px solid #ccc;
+		  background-color: #f0f0f0;
+		  cursor: pointer;
+		}
+
+		#choices button:hover {
+		  background-color: #e0e0e0;
+		}
+
+		/* 履歴セクション */
+		#history h3 {
+		  font-size: 1em;
+		  margin-top: 20px;
+		}
+
+		/* Chart.js キャンバス */
+		canvas {
+		  width: 100% !important;   /* 親要素に合わせる */
+		  height: auto !important;  /* 高さは自動調整 */
+		  max-height: 300px;        /* スマホで見やすい高さに制限 */
+		}
+  </style>
+
+  <!-- Chart.js を CDNから読み込む（UMD版） -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getFirestore, doc, onSnapshot, collection, addDoc, getDoc, getDocs, serverTimestamp } 
+      from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    // Firebase設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyAI8svAsgMv7iUEvdhBd8Iig75EV4LiDp4",
+      authDomain: "una-vote.firebaseapp.com",
+      projectId: "una-vote",
+      storageBucket: "una-vote.firebasestorage.app",
+      messagingSenderId: "431820061710",
+      appId: "1:431820061710:web:c489e5f2efe30c4dd7d05f",
+      measurementId: "G-N259J06NXW"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+		const params = new URLSearchParams(location.search);
+		const gameId = params.get("gameId");
+
+		if (!gameId) {
+		  alert("ゲームIDが指定されていません");
+		  location.href = "end.html";
+		}
+
+		const gameDoc = await getDoc(doc(db, "games", gameId));
+		if (!gameDoc.exists() || !gameDoc.data().active) {
+		  alert("このゲームは終了しています");
+		  location.href = "end.html";
+		}
+
+		//	名前入力後の画面遷移
+		document.getElementById("startBtn").onclick = () => {
+		  const name = document.getElementById("playerName").value.trim();
+		  if (!name) {
+		    alert("名前を入力してください");
+		    return;
+		  }
+		  localStorage.setItem("playerName", name);
+
+		  // 名前入力ページを隠して投票ページを表示
+		  document.getElementById("nameInputPage").style.display = "none";
+		  document.getElementById("votePage").style.display = "block";
+
+		  // 投票監視を開始する
+		  startVoteListener();
+		};
+
+		function startVoteListener() {
+
+			// 現在の設問は投票ボタンのみ
+			onSnapshot(doc(db, "current", "question"), (docSnap) => {
+			  const questionDiv = document.getElementById("question");
+			  const choicesDiv = document.getElementById("choices");
+
+			  if (docSnap.exists()) {
+			    const data = docSnap.data();
+			    questionDiv.textContent = data.question || "";
+			    choicesDiv.innerHTML = "";
+
+			    if (Array.isArray(data.choices)) {
+			      data.choices.forEach(choice => {
+			        const btn = document.createElement("button");
+			        btn.textContent = choice;
+			        btn.onclick = async () => {
+							  const votedKey = `voted_${data.number}`;
+							  const votedChoiceKey = `votedChoice_${data.number}`;
+							  // ローカルストレージで投票済みチェック
+							  if (localStorage.getItem(votedKey)) {
+							    alert("この設問にはすでに投票済みです");
+							    return;
+							  }
+
+							  const name = localStorage.getItem("playerName");
+							  if (!name) {
+							    alert("名前が未設定です");
+							    return;
+							  }
+
+			          await addDoc(collection(db, "votes"), {
+			            choice,
+			            questionNumber: data.number,
+			            name: name,
+			            createdAt: serverTimestamp()
+			          });
+
+							  // 投票済みフラグと選択肢を保存
+							  localStorage.setItem(votedKey, "true");
+							  localStorage.setItem(votedChoiceKey, choice);
+
+							  alert("投票しました: " + choice + "（名前: " + name + "）");
+
+							  // ★を即表示させるためにグラフを強制更新
+							  const canvases = document.querySelectorAll("canvas");
+							  canvases.forEach(c => {
+							    if (c._chartInstance) {
+							      c._chartInstance.update(); // ← これで afterDatasetsDraw が走り★が出る
+							    }
+							  });
+			        };
+			        choicesDiv.appendChild(btn);
+			      });
+			    }
+			  } else {
+			    questionDiv.textContent = "";
+			    choicesDiv.innerHTML = "";
+			  }
+			});
+		}
+
+		// 履歴を監視してグラフを描画（過去設問のみ）
+		onSnapshot(collection(db, "questionsHistory"), (snapshot) => {
+		  const historyDiv = document.getElementById("history");
+		  historyDiv.innerHTML = "";
+
+		  const items = [];
+		  snapshot.forEach(docSnap => items.push(docSnap.data()));
+		  items.sort((a, b) => (b.number ?? 0) - (a.number ?? 0));
+
+		  items.forEach(data => {
+		    const section = document.createElement("div");
+		    section.innerHTML = `<h3>${data.number}. ${data.question}</h3>`;
+		    const canvas = document.createElement("canvas");
+		    section.appendChild(canvas);
+		    historyDiv.appendChild(section);
+
+		    // グラフは履歴用に votes を集計して描画
+		    drawChart(canvas, data.number, data.choices);
+		  });
+		});
+
+		async function drawChart(canvas, questionNumber, choices) {
+		  // 選択肢がゼロならグラフを描画しない
+		  if (!choices || choices.length === 0) {
+		    return;
+		  }
+
+		  if (!canvas._chartInstance) {
+		    canvas._chartInstance = new Chart(canvas, {
+		      type: "bar",
+		      data: {
+		        labels: choices,
+		        datasets: [{
+		          data: choices.map(() => 0), // 初期値は0
+		          backgroundColor: "skyblue",
+		          barThickness: 10,
+		          maxBarThickness: 15
+		        }]
+		      },
+		      options: {
+		        indexAxis: "y",
+		        animation: false,
+		        responsive: true,
+		        maintainAspectRatio: false,
+		        scales: {
+		          x: { ticks: { stepSize: 1, precision: 0 }, beginAtZero: true }
+		        },
+		        plugins: { legend: { display: false } }
+		      },
+		      plugins: [{
+		        id: "drawStar",
+		        afterDatasetsDraw(chart) {
+		          const votedChoice = localStorage.getItem(`votedChoice_${questionNumber}`);
+		          if (!votedChoice) return;
+
+		          const { ctx } = chart;
+		          const dataset = chart.getDatasetMeta(0);
+		          const labels = chart.data.labels;
+
+		          dataset.data.forEach((bar, i) => {
+		            if (labels[i] === votedChoice) {
+		              ctx.save();
+		              ctx.fillStyle = "red";
+		              ctx.font = "16px sans-serif";
+		              ctx.textAlign = "left";
+		              ctx.textBaseline = "middle";
+		              ctx.fillText("★", bar.base - 10, bar.y);
+		              ctx.restore();
+		            }
+		          });
+		        }
+		      }]
+		    });
+		  }
+
+		  const chartInstance = canvas._chartInstance;
+
+		  // 設問が履歴に追加されたタイミングで票数を集計
+		  const snapshot = await getDocs(collection(db, "votes"));
+		  const counts = {};
+		  choices.forEach(c => counts[c] = 0);
+
+		  snapshot.forEach(docSnap => {
+		    const v = docSnap.data();
+		    if (Number(v.questionNumber) === Number(questionNumber)) {
+		      counts[v.choice] = (counts[v.choice] || 0) + 1;
+		    }
+		  });
+
+		  chartInstance.data.labels = Object.keys(counts);
+		  chartInstance.data.datasets[0].data = Object.values(counts);
+		  chartInstance.update();
+		}
+
+		//	終了フラグを監視
+		onSnapshot(doc(db, "current", "end"), (docSnap) => {
+		  if (docSnap.exists()) {
+		    const data = docSnap.data();
+		    if (data.endFlag === true) {
+		      // ローカルストレージを削除
+		      localStorage.clear();
+
+		      // 終了画面へ遷移
+		      alert("ゲームは終了しました。保存データを削除します。");
+		      location.href = "end.html";
+		    }
+		  }
+		});
+
+    // リセットフラグを監視
+		onSnapshot(doc(db, "current", "reset"), (docSnap) => {
+		  if (docSnap.exists()) {
+		    const data = docSnap.data();
+	      // ローカルストレージを削除
+			  const name = localStorage.getItem("playerName");	//	名前だけは退避
+	      localStorage.clear();
+			  localStorage.setItem("playerName", name);
+		  }
+		});
+  </script>
+</head>
+
+<body>
+  <h1>参加者ページ</h1>
+  <!-- 名前入力ページ -->
+  <div id="nameInputPage">
+    <p>あなたの名前を入力してください:</p>
+    <input type="text" id="playerName" placeholder="名前">
+    <button id="startBtn">開始</button>
+  </div>
+
+  <!-- 投票ページ（最初は非表示） -->
+  <div id="votePage" style="display:none;">
+    <div id="question"></div>
+    <div id="choices"></div>
+    <div id="history"></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>オークション会場</title>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    <style>
+        :root { --primary: #2c3e50; --accent: #e67e22; --bg: #f4f7f6; }
+        body { font-family: -apple-system, sans-serif; background: var(--bg); margin: 0; padding-bottom: 40px; }
+        
+        /* ヘッダー */
+        .header { background: var(--primary); color: white; padding: 15px; position: sticky; top: 0; z-index: 100; text-align: center; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .user-badge { font-size: 0.8rem; background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 20px; margin-top: 5px; display: inline-block; }
+
+        /* 商品リスト */
+        .container { max-width: 500px; margin: auto; padding: 10px; }
+        .item-card { background: white; border-radius: 15px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); margin-bottom: 20px; overflow: hidden; border: 1px solid #eee; }
+        .item-img { width: 100%; aspect-ratio: 1/1; object-fit: cover; background: #ddd; }
+        .item-body { padding: 15px; }
+        
+        /* 価格表示 */
+        .price-section { display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 15px; }
+        .price-label { font-size: 0.8rem; color: #7f8c8d; }
+        .current-price { font-size: 1.8rem; color: var(--accent); font-weight: bold; }
+        
+        /* 入札フォーム */
+        .bid-form { display: flex; gap: 8px; background: #f8f9fa; padding: 10px; border-radius: 10px; }
+        .bid-input { flex: 1; border: 1px solid #ced4da; border-radius: 8px; padding: 12px; font-size: 1.1rem; outline: none; }
+        .bid-btn { background: var(--accent); color: white; border: none; padding: 0 20px; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; }
+        .bid-btn:active { transform: scale(0.95); opacity: 0.8; }
+
+        /* ログイン（実名制） */
+        #login-screen { position: fixed; inset: 0; background: var(--primary); color: white; z-index: 1000; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; }
+        .login-input { width: 80%; padding: 15px; border-radius: 10px; border: none; font-size: 1.1rem; margin-top: 20px; }
+
+				@keyframes pulse {
+				    0% { transform: scale(1); }
+				    50% { transform: scale(1.02); }
+				    100% { transform: scale(1); }
+				}
+
+    </style>
+</head>
+<body>
+
+<div id="login-screen">
+    <h1>Welcome</h1>
+    <p>オークションに参加するため、<br>実名（フルネーム）を入力してください。</p>
+    <input type="text" id="user-name-input" class="login-input" placeholder="例：田中 太郎">
+    <button onclick="login()" style="margin-top:20px; padding:15px 40px; border-radius:30px; border:none; background:var(--accent); color:white; font-weight:bold; font-size:1rem;">参加する</button>
+</div>
+
+<header class="header">
+    <div style="font-weight: bold; font-size: 1.2rem;">Live Auction</div>
+    <div id="my-name-display" class="user-badge">---</div>
+</header>
+
+<div id="user-info" style="text-align: right; margin-bottom: 10px; font-size: 0.9rem;">
+    入札者名: <strong id="current-username">未設定</strong>
+    <button onclick="resetName()" style="font-size: 0.7rem; margin-left: 5px;">名前変更</button>
+</div>
+
+<div class="container" id="items-list">
+</div>
+
+<script>
+		const firebaseConfig = {
+        apiKey: "AIzaSyAv_eQX0TeXEWWY6DlWt_8cbKVSsL8T2m4",
+        authDomain: "bidding-75c1f.firebaseapp.com",
+        projectId: "bidding-75c1f",
+        storageBucket: "bidding-75c1f.firebasestorage.app", // .app ではなく .appspot.com の場合もありますが、Config通りでOK
+        messagingSenderId: "790924245144",
+        appId: "1:790924245144:web:c69ba31b34b53e8e2a78ed",
+        measurementId: "G-P5JSZ0W8LR"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const ROOM_ID = urlParams.get('id');
+    
+		// 会場ごとに名前を保存するためのキーを作成 (例: user_name_ABCD123)
+    const storageKey = `user_name_${ROOM_ID}`;
+
+		let myName = localStorage.getItem(storageKey) || "";
+		let lastSnapshotData = {};
+
+    // ページ読み込み時の初期化
+		window.onload = async () => {
+				if (!ROOM_ID) {
+            alert("会場IDが見つかりません。QRコードから入り直してください。");
+            return;
+        }
+
+		    if (myName) {
+		        const doc = await db.collection("auctions").doc(ROOM_ID).collection("participants").doc(myName).get();
+		        if (doc.exists) {
+		            showMain();
+		        } else {
+		            localStorage.removeItem(storageKey);
+		            document.getElementById('login-screen').style.display = 'flex';
+		        }
+		    } else {
+		        document.getElementById('login-screen').style.display = 'flex';
+		    }
+		};
+
+		async function login() {
+		    const nameInput = document.getElementById('user-name-input').value.trim();
+		    if (nameInput.length < 2) return alert("お名前を2文字以上で入力してください");
+		    if (!ROOM_ID) return alert("ルームIDが見つかりません");
+
+		    const btn = document.querySelector('#login-screen button');
+		    btn.disabled = true;
+		    btn.innerText = "チェック中...";
+
+		    // 会場ごとにユニークな保存キー（復帰判定用）
+		    const storageKey = `user_name_${ROOM_ID}`;
+
+		    try {
+		        const participantRef = db.collection("auctions").doc(ROOM_ID).collection("participants").doc(nameInput);
+		        const doc = await participantRef.get();
+
+		        if (doc.exists) {
+		            // DBに名前がある場合、自分のブラウザに保存されている名前と一致するか確認
+		            const savedName = localStorage.getItem(storageKey);
+		            
+		            if (savedName === nameInput) {
+		                // 【本人復帰】ブラウザの保存名と一致するので、そのままログインを許可
+		                myName = nameInput;
+		                showMain();
+		                return; 
+		            } else {
+		                // 【他人重複】ブラウザに記録がない、または別の名前が保存されている
+		                alert("その名前は既に他の参加者が使用しています。別の名前を入力してください。");
+		                btn.disabled = false;
+		                btn.innerText = "参加する";
+		                return;
+		            }
+		        }
+
+		        // 新規参加の処理
+		        await participantRef.set({ joinedAt: firebase.firestore.FieldValue.serverTimestamp() });
+		        
+		        // localStorageに保存して、次回以降の復帰を可能にする
+		        localStorage.setItem(storageKey, nameInput);
+		        
+		        myName = nameInput;
+		        showMain();
+		    } catch (e) {
+		        alert("接続エラー: " + e.message);
+		        btn.disabled = false;
+		        btn.innerText = "参加する";
+		    }
+		}
+
+		function showMain() {
+		    document.getElementById('login-screen').style.display = 'none';
+		    document.getElementById('current-username').innerText = myName;
+		    document.getElementById('my-name-display').innerText = `参加者: ${myName}`;
+		    if (ROOM_ID) {
+		        startWatchingItems();
+		    }
+		}
+
+		function resetName() {
+		    if (confirm("名前を変更しますか？")) {
+		        sessionStorage.removeItem('user_name');
+		        location.reload();
+		    }
+		}
+
+		function startWatchingItems() {
+		    db.collection("auctions").doc(ROOM_ID).collection("items")
+		      .orderBy("createdAt", "asc")
+		      .onSnapshot((snapshot) => {
+		          const listEl = document.getElementById('items-list');
+		          listEl.innerHTML = '';
+		          snapshot.forEach(doc => {
+		              const data = doc.data();
+		              lastSnapshotData[doc.id] = data; // データをキャッシュ
+		              renderCard(doc.id, data);
+		          });
+		      });
+		    setInterval(updateAllCountdowns, 1000);
+		}
+
+
+		function calculateMinBid(currentPrice, auctionType) {
+		    // 密封入札（blind）の場合は、現在の表示価格（開始価格）そのままでも入札OKにする
+		    if (auctionType === "blind") {
+		        return currentPrice; 
+		    }
+		    // 通常入札は従来通り（10,000円未満は+100円、それ以上は+500円）
+		    return currentPrice < 10000 ? currentPrice + 100 : currentPrice + 500;
+		}
+
+		function renderCard(id, data) {
+		    const card = document.createElement('div');
+		    card.className = 'item-card';
+		    
+		    const now = new Date();
+		    const endTimeDate = data.endTime && data.endTime.toDate ? data.endTime.toDate() : new Date(data.endTime);
+		    const isEnded = endTimeDate <= now; 
+		    
+		    const isBlind = data.auctionType === "blind";
+		    const isHighestBidder = (data.highestBidder === myName);
+		    const savedBid = sessionStorage.getItem(`last_bid_${id}`);
+		    const myCurrentBid = savedBid ? parseInt(savedBid) : null;
+
+		    let displayPrice, bidderHTML, inputDefaultValue, cardStyle = "";
+
+		    // --- 画像の表示ロジック (複数枚対応) ---
+		    // data.imageUrls が存在しない、または空の場合は [noimage.png] を使用
+		    const imgs = (data.imageUrls && data.imageUrls.length > 0) ? data.imageUrls : ["noimage.png"];
+		    
+		    // メイン画像（1枚目）
+		    let imageHTML = `<img src="${imgs[0]}" class="item-img" id="main-img-${id}" style="width:100%; height:200px; object-fit:contain; background:#f0f0f0; border-radius:8px;">`;
+		    
+		    // 2枚目以降がある場合、下に小さなサムネイルを表示
+		    if (imgs.length > 1) {
+		        imageHTML += `<div style="display:flex; gap:5px; margin-top:8px; overflow-x:auto; padding-bottom:5px;">`;
+		        imgs.forEach((url) => {
+		            imageHTML += `
+		                <img src="${url}" 
+		                     style="width:50px; height:50px; object-fit:cover; border-radius:4px; border:1px solid #ddd; cursor:pointer;" 
+		                     onclick="document.getElementById('main-img-${id}').src='${url}'">
+		            `;
+		        });
+		        imageHTML += `</div>`;
+		    }
+
+		    // --- 共通の「あなたの入札状況」ラベル作成 ---
+		    const myBidLabel = myCurrentBid 
+		        ? `<div style="font-size: 0.85rem; color: #2980b9; margin-top: 5px;">あなたの入札額: ¥${myCurrentBid.toLocaleString()}</div>` 
+		        : `<div style="font-size: 0.85rem; color: #999; margin-top: 5px;">未入札</div>`;
+
+		    if (isEnded) {
+		        // --- 【終了時】 ---
+		        displayPrice = isBlind 
+		            ? `¥${(data.maxBid || data.startPrice).toLocaleString()}` 
+		            : `¥${data.currentPrice.toLocaleString()}`;
+
+		        if (isHighestBidder) {
+		            cardStyle = "border: 3px solid #f1c40f; background: #fffdf0;";
+		            bidderHTML = `
+		                <div style="background: #e74c3c; color: white; padding: 10px; border-radius: 8px; text-align: center; font-weight: bold; animation: pulse 2s infinite;">
+		                    🎉 おめでとうございます！<br>あなたが落札しました
+		                </div>
+		                ${myBidLabel}`;
+		        } else {
+		            bidderHTML = `
+		                <div style="background: #eee; color: #666; padding: 10px; border-radius: 8px; text-align: center;">
+		                    落札者: ${data.highestBidder || 'なし'}
+		                </div>
+		                ${myBidLabel}`;
+		        }
+		        inputDefaultValue = myCurrentBid || 0;
+
+		    } else {
+		        // --- 【進行中】 ---
+		        if (isBlind) {
+		            displayPrice = "？？？";
+		            inputDefaultValue = myCurrentBid || data.startPrice; 
+		            bidderHTML = myCurrentBid 
+		                ? `<span style="font-weight:bold; color:#2c3e50;">入札受付済み</span>${myBidLabel}` 
+		                : `<span style="color: #999;">※開始価格（¥${data.startPrice.toLocaleString()}）以上で入札してください</span>`;
+		        } else {
+		            displayPrice = `¥${data.currentPrice.toLocaleString()}`;
+		            inputDefaultValue = calculateMinBid(data.currentPrice, "normal");
+		            
+		            const statusText = isHighestBidder 
+		                ? `<strong style="color:red;">★あなたが最高入札者</strong>` 
+		                : `<span>最高入札者: 他の参加者</span>`;
+		            
+		            bidderHTML = `${statusText}${myBidLabel}`;
+		        }
+		    }
+
+		    card.style = cardStyle;
+		    card.innerHTML = `
+		        ${imageHTML}
+		        <div class="item-body" style="padding:15px;">
+		            <h2 style="margin:0;">${data.title}</h2>
+		            <div id="timer-${id}" class="timer-badge" data-endtime="${endTimeDate.getTime()}" style="color:red; font-weight:bold; margin: 10px 0;">
+		                ${isEnded ? "【終了】" : "読み込み中..."}
+		            </div>
+		            <div class="price-section">
+		                <span style="font-size:0.8rem; color:#666;">${isEnded ? '最終落札額' : '現在の価格'}</span>
+		                <span class="current-price" style="display:block; font-size:1.5rem; font-weight:bold; color:#e67e22;">${displayPrice}</span>
+		                <div style="margin-top:10px; width:100%; border-top:1px solid #eee; pt:10px;">${bidderHTML}</div>
+		            </div>
+		            <div class="bid-form" style="display: ${isEnded ? 'none' : 'flex'}; margin-top:15px; gap:10px;">
+		                <input type="number" id="bid-amount-${id}" class="bid-input" value="${inputDefaultValue}" style="flex:1; padding:10px; border:1px solid #ddd; border-radius:5px;">
+		                <button class="bid-btn" id="btn-${id}" onclick="placeBid('${id}', ${data.currentPrice}, '${data.auctionType}')" style="padding:10px 20px; background:#1a73e8; color:white; border:none; border-radius:5px; font-weight:bold;">入札</button>
+		            </div>
+		        </div>
+		    `;
+		    document.getElementById('items-list').appendChild(card);
+		}
+
+		async function placeBid(itemId, currentPrice, auctionType) {
+		    const bidInput = document.getElementById(`bid-amount-${itemId}`);
+		    const btn = document.getElementById(`btn-${itemId}`);
+		    if (!btn || !bidInput) return;
+
+		    const newUserMaxBid = parseInt(bidInput.value);
+		    const isBlind = auctionType === "blind";
+		    const minRequired = calculateMinBid(currentPrice, auctionType);
+		    
+		    if (isNaN(newUserMaxBid)) return alert("数値を入力してください");
+		    if (newUserMaxBid < minRequired) {
+		        alert(isBlind ? "現在価格より高い必要があります。" : `¥${minRequired.toLocaleString()}以上で入力してください`);
+		        return;
+		    }
+
+		    btn.disabled = true;
+		    const itemRef = db.collection("auctions").doc(ROOM_ID).collection("items").doc(itemId);
+
+		    try {
+		        await db.runTransaction(async (transaction) => {
+		            const doc = await transaction.get(itemRef);
+		            const data = doc.data();
+		            const currentMaxBid = data.maxBid || data.startPrice;
+		            const currentHighestBidder = data.highestBidder;
+
+		            let nextPrice, nextHighestBidder, nextMaxBid;
+
+		            if (currentHighestBidder === myName) {
+		                nextPrice = data.currentPrice;
+		                nextHighestBidder = myName;
+		                nextMaxBid = Math.max(currentMaxBid, newUserMaxBid);
+		            } else if (isBlind) {
+		                nextPrice = data.currentPrice;
+		                if (newUserMaxBid > currentMaxBid) {
+		                    nextHighestBidder = myName;
+		                    nextMaxBid = newUserMaxBid;
+		                } else {
+		                    nextHighestBidder = currentHighestBidder;
+		                    nextMaxBid = currentMaxBid;
+		                }
+		            } else {
+		                if (newUserMaxBid > currentMaxBid) {
+		                    nextPrice = (currentHighestBidder === "なし") ? data.startPrice : calculateMinBid(currentMaxBid, auctionType);
+		                    nextHighestBidder = myName;
+		                    nextMaxBid = newUserMaxBid;
+		                } else {
+		                    nextPrice = calculateMinBid(newUserMaxBid, auctionType);
+		                    if (nextPrice > currentMaxBid) nextPrice = currentMaxBid;
+		                    nextHighestBidder = currentHighestBidder;
+		                    nextMaxBid = currentMaxBid;
+		                }
+		            }
+
+		            let newEndTime = data.endTime;
+		            if (data.autoExtend && !isBlind) {
+		                if (nextHighestBidder === myName && currentHighestBidder !== myName) {
+		                    const now = new Date();
+		                    const end = data.endTime.toDate();
+		                    const diffMs = end - now;
+		                    const fiveMinutesMs = 5 * 60 * 1000;
+		                    if (diffMs > 0 && diffMs < fiveMinutesMs) {
+		                        newEndTime = firebase.firestore.Timestamp.fromDate(new Date(now.getTime() + fiveMinutesMs));
+		                    }
+		                }
+		            }
+
+		            // ★【ここが最重要】★
+		            // 値が変わらない入札（最高値に届かない密封入札など）でも
+		            // 確実に onSnapshot を発動させるために、常に変化するタイムスタンプを入れる
+		            transaction.update(itemRef, {
+		                currentPrice: nextPrice,
+		                highestBidder: nextHighestBidder,
+		                maxBid: nextMaxBid,
+		                endTime: newEndTime,
+		                lastBidAt: firebase.firestore.FieldValue.serverTimestamp() // 常に新しい時間を書き込む
+		            });
+		        });
+
+		        // 記録を保存
+		        sessionStorage.setItem(`last_bid_${itemId}`, newUserMaxBid);
+		        
+		        // ★【追加】★
+		        // 自動で renderCard が動かない場合に備え、手動で一瞬画面を更新する
+		        if (typeof lastSnapshotData !== 'undefined' && lastSnapshotData[itemId]) {
+		            renderCard(itemId, lastSnapshotData[itemId]);
+		        }
+
+		        alert(isBlind ? "入札を受け付けました（密封式）" : "入札しました！");
+
+		    } catch (e) { 
+		        alert("エラー: " + e); 
+		    } finally { 
+		        btn.disabled = false; 
+		    }
+		}
+
+		function updateAllCountdowns() {
+		    const timers = document.querySelectorAll('.timer-badge');
+		    // 常に「今のサーバー時刻に近いローカル時刻」を取得
+		    const now = new Date().getTime();
+
+		    timers.forEach(el => {
+		        if (!el || !el.dataset.endtime) return;
+
+		        // dataset.endtime には renderCard 内で .getTime() された数値が入っています
+		        const endTimeMs = Number(el.dataset.endtime);
+		        const diff = endTimeMs - now;
+		        const id = el.id.replace('timer-', '');
+
+		        if (diff <= 0) {
+		            if (el.innerText !== "【終了】") {
+		                el.innerText = "【終了】";
+		                // 終了した瞬間に画面を書き換えて、入札ボタンを消し、落札者を表示
+		                if (lastSnapshotData[id]) {
+		                    refreshAllCards();
+		                }
+		            }
+		        } else {
+		            // ミリ秒を秒に変換
+		            let totalSec = Math.floor(diff / 1000);
+		            
+		            // 時・分・秒の計算
+		            const h = Math.floor(totalSec / 3600);
+		            totalSec %= 3600;
+		            const m = Math.floor(totalSec / 60);
+		            const s = totalSec % 60;
+
+		            // 表示の組み立て
+		            let timeStr = "";
+		            if (h > 0) timeStr += h + "時間";
+		            
+		            // 0埋め（パディング）をして「02:05」のような見やすい形式に
+		            const mStr = String(m).padStart(2, '0');
+		            const sStr = String(s).padStart(2, '0');
+		            
+		            el.innerText = `残り: ${timeStr}${mStr}分${sStr}秒`;
+		        }
+		    });
+		}
+
+		function refreshAllCards() {
+		    const listEl = document.getElementById('items-list');
+		    listEl.innerHTML = '';
+		    Object.keys(lastSnapshotData).forEach(id => renderCard(id, lastSnapshotData[id]));
+		}
+
+</script>
+</body>
+</html>

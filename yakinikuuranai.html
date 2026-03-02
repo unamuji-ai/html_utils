@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>焼肉10タイプ性格診断</title>
+    <style>
+        /* 全体のベース設定 */
+        body { 
+            font-family: sans-serif; 
+            padding: 15px; 
+            line-height: 1.6; 
+            background-color: #fffaf0; 
+            color: #333;
+            margin: 0;
+            font-size: 18px; 
+        }
+
+        h1 { 
+            color: #c0392b; 
+            font-size: 1.5rem; 
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        /* 質問エリア */
+        .question-box { 
+            margin-top: 20px; 
+            padding: 20px; 
+            border: 2px solid #ddd; 
+            border-radius: 12px;
+            background-color: #fff;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+
+        /* 質問文のテキスト */
+        #question-text {
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        /* ボタンを「押しやすく」 */
+        button { 
+            display: block;
+            width: 100%; 
+            padding: 15px; 
+            font-size: 16px; /* スマホでボタンがはみ出ないサイズ */
+            margin-top: 10px; 
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            background-color: #c0392b;
+            color: white;
+            font-weight: bold;
+            transition: background 0.3s;
+        }
+
+        button:active {
+            background-color: #a02d22;
+        }
+
+        /* 結果エリア */
+        #result { 
+            margin-top: 30px; 
+            padding: 20px; 
+            border: 3px solid #c0392b; 
+            border-radius: 15px;
+            background-color: #fff;
+            display: none; /* JSでblockに切り替えます */
+        }
+
+        #progress { 
+            font-weight: bold; 
+            margin-top: 15px; 
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+				.comment-box {
+				    background: #fff0f5; /* 薄いピンク */
+				    border-left: 5px solid #ff69b4;
+				    padding: 15px;
+				    margin: 15px 0;
+				    font-weight: bold;
+				    line-height: 1.6;
+				    border-radius: 5px;
+				}
+
+        h2 { color: #c0392b; font-size: 1.3rem; text-align: center; }
+        h3 { border-bottom: 2px solid #f1c40f; padding-bottom: 5px; font-size: 1.1rem; }
+        ul { padding-left: 20px; }
+    </style>
+</head>
+<body>
+
+<h1>🔥🍖 コンカフェ嬢<br>焼肉診断 🔥🍖</h1>
+<div id="progress">残り 10 問</div>
+
+<div id="question-area">
+    </div>
+
+<div id="result">
+    </div>
+
+<script>
+const questions = [
+	{
+	  q: "Q1. 初対面の人と話すとき、つい出てしまう“クセ”は？",
+	  a: [
+	    "A：場を明るくしようとしてしまう",
+	    "B：まず相手の様子を見て丁寧に話す",
+	    "C：冗談や軽い挑発で距離を縮める",
+	    "D：独特の雰囲気やマニアックな話題で印象を残す"
+	  ]
+	},
+	{
+	  q: "Q2. 人と話すとき、まず意識することは？",
+	  a: [
+	    "A：場の空気を明るくすること",
+	    "B：相手が安心できるようにすること",
+	    "C：冗談やスパイスで空気を動かすこと",
+	    "D：自然体の雰囲気で会話すること"
+	  ]
+	},
+	{
+	  q: "Q3. あなたにとって『人との距離感』はどんなもの？",
+	  a: [
+	    "A：明るく接してすぐに仲良くなるもの",
+	    "B：ゆっくり信頼を積み重ねていくもの",
+	    "C：駆け引きを楽しむ関係性",
+	    "D：深く刺さる特別なつながり"
+	  ]
+	},
+	{
+	  q: "Q4. 気づくとやってしまう“ちょっとしたクセ”は？",
+	  a: [
+	    "A：場を明るくしようとして無理にテンションを上げる",
+	    "B：相手に合わせすぎて自分の意見を後回しにする",
+	    "C：ノリで動いて相手を驚かせてしまう",
+	    "D：こだわりが強くて譲れないポイントが出る"
+	  ]
+	},
+	{
+	  q: "Q5. 予定が急に空いたとき、あなたはどう動く？",
+	  a: [
+	    "A：誰かを誘って楽しい予定を作る",
+	    "B：やりたかったことを静かに進める",
+	    "C：思いつきで動くので何をするか予想つかない",
+	    "D：一人でじっくり好きなことに没頭する"
+	  ]
+	},
+	{
+	  q: "Q6. 友達とご飯を食べに行ったらお店がまさかの臨時休業…どうする？",
+	  a: [
+	    "A：すぐに別の店を検索して提案",
+	    "B：友達の意見を聞きながら次を探す",
+	    "C：適当に歩いてノリで気になった店に突入",
+	    "D：そのまま散歩したり代案が固まるのを待つ"
+	  ]
+	},
+	{
+	  q: "Q7. スマホの充電が1%になったらどうする？",
+	  a: [
+	    "A：とりあえず誰かから充電器を借りる",
+	    "B：モバ充を持ち歩いているしほぼその状況にならない",
+	    "C：1%のスリルを楽しみながらSNSにポストする",
+	    "D：残り1%で何がどこまでできるのかを観察実験する"
+	  ]
+	},
+	{
+	  q: "Q8. 傘をもってない時に急に軽い雨が降ってきたら？",
+	  a: [
+	    "A：コンビニに傘を買いにダッシュ",
+	    "B：しばらく雨宿りをする",
+	    "C：どうしようもないので全く気にしない",
+	    "D：他の人がどうするかを観察して楽しんでしまう"
+	  ]
+	},
+	{
+	  q: "Q9. 好きな事への向き合い方は？",
+	  a: [
+	    "A：好きになったら全力で突っ走る",
+	    "B：静かに長く続けるタイプ",
+	    "C：気分で波がある自由スタイル",
+	    "D：深く深く掘り下げていく"
+	  ]
+	},
+  {
+    q: "Q10. 今の気分に一番近い擬音は？",
+    a: [
+      "A：ジュワッ（エネルギー爆発）",
+      "B：ホッ（安心・安定）",
+      "C：ピリッ（刺激・小悪魔）",
+      "D：トロッ（深み・余韻）"
+    ]
+  }
+];
+
+const types = ["カルビ","タン","ハラミ","ロース","ミノ","レバー","カルビクッパ"];
+
+
+const typeDescriptions = {
+  "カルビ": {
+    feature: [
+      "太陽のような明るさで場を一気に盛り上げる",
+      "初対面でも距離を縮める外向的な魅力",
+      "周囲にポジティブな影響を与えるムードメーカー"
+    ],
+    weak: [
+      "明るさを維持しようとして疲れやすい",
+      "“盛り上げ役”を背負いがち",
+      "本音を後回しにしがち"
+    ]
+  },
+
+  "タン": {
+    feature: [
+      "誠実で、誰からも信頼される安定感",
+      "落ち着いた雰囲気で相手を安心させる",
+      "丁寧で誠実な接客が強み"
+    ],
+    weak: [
+      "自分の気持ちを抑え込みやすい",
+      "変化の多い環境が苦手",
+      "控えめな性格が誤解されることも"
+    ]
+  },
+
+  "ハラミ": {
+    feature: [
+      "裏方としてのサポート能力が高い",
+      "継続力があり、途中で投げ出さない",
+      "誠実で、周囲からの信頼が厚い"
+    ],
+    weak: [
+      "頼まれごとを断れず負担を抱えやすい",
+      "自分を過小評価しがち",
+      "変化への対応が遅れがち"
+    ]
+  },
+
+  "ロース": {
+    feature: [
+      "柔軟で、どんなタイプの人とも合わせられる",
+      "感情と論理のバランスが良い",
+      "対人距離の調整が上手く、安心感を与える"
+    ],
+    weak: [
+      "器用すぎて本音が見えにくい",
+      "周囲の期待に合わせすぎて疲れやすい",
+      "優先順位が曖昧になりがち"
+    ]
+  },
+
+  "ミノ": {
+    feature: [
+      "自分の美学を貫く職人気質",
+      "深い理解力とこだわりの強さ",
+      "独自の世界観で相手を魅了する"
+    ],
+    weak: [
+      "柔軟性が求められる場面が苦手",
+      "頑固に見られることがある",
+      "感情表現が控えめ"
+    ]
+  },
+
+  "レバー": {
+    feature: [
+      "感受性が豊かで、人の心に深く寄り添える",
+      "内省的で、自分の心の動きを理解している",
+      "微細な変化に気づく繊細さが魅力"
+    ],
+    weak: [
+      "情緒的な刺激に影響されやすい",
+      "自分の感情を抱え込みがち",
+      "ストレス耐性が低め"
+    ]
+  },
+
+	"カルビクッパ": {
+	    feature: [
+	      "刺激と勢いで相手を翻弄する小悪魔的魅力",
+	      "テンションの波が読めず、クセになる存在感",
+	      "大胆で予測不能なアクションが武器"
+	    ],
+	    weak: [
+	      "やりすぎて相手を困惑させることがある",
+	      "気分屋に見られやすい",
+	      "安定感より刺激を優先しがち"
+	    ]
+	}
+};
+
+const mixDescriptions = {
+  "タン×ハラミ": {
+    title: "タン × ハラミ MIX！",
+    comment: "あなたは“安心感”と“継続力”を併せ持つ、信頼度の高いバランス型タイプです。",
+    strengths: [
+      "落ち着いた誠実さで相手を安心させる",
+      "コツコツ積み重ねる継続力がある"
+    ],
+    caution: [
+      "慎重になりすぎて動きが遅れることがある",
+      "頼まれごとを断れず抱え込みやすい"
+    ]
+  },
+
+  "タン×ロース": {
+    title: "タン × ロース MIX！",
+    comment: "あなたは誠実さと柔軟さを兼ね備えた、誰からも好かれる“話しやすいタイプ”です。",
+    strengths: [
+      "相手の気持ちを汲み取るのが上手い",
+      "どんなタイプとも自然に合わせられる"
+    ],
+    caution: [
+      "自分の意見を後回しにしがち",
+      "優しさが行きすぎて疲れやすい"
+    ]
+  },
+
+  "ハラミ×ロース": {
+    title: "ハラミ × ロース MIX！",
+    comment: "あなたは“縁の下の力持ち”と“器用な調整役”を兼ね備えた万能タイプです。",
+    strengths: [
+      "周囲のサポートが得意で信頼される",
+      "人間関係の摩擦を最小限にできる"
+    ],
+    caution: [
+      "抱え込みすぎてキャパオーバーになりやすい",
+      "本音が見えにくくなることがある"
+    ]
+  }
+};
+
+const scores = {};
+for (let q = 0; q < 10; q++) {
+    scores[`${q}-0`] = [3,1,1,1,1,1,0]; // A：カルビ強
+    scores[`${q}-1`] = [1,3,3,3,1,1,0]; // B：タン/ハラミ/ロース強
+    scores[`${q}-2`] = [1,1,1,1,1,1,4]; // C：カルビクッパ特化
+    scores[`${q}-3`] = [1,1,1,1,3,3,0]; // D：ミノ/レバー強
+}
+
+const typeExtraDescs = {
+  "カルビ": { main: "太陽のような爆発的エネルギー", sub: "場を一気に明るくする華やかさ" },
+  "タン": { main: "誠実で落ち着いた安定感", sub: "そっと寄り添う優しさ" },
+  "ハラミ": { main: "縁の下で支える継続力", sub: "人を支える温かい芯の強さ" },
+  "ロース": { main: "柔軟でスマートな立ち回り", sub: "相手に合わせる器用さ" },
+  "ミノ": { main: "職人のようなこだわりと深み", sub: "独自の美学を貫く強さ" },
+  "レバー": { main: "繊細で心に寄り添う感受性", sub: "小さな変化に気づく優しさ" },
+  "カルビクッパ": { main: "小悪魔的な刺激と大胆さ", sub: "相手を翻弄する魅惑の火力" }
+};
+
+// =============================
+// ロジック
+// =============================
+let current = 0;
+let totalScore = Array(7).fill(0);
+
+function showQuestion() {
+    const q = questions[current];
+    document.getElementById("progress").innerHTML = `残り ${10 - current} 問`;
+
+    let html = `<div class="question-box"><p id="question-text">${q.q}</p>`;
+    q.a.forEach((text, ai) => {
+        html += `<button onclick="answer(${ai})">${text}</button>`;
+    });
+    html += "</div>";
+
+    document.getElementById("question-area").innerHTML = html;
+}
+
+function answer(ai) {
+    const key = `${current}-${ai}`;
+    const arr = scores[key];
+    for (let i = 0; i < 7; i++) { totalScore[i] += arr[i]; }
+    current++;
+    if (current >= 10) { finish(); } else { showQuestion(); }
+}
+
+// --- 解説文生成ロジック ---
+
+function getMixComment(topType, subType) {
+    const mainDesc = typeExtraDescs[topType].main;
+    const subDesc = typeExtraDescs[subType].sub;
+    return `${topType}の${mainDesc}を持ちながら、実は${subType}のような${subDesc}も秘めているハイブリッドな性格です！`;
+}
+
+function getSingleComment(topType) {
+    const mainDesc = typeExtraDescs[topType].main;
+    return `${topType}の${mainDesc}が極めて高い、まさに「純度100%」の${topType}タイプです！`;
+}
+
+// --- 終了処理 ---
+
+function finish() {
+    document.getElementById("question-area").style.display = "none";
+    document.getElementById("progress").style.display = "none";
+    
+    const resultDiv = document.getElementById("result");
+    resultDiv.style.display = "block";
+
+    const sorted = totalScore
+        .map((v, i) => ({ type: types[i], score: v }))
+        .sort((a, b) => b.score - a.score);
+
+    const top = sorted[0];
+    const second = sorted[1];
+
+    // ランク判定（点数の高さで希少度を演出）
+    let rank = "並";
+    if (top.score >= 25) rank = "特上";
+    else if (top.score >= 20) rank = "上";
+
+    let html = "";
+    let descriptionText = "";
+
+    // 1位と2位の差が3以内ならMIX判定
+		if (top.score - second.score <= 3) {
+
+		    const key1 = `${top.type}×${second.type}`;
+		    const key2 = `${second.type}×${top.type}`;
+
+		    // ★ B軸専用 MIX が存在する場合はそちらを優先
+		    if (mixDescriptions[key1] || mixDescriptions[key2]) {
+		        const data = mixDescriptions[key1] || mixDescriptions[key2];
+
+		        html += `<h2>${rank} ${data.title}</h2>`;
+		        html += `<p class="comment-box">${data.comment}</p>`;
+
+		        html += `<h3>【あなたの強み】</h3><ul>
+		            <li>${data.strengths[0]}</li>
+		            <li>${data.strengths[1]}</li>
+		        </ul>`;
+
+		        html += `<h3>【注意ポイント】</h3><ul>
+		            <li>${data.caution[0]}</li>
+		            <li>${data.caution[1]}</li>
+		        </ul>`;
+
+		        html += `<button onclick="location.reload()" style="margin-top:20px;">もう一度診断する</button>`;
+		        resultDiv.innerHTML = html;
+		        return;
+		    }
+
+		    // ★ ここから下は従来の MIX（A/C/D など）
+		    html += `<h2>${rank} ${top.type} × ${second.type} MIX！</h2>`;
+		    descriptionText = getMixComment(top.type, second.type);
+
+		    html += `<p class="comment-box">${descriptionText}</p>`;
+		    html += `<h3>【あなたの強み】</h3><ul>
+		        <li>${typeDescriptions[top.type].feature[0]}</li>
+		        <li>${typeDescriptions[second.type].feature[0]}</li>
+		    </ul>`;
+
+		} else {
+		    // 純粋タイプ判定（従来通り）
+		    html += `<h2>${rank} ${top.type}タイプ！</h2>`;
+		    descriptionText = getSingleComment(top.type);
+
+		    html += `<p class="comment-box">${descriptionText}</p>`;
+		    html += `<h3>【特徴】</h3><ul>${typeDescriptions[top.type].feature.map(f => `<li>${f}</li>`).join("")}</ul>`;
+		}
+
+    // 共通の弱点表示（1位のもの）
+    html += `<h3>【注意ポイント】</h3><ul>${typeDescriptions[top.type].weak.map(w => `<li>${w}</li>`).join("")}</ul>`;
+    
+    // リトライボタンなど
+    html += `<button onclick="location.reload()" style="margin-top:20px;">もう一度診断する</button>`;
+
+    resultDiv.innerHTML = html;
+}
+
+showQuestion();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>収集状況シミュレーター</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #a855f7;
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --input-bg: #334155;
+            --text: #f8fafc;
+            --accent: #22d3ee;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: sans-serif;
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100dvh;
+            box-sizing: border-box;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 450px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+        }
+
+        h1 { font-size: 1.2rem; text-align: center; color: var(--primary); margin: 0 0 20px 0; }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .input-group { margin-bottom: 10px; text-align: left; }
+        label { display: block; font-size: 0.75rem; color: #94a3b8; margin-bottom: 4px; }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background: var(--input-bg);
+            color: white;
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        #calc-btn {
+            width: 100%;
+            padding: 15px;
+            border-radius: 10px;
+            border: none;
+            background: var(--primary);
+            color: white;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: opacity 0.2s;
+        }
+
+        /* グラフエリア */
+        .chart-container {
+            margin-top: 25px;
+            background: rgba(255,255,255,0.03);
+            padding: 10px;
+            border-radius: 15px;
+            height: 250px;
+        }
+
+        /* 表エリア */
+        .table-scroll {
+            margin-top: 20px;
+            overflow-x: auto;
+            border-radius: 10px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.85rem;
+            text-align: center;
+        }
+
+        th { background: var(--input-bg); color: var(--accent); padding: 10px; }
+        td { border-bottom: 1px solid #334155; padding: 10px; }
+        .highlight { color: var(--primary); font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>V種中 欲しいM種が収集できる確率</h1>
+    
+    <div class="input-grid">
+        <div class="input-group">
+            <label>全体の種数 (V)</label>
+            <input type="number" id="v_total" value="32">
+        </div>
+        <div class="input-group">
+            <label>狙う種数 (M)</label>
+            <input type="number" id="m_target" value="5">
+        </div>
+        <div class="input-group" style="grid-column: span 2;">
+            <label>試行回数 (T回)</label>
+            <input type="number" id="t_trials" value="20">
+        </div>
+    </div>
+
+    <button id="calc-btn" onclick="calculate()">確率分布を計算</button>
+
+    <div class="chart-container">
+        <canvas id="probChart"></canvas>
+    </div>
+
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th>揃った数</th>
+                    <th>確率</th>
+                </tr>
+            </thead>
+            <tbody id="res-table-body">
+                </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    let myChart = null;
+
+    function nCr(n, r) {
+        if (r < 0 || r > n) return 0;
+        if (r === 0 || r === n) return 1;
+        if (r > n / 2) r = n - r;
+        let res = 1;
+        for (let i = 1; i <= r; i++) res = res * (n - i + 1) / i;
+        return res;
+    }
+
+    // 「V種中M種のうち、ちょうどx種揃う確率」を求める
+    function probExactlyX(V, M, T, x) {
+        let prob = 0;
+        // 包除原理の応用
+        for (let k = 0; k <= x; k++) {
+            const sign = (k % 2 === 0) ? 1 : -1;
+            prob += sign * nCr(x, k) * Math.pow((V - (M - x + k)) / V, T);
+        }
+        return nCr(M, x) * prob;
+    }
+
+    function calculate() {
+        const V = parseInt(document.getElementById('v_total').value);
+        const M = parseInt(document.getElementById('m_target').value);
+        const T = parseInt(document.getElementById('t_trials').value);
+        
+        const labels = [];
+        const data = [];
+        const tableBody = document.getElementById('res-table-body');
+        tableBody.innerHTML = "";
+
+        let cumulative = 0;
+
+        for (let x = 0; x <= M; x++) {
+            let p = probExactlyX(V, M, T, x);
+            if (p < 0) p = 0; 
+            
+            const pPercent = p * 100;
+            cumulative += pPercent;
+
+            labels.push(x + "種");
+            data.push(pPercent.toFixed(2));
+
+            // 表の更新 (0種は除外して表示してもOKですが、ここでは全表示)
+            const row = `<tr>
+                <td>${x === M ? '<span class="highlight">全' + x + '種</span>' : x + '種'}</td>
+                <td>${pPercent.toFixed(2)}%</td>
+            </tr>`;
+            tableBody.insertAdjacentHTML('beforeend', row);
+        }
+
+        updateChart(labels, data);
+    }
+
+    function updateChart(labels, data) {
+        const ctx = document.getElementById('probChart').getContext('2d');
+        if (myChart) myChart.destroy();
+
+        myChart = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: '出現確率 (%)',
+                    data: data,
+                    backgroundColor: '#a855f7aa',
+                    borderColor: '#a855f7',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                    x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    }
+
+    window.onload = calculate;
+</script>
+</body>
+</html>

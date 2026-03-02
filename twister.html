@@ -1,0 +1,411 @@
+<head>
+	<title>二人対戦用片手ツイスター</title>
+	<style>
+	/* 全体 */
+	body {
+	  -webkit-user-select: none;
+	  user-select: none;
+	  margin: 0;
+	  padding: 0;
+	  
+	  /* --- ここから追加 --- */
+	  position: fixed; /* 画面を固定してスクロールを物理的に封じる */
+	  width: 100%;
+	  height: 100%;
+	  overflow: hidden; /* はみ出しによるスクロールを防止 */
+	  touch-action: none; /* ブラウザによるズームやパンをすべて無効化 */
+	  /* ------------------ */
+	}
+
+	#board {
+	  display: grid; 
+	  grid-template-columns: repeat(3, 1fr); 
+	  grid-template-rows: repeat(5, 1fr);   
+	  gap: 8px; /* 隙間を詰めて円のスペースを確保 */
+	  width: 98vw; /* 画面幅いっぱいまで使う */
+	  margin: 5px auto;
+	  justify-items: center; 
+	}
+
+	.circle { 
+	  width: 30vw; /* 3列の限界サイズ */
+	  height: 30vw; 
+	  max-width: 130px; 
+	  max-height: 130px;
+	  border-radius: 50%; 
+	  box-shadow: inset 0 0 10px rgba(0,0,0,0.2);
+	}
+	.board-red { background:red; }
+	.board-blue { background:blue; }
+	.board-green { background:green; }
+	.board-yellow { background:yellow; }
+
+	/* UI */
+	#controls { 
+	  display: flex;
+	  justify-content: center;
+	  margin: 5px 0;
+	}
+	button {
+	  font-size: 4.5vw;
+	  padding: 0.5vh 3vw; /* 縦のパディングを大幅に削減 */
+	  border-radius: 5px;
+	}
+	/* 指示テキストも少し詰める */
+	#instruction { 
+	  margin-top: 5px; 
+	  font-size: 5vw;
+	  text-align:center;
+	}
+
+	#result{
+		color: red;
+	  font-size:6vw; 
+	  text-align:center;
+	}
+	#countdown {
+	  width: 90vw;
+	  height: 1.5vh; 
+	  border: 1px solid #333;
+	  margin: 5px auto;
+	  background: #eee;
+	}
+	#bar {
+	  height:100%;
+	  width:100%;
+	  background:limegreen;
+	}
+	#spinButton {
+	  touch-action: manipulation; /* タップをクリック扱いにする */
+	}
+
+	/* ルーレット共通 */
+	.roulette-wrap {
+	  display: flex; 
+	  justify-content: center; 
+	  gap: 10px; 
+	  margin-top: 5px; /* 余白を最小に */
+	  transform: scale(0.9); /* スマホの横幅からはみ出る場合はここを0.85などで微調整 */
+	}
+	.roulette {
+	  position: relative;
+	  width: 230px;
+	  height: 230px;
+	  border-radius: 50%;
+	  border: 3px solid #333;
+	  margin: 0 auto;
+	  will-change: transform;
+	}
+
+	.roulette-container {
+	  position: relative;
+	}
+	.marker {
+	  position: absolute;
+	  top: -20px;
+	  left: 50%;
+	  transform: translateX(-50%);
+	  z-index: 10;
+	}
+
+	/* 指ルーレット（5分割） */
+	.finger-roulette {
+	  width: 230px;
+	  height: 230px;
+	  border-radius: 50%;
+	  border: 3px solid #333;
+	  background: conic-gradient(
+	    #444444 0deg 72deg,
+	    #666666 72deg 144deg,
+	    #888888 144deg 216deg,
+	    #aaaaaa 216deg 288deg,
+	    #cccccc 288deg 360deg
+	  );
+	  position: relative;
+	  will-change: transform;
+	}
+
+	/* ラベル共通：0deg=上、中心角配置 */
+	.label-finger,
+	.label-color {
+	  position: absolute;
+	  left: 45%;
+	  top: 40%;
+	  /* 上方向へ半径分移動する設計（translateY）で0deg=上を維持 */
+	  transform: rotate(var(--angle)) translateY(-60px) rotate(calc(-1 * var(--angle)));
+	  transform-origin: center;
+	  font-size: 28px;
+	  font-weight: bold;
+	  color: #fff;
+	  text-shadow: 0 1px 2px rgba(255,255,255,0.7);
+	}
+
+	/* 色ルーレット（conic-gradientの順と表示の順を揃える: 赤→青→緑→黄） */
+	.color-roulette {
+	  background: conic-gradient(
+	    red 0deg 90deg,
+	    blue 90deg 180deg,
+	    green 180deg 270deg,
+	    gold 270deg 360deg
+	  );
+	}
+
+	/* 注意：.label-color の別定義（translate(60px)など）は削除。二重定義厳禁 */
+	</style>
+</head>
+
+<!-- 盤面 -->
+<div id="board"></div>
+<div id="countdown"><div id="bar"></div></div>
+
+<div class="roulette-wrap">
+  <!-- 指ルーレット -->
+  <div class="roulette-container">
+    <div class="marker">▽</div>
+    <div class="finger-roulette" id="fingerRoulette">
+      <div class="finger-labels">
+        <span class="label-finger">親</span>
+        <span class="label-finger">人</span>
+        <span class="label-finger">中</span>
+        <span class="label-finger">薬</span>
+        <span class="label-finger">小</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 色ルーレット -->
+  <div class="roulette-container">
+    <div class="marker">▽</div>
+    <div class="roulette color-roulette" id="colorRoulette">
+      <div class="color-labels">
+        <span class="label-color">赤</span>
+        <span class="label-color">青</span>
+        <span class="label-color">緑</span>
+        <span class="label-color">黄</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="controls">
+  <button id="spinButton">ルーレット回す</button>
+</div>
+<div id="instruction"></div>
+<div id="result"></div>
+
+<div id="controls">
+	<button id="resetButton">始めから</button>
+</div>
+
+<script>
+const colorLabels = ["赤", "青", "緑", "黄"];     // conic-gradient の順と一致
+const fingers = ["親指","人差し指","中指","薬指","小指"];
+let timeLeft = 15; // 秒
+/* 初期配置（指5、色4）*/
+placeLabels("fingerRoulette", "label-finger", 5);
+placeLabels("colorRoulette", "label-color", 4);
+
+let requiredFingers = 0;   // 出目で増える指の数
+let currentFingers = 0;    // 実際に触れている指の数
+let usedFingers = new Set();      // すでに出た指を記録
+
+//	イベント登録
+const button = document.getElementById("spinButton");
+button.addEventListener("touchend", function(event){
+  spinBoth();
+	event.preventDefault();
+},{passive: false});;
+
+
+button.addEventListener('touchstart', function(event) {
+    // スクロール可能な要素ではない場合などに、デフォルト動作（スクロールなど）を無効化
+    // ただし、この処理はページ全体のスクロールまで止めてしまう可能性があるため、
+    // 適用範囲には注意が必要です。
+    // event.preventDefault();
+}, { passive: false });
+button.addEventListener("click", spinBoth);
+
+const resetButton = document.getElementById("resetButton");
+resetButton.addEventListener("click", resetGame);
+
+
+// 盤面生成（省略：元のまま）
+function createBoard() {
+  const board = document.getElementById("board");
+  board.innerHTML = "";
+  const boardColors = ["board-red","board-blue","board-green","board-yellow"];
+  const totalCircles = 15;
+
+  let colors = [...boardColors];
+  for (let i = colors.length; i < totalCircles; i++) {
+    const randomColor = boardColors[Math.floor(Math.random() * boardColors.length)];
+    colors.push(randomColor);
+  }
+  for (let i = colors.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [colors[i], colors[j]] = [colors[j], colors[i]];
+  }
+  colors.forEach(color => {
+    const circle = document.createElement("div");
+    circle.className = "circle " + color;
+    board.appendChild(circle);
+  });
+}
+
+// リセット処理
+function resetGame() {
+  requiredFingers = 0;
+  currentFingers = 0;
+  usedFingers.clear();
+
+  // 表示を初期化
+  resetText();
+	resetCountdown();
+}
+
+// テキストクリア
+function resetText(){
+  // 表示を初期化
+  document.getElementById("instruction").textContent = "";
+  document.getElementById("result").textContent = "";
+}
+
+//	ボタン有効化/無効化
+function activateButton(flag)
+{
+	if(flag){
+		button.disabled = false;
+		resetButton.disabled = false;
+	}
+	else{
+		button.disabled = true;
+		resetButton.disabled = true;
+	}
+}
+
+/* 角度ユーティリティ */
+function degPerSlice(count) { return 360 / count; }
+function centerAngleOfIndex(idx, count) {
+  const slice = degPerSlice(count);
+  return -idx * slice - slice / 2;
+}
+
+/* ラベル配置 */
+function placeLabels(containerId, labelClass, sliceCount) {
+  const container = document.getElementById(containerId);
+  const labels = container.querySelectorAll(`.${labelClass}`);
+  const slice = degPerSlice(sliceCount);
+  labels.forEach((el, idx) => {
+    const center = idx * slice + slice / 2;
+    el.style.setProperty("--angle", `${center}deg`);
+  });
+}
+
+/* カウントダウン */
+function startCountdown() {
+  const bar = document.getElementById("bar");
+  bar.style.transition = "none";
+  bar.style.width = "100%";
+  void bar.offsetWidth;
+  bar.style.transition = `width ${timeLeft}s linear`;
+  bar.style.width = "0%";
+
+  // timeLeft 秒後に判定
+  setTimeout(() => {
+    checkResult();
+  }, timeLeft * 1000);
+}
+
+function resetCountdown(){
+  const bar = document.getElementById("bar");
+  bar.style.transition = "none";
+  bar.style.width = "100%";
+}
+
+/* ルーレット回転 */
+function spinRoulette(id, sliceCount, callback) {
+  const roulette = document.getElementById(id);
+  const resultIndex = Math.floor(Math.random() * sliceCount);
+  const targetAngle = centerAngleOfIndex(resultIndex, sliceCount);
+  const extraSpins = 4 + Math.floor(Math.random() * 3);
+  const baseRotation = extraSpins * 360;
+  const epsilon = 0.0001;
+  const finalRotation = baseRotation + targetAngle + epsilon;
+
+  roulette.style.transition = "none";
+  roulette.style.transform = "rotate(0deg)";
+  void roulette.offsetWidth;
+
+  roulette.style.transition = "transform 3s ease-out";
+  roulette.style.transform = `rotate(${finalRotation}deg)`;
+
+  setTimeout(() => {
+    callback(resultIndex);
+  }, 3000);
+}
+
+/* 両方回す */
+function spinBoth() {
+  let fingerResult = null;
+  let colorResult = null;
+	resetText();
+  resetCountdown();
+	activateButton(false);
+	
+  spinRoulette("fingerRoulette", 5, (idx) => {
+    fingerResult = fingers[idx];
+    if (colorResult) showResult(fingerResult, colorResult);
+  });
+
+  spinRoulette("colorRoulette", 4, (idx) => {
+    colorResult = colorLabels[idx];
+    if (fingerResult) showResult(fingerResult, colorResult);
+  });
+}
+
+/* 結果表示 */
+function showResult(finger, color) {
+  document.getElementById("instruction").textContent = `${finger} を ${color} に置いてください`;
+
+  // 新しい指ならカウントを増やす
+  if (!usedFingers.has(finger)) {
+    usedFingers.add(finger);
+    requiredFingers += 2;
+  }
+
+  startCountdown();
+}
+
+/* 判定処理 */
+function checkResult() {
+  const resultDiv = document.getElementById("result");
+  if (currentFingers === requiredFingers) {
+    resultDiv.textContent = "〇";
+  } else {
+    resultDiv.textContent = `✕ 正しく指が置けていません (必要:${requiredFingers}, 実際:${currentFingers})`;
+  }
+	activateButton(true);
+}
+
+/* タッチイベントで現在の指数を更新 ＋ 画面の動きを封印 */
+document.body.addEventListener("touchstart", (e) => {
+  // ズームなどのデフォルト動作を無効化
+  if (e.touches.length > 1) {
+    e.preventDefault(); 
+  }
+  currentFingers = e.touches.length;
+}, { passive: false });
+
+document.body.addEventListener("touchmove", (e) => {
+  // 移動（スクロール）を完全に禁止
+  e.preventDefault();
+}, { passive: false });
+
+document.body.addEventListener("touchend", (e) => {
+  currentFingers = e.touches.length;
+}, { passive: false });
+
+// 初期化
+createBoard();
+</script>
+

@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="manifest" href="./manifest.json">
+
+<title>110に緊急通報しますん</title>
+<style>
+  body {
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    background:#fff; color:#000; text-align:center;
+  }
+  .screen { display:none; padding:20px; }
+  .screen.active { display:block; }
+  .number-display {
+    font-size: 32px;
+    margin: 20px 0;
+    letter-spacing: 2px;
+    min-height: 40px;
+    line-height: 40px;
+  }
+	.start-screen {
+	  display:flex; justify-content:center; align-items:center;
+	  height:80vh; font-size:20px; color:#666;
+	}
+  .keypad {
+    display:grid; grid-template-columns:repeat(3,1fr); gap:16px;
+    max-width:300px; margin:0 auto;
+  }
+  .digit { font-size:24px; font-weight:bold; }
+  .sub { font-size:10px; color:#666; margin-top:2px; }
+  .name { font-size: 34px; font-weight: bold; margin-top: 40px; }
+  .desc { font-size: 18px; color: #666; margin-top: 8px; }
+  .timer { font-size: 16px; margin-top: 12px; font-variant-numeric: tabular-nums; color: #007aff; }
+  .controls { display:flex; flex-wrap:wrap; justify-content:center; gap:12px; margin-top:20px; }
+  .control { width:60px; height:60px; border-radius:50%; background:#eee;
+             display:flex; align-items:center; justify-content:center; font-size:22px; cursor:pointer; }
+  .control.end { background:#e74c3c; color:white; }
+
+	.key,
+	.call-btn {
+	  width:80px;
+	  height:80px;
+	  border-radius:50%; /* 完全な円 */
+	  display:flex;
+	  align-items:center;
+	  justify-content:center;
+	}
+
+	.key {
+	  background:#eee;
+	  border-radius:50%;
+	  width:80px;
+	  height:80px;
+	  display:flex;
+	  flex-direction:column;   /* ←縦並びにする */
+	  justify-content:center;
+	  align-items:center;
+	  cursor:pointer;
+	}
+	.digit { font-size:24px; font-weight:bold; }
+	.sub   { font-size:10px; color:#666; margin-top:2px; }
+
+
+	.actions {
+	  position: relative;
+	  margin-top: 20px;
+	  height: 80px;
+	}
+
+	.call-btn {
+	  width:80px;
+	  height:80px;
+	  border-radius:50%;
+	  background:#2ecc71;
+	  border:none;
+	  cursor:pointer;
+	  position: absolute;
+	  left: 50%;
+	  transform: translateX(-50%); /* 常に中央 */
+	  display:flex;
+	  align-items:center;
+	  justify-content:center;
+	}
+
+	.delete-btn {
+	  width:80px;
+	  height:80px;
+	  border-radius:50%;
+	  background:none;
+	  border:none;
+	  font-size:24px;
+	  color:#007aff;
+	  cursor:pointer;
+	  display:none;
+	  position: absolute;
+	  left: calc(50% + 100px); /* 発信ボタンの右隣に固定 */
+	  top: 50%;
+	  transform: translateY(-50%);
+	}
+	.call-btn svg {
+	  width:28px;
+	  height:28px;
+	  fill:white;
+	}
+
+  .navbar {
+    display: flex;
+    justify-content: space-around;
+    border-top: 1px solid #ccc;
+    padding: 6px 0;
+    background: #f9f9f9;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+  }
+  .nav-item { font-size: 12px; text-align: center; color: #666; }
+  .nav-item.active { color: #007aff; font-weight: bold; }
+</style>
+</head>
+<body>
+
+<!-- 初期画面 -->
+<div id="start" class="screen active start-screen">
+  画面をタップ／クリックしてください
+</div>
+
+<!-- キーパッド画面 -->
+<div id="dial" class="screen">
+  <div class="number-display"><span id="dialNumber"></span></div>
+
+  <div class="keypad" id="keypad">
+    <div class="key" data-num="1"><div class="digit">1</div><div class="sub">•</div></div>
+    <div class="key" data-num="2"><div class="digit">2</div><div class="sub">ABC</div></div>
+    <div class="key" data-num="3"><div class="digit">3</div><div class="sub">DEF</div></div>
+    <div class="key" data-num="4"><div class="digit">4</div><div class="sub">GHI</div></div>
+    <div class="key" data-num="5"><div class="digit">5</div><div class="sub">JKL</div></div>
+    <div class="key" data-num="6"><div class="digit">6</div><div class="sub">MNO</div></div>
+    <div class="key" data-num="7"><div class="digit">7</div><div class="sub">PQRS</div></div>
+    <div class="key" data-num="8"><div class="digit">8</div><div class="sub">TUV</div></div>
+    <div class="key" data-num="9"><div class="digit">9</div><div class="sub">WXYZ</div></div>
+    <div class="key" data-num="*"><div class="digit">*</div></div>
+    <div class="key" data-num="0"><div class="digit">0</div><div class="sub">+</div></div>
+    <div class="key" data-num="#"><div class="digit">#</div></div>
+  </div>
+
+  <div class="actions">
+		<button class="call-btn" id="callBtn">
+		  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" fill="white" viewBox="0 0 24 24">
+		    <path d="M6.62 10.79a15.053 15.053 0 006.59 6.59l2.2-2.2a1 1 0 011.05-.24c1.12.37 2.33.57 3.54.57.55 0 1 .45 1 1v3.5a1 1 0 01-1 1C10.61 21 3 13.39 3 4.5a1 1 0 011-1H7.5c.55 0 1 .45 1 1 0 1.21.2 2.42.57 3.54.11.36.03.77-.24 1.05l-2.21 2.2z"/>
+		  </svg>
+		</button>
+    <button id="deleteBtn" class="delete-btn">⌫</button>
+  </div>
+</div>
+
+<!-- 発信中画面 -->
+<div id="waiting" class="screen">
+  <div class="name">緊急通報</div>
+  <div class="desc">110 に発信中...</div>
+</div>
+
+<!-- 通話中画面 -->
+<div id="incall" class="screen">
+  <div class="name">緊急通報</div>
+  <div class="desc">110</div>
+  <div id="timer" class="timer">00:00</div>
+  <div class="controls">
+    <div class="control">🔇</div>
+    <div class="control">📞</div>
+    <div class="control end" id="endBtn">✕</div>
+  </div>
+</div>
+
+<!-- ナビゲーションバー（任意） -->
+<div class="navbar">
+  <div class="nav-item">⭐<br>よく使う項目</div>
+  <div class="nav-item">🕑<br>履歴</div>
+  <div class="nav-item">👤<br>連絡先</div>
+  <div class="nav-item active">🔢<br>キーパッド</div>
+  <div class="nav-item">📩<br>留守番電話</div>
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", () => {
+  const startScreen = document.getElementById('start');
+  const dialScreen = document.getElementById('dial');
+  const dialNumber = document.getElementById('dialNumber');
+  const deleteBtn = document.getElementById('deleteBtn');
+  const keypad = document.getElementById('keypad');
+  const callBtn = document.getElementById('callBtn');
+  const endBtn = document.getElementById('endBtn');
+  const waitingScreen = document.getElementById('waiting');
+  const incallScreen = document.getElementById('incall');
+  const timerEl = document.getElementById('timer');
+
+  let input = "";
+  let timer = 0;
+  let intervalId = null;
+
+  // 初期画面からキーパッドへ
+  function startApp() {
+    // iOSのブラウザでは Fullscreen API は動作しませんが、PCデバッグではクリックで遷移します
+    if (document.documentElement.requestFullscreen) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    }
+    startScreen.classList.remove("active");
+	  startScreen.style.display = "none";   // ←これを追加
+    dialScreen.classList.add("active");
+  }
+  startScreen.addEventListener('click', startApp);
+  startScreen.addEventListener('touchstart', startApp, { passive: true });
+
+  // キーパッド入力
+  keypad.addEventListener('click', e => {
+    const key = e.target.closest('.key');
+    if (!key) return;
+    input += key.dataset.num;
+    dialNumber.textContent = input;
+    deleteBtn.style.display = input.length > 0 ? "inline" : "none";
+  });
+
+  // 削除ボタン
+  deleteBtn.addEventListener('click', () => {
+    input = input.slice(0, -1);
+    dialNumber.textContent = input;
+    deleteBtn.style.display = input.length === 0 ? "none" : "inline";
+  });
+
+  // 発信
+  callBtn.addEventListener('click', () => {
+    dialScreen.classList.remove('active');
+    waitingScreen.classList.add('active');
+    setTimeout(() => {
+      waitingScreen.classList.remove('active');
+      incallScreen.classList.add('active');
+      startTimer();
+    }, 1500);
+  });
+
+  // 通話終了
+  endBtn.addEventListener('click', () => {
+    clearInterval(intervalId);
+    intervalId = null;
+    timer = 0;
+    timerEl.textContent = "00:00";
+    incallScreen.classList.remove('active');
+    dialScreen.classList.add('active');
+    input = "";
+    dialNumber.textContent = "";
+    deleteBtn.style.display = "none";
+  });
+
+  function startTimer() {
+    clearInterval(intervalId);
+    timer = 0;
+    timerEl.textContent = "00:00";
+    intervalId = setInterval(() => {
+      timer++;
+      const mm = String(Math.floor(timer / 60)).padStart(2, '0');
+      const ss = String(timer % 60).padStart(2, '0');
+      timerEl.textContent = `${mm}:${ss}`;
+    }, 1000);
+  }
+});
+</script>
+</body>
+</html>

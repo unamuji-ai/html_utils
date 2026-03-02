@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>コンカフェ嬢バトルカード生成</title>
+    <style>
+        :root {
+            --primary-color: #801e63;
+            --bg-color: #fce4ec;
+        }
+        body { 
+            padding: 10px; 
+            margin: 0; 
+            font-family: 'Helvetica Neue', Arial, sans-serif; 
+            background-color: var(--bg-color); 
+            text-align: center;
+            color: #333;
+        }
+        h1 { color: var(--primary-color); font-size: 1.4rem; margin: 15px 0; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+        
+        .upload-container {
+            background: white;
+            padding: 20px;
+            border-radius: 15px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+        }
+
+        input[type="file"] { margin: 10px 0; width: 100%; font-size: 0.9rem; }
+
+        /* Canvasは計算用なので隠す */
+        #cardCanvas { display: none; }
+
+        /* スマホで長押し保存できるメイン画像 */
+        #outputImage {
+            width: 100%;
+            max-width: 350px;
+            height: auto;
+            margin: 10px auto;
+            display: none; /* 生成されるまで隠す */
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            border: 4px solid white;
+        }
+
+        .hint-text {
+            display: none;
+            background: var(--primary-color);
+            color: white;
+            padding: 8px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            margin: 10px auto;
+            max-width: 280px;
+            animation: bounce 2s infinite;
+        }
+
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        button {
+            width: 90%;
+            max-width: 300px;
+            padding: 14px;
+            margin: 15px auto;
+            display: block;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-weight: bold;
+            font-size: 1rem;
+            cursor: pointer;
+            box-shadow: 0 4px 0 #5a1446;
+            transition: 0.2s;
+        }
+        button:active { transform: translateY(2px); box-shadow: 0 2px 0 #5a1446; }
+
+        .footer-text { font-size: 0.7rem; color: #888; margin-top: 20px; }
+    </style>
+</head>
+<body>
+
+<h1>✨ コンカフェ嬢バトルカード ✨</h1>
+
+<div class="upload-container">
+    <p style="font-size: 0.9rem; font-weight: bold; color: #801e63;">画像を選んでカードを生成💕</p>
+    <input type="file" id="imageInput" accept="image/*" onchange="generateCard()">
+</div>
+
+<div id="saveHint" class="hint-text">画像を長押しして「"写真"に保存」してネ📸</div>
+
+<img id="outputImage">
+
+<canvas id="cardCanvas" width="300" height="1000"></canvas>
+
+<button onclick="downloadCard()">ファイルとして保存（PC推奨）</button>
+
+<p class="footer-text">※生成された画像は長押しでスマホに保存できます。</p>
+
+<script>
+const positiveAttributes = ["元気","癒し","愛嬌","面白さ","機転","心尽くし","コミュ力"];
+const negativeAttributes = ["悪ノリ","下ネタ","P活","店外","グリ下","乞食","鬼畜","色営","オラ営","アルハラ","酒雑魚","ホス狂","彼氏持ち","風掛け持ち"];
+
+const listA = [
+    "週5出勤のアルコール依存モンスターが",
+    "シャンパンの泡に消えたはずの記憶を抱いて",
+    "チェキのインクで汚れきったその指先で",
+    "魔法が解ける30分前のシンデレラのごとく",
+    "加工アプリで原型を失ったその美貌と共に",
+    "ドリンクのおねだりだけで生き延びる亡霊として",
+    "給料日前で極限まで追い詰められた状態で",
+    "他店の推しに貢いだ傷を笑顔で隠しながら",
+    "概念上の妹という設定をギリギリ守り抜いて",
+    "店内のWi-Fiだけが唯一の救いである聖域で"
+];
+
+const listB = [
+    "甘い言葉で財布の紐を緩めにかかっている",
+    "地雷系を装いながら着実に太客を狙う",
+    "「今日暇なの」という呪いのDMを飛ばす",
+    "他店への浮気を光速で特定し詰め寄る",
+    "シャンパンタワーという名の欲望を積み上げる",
+    "遠隔ドリンクの通知を獲物のように待っている",
+    "病み垢の投稿を3秒で全消しし微笑む",
+    "「私だけだよね？」と瞳の奥で同調圧力をかける",
+    "チェキ1枚に1時間分の時給を詰め込む",
+    "キャスト同士の冷徹なマウント合戦を繰り広げる"
+];
+
+const listC = [
+    "さあ、今日が貴方の給料日だって知ってるよ？",
+    "次、別の店行ってたら出禁だからね。",
+    "愛はお金じゃ買えないけど、ドリンクは買えるよ。",
+    "大丈夫、死ぬ時は私の指名被りの横で死んで。",
+    "あ、今「可愛い」って思った？はい、チェキ追加。",
+    "私のこと、ずっと養ってくれるって言ったよね？",
+    "無理はしなくていいよ、キャッシングすればいいし。",
+    "永遠なんていらない、今この瞬間の1本が欲しいの。",
+    "他の女と話した口で私を呼ばないでくれる？",
+    "ごめん、今の会話、ドリンク入ってないから聞こえなかった。"
+];
+
+async function hashImage(file) {
+    const buffer = await file.arrayBuffer();
+    const hash = await crypto.subtle.digest("SHA-256", buffer);
+    return Array.from(new Uint8Array(hash)).map(b => b.toString(16).padStart(2, "0")).join("");
+}
+
+function seededRandom(seed) {
+    let h = 0;
+    for (let i = 0; i < seed.length; i++) { h = Math.imul(31, h) + seed.charCodeAt(i) | 0; }
+    return () => { h = Math.imul(48271, h) % 0x7fffffff; return (h & 0xfffffff) / 0x10000000; };
+}
+
+function randomStatsFromSeed(seed) {
+    const rand = seededRandom(seed);
+    return { beauty: Math.floor(rand() * 101), intelligence: Math.floor(rand() * 101), stamina: Math.floor(rand() * 101), guts: Math.floor(rand() * 101), mental: Math.floor(rand() * 101) };
+}
+
+function randomAttributesFromSeed(seed) {
+    const rand = seededRandom(seed);
+    const pos = [...positiveAttributes].sort(() => rand() - 0.5).slice(0, 2);
+    const neg = [...negativeAttributes].sort(() => rand() - 0.5).slice(0, 1);
+    return [...pos, ...neg];
+}
+
+function randomCaptionFromSeed(seed) {
+    const rand = seededRandom(seed);
+    const pick = arr => arr[Math.floor(rand() * arr.length)];
+    return pick(listA) + "、" + pick(listB) + "。" + pick(listC);
+}
+
+function calcRarity(stats) {
+    const values = Object.values(stats);
+    const total = values.reduce((a, b) => a + b, 0);
+    const minVal = Math.min(...values);
+    if (total >= 420 && minVal >= 64) return "UR";
+    if (total >= 400 && minVal >= 55) return "SSR";
+    if (total >= 350 && minVal >= 40) return "SR";
+    if (total >= 300) return "R";
+    return "N";
+}
+
+const rarityColor = { "UR": "#4fc", "SSR": "#d3e", "SR": "#ca2", "R": "#e82", "N": "#27f" };
+
+async function generateCard() {
+    const file = document.getElementById("imageInput").files[0];
+    if (!file) return;
+
+    const seed = await hashImage(file);
+    const stats = randomStatsFromSeed(seed);
+    const attrs = randomAttributesFromSeed(seed);
+    const caption = randomCaptionFromSeed(seed);
+
+    const reader = new FileReader();
+    reader.onload = e => {
+        const img = new Image();
+        img.onload = () => drawCard(img, stats, attrs, caption);
+        img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+}
+
+function drawCard(userImage, stats, attrs, caption) {
+    const canvas = document.getElementById("cardCanvas");
+    const ctx = canvas.getContext("2d");
+    const rarity = calcRarity(stats);
+
+    const frameImg = new Image();
+    frameImg.crossOrigin = "anonymous";
+    frameImg.src = rarity.toLowerCase() + ".png"; 
+
+    frameImg.onload = () => {
+        ctx.fillStyle = "#404060";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        const targetW = 260, targetH = 460;
+        const x = 20, y = 70;
+        const ratio = Math.max(targetW / userImage.width, targetH / userImage.height);
+        const w = userImage.width * ratio;
+        const h = userImage.height * ratio;
+        const cropX = (w - targetW) / 2;
+        const cropY = (h - targetH) / 2;
+
+        const tempCanvas = document.createElement("canvas");
+        tempCanvas.width = targetW;
+        tempCanvas.height = targetH;
+        const tempCtx = tempCanvas.getContext("2d");
+        tempCtx.drawImage(userImage, -cropX, -cropY, w, h);
+
+        ctx.drawImage(tempCanvas, x, y);
+        ctx.drawImage(frameImg, 0, 0, 300, 600);
+        drawStatusAndText(ctx, stats, attrs, rarity, caption, 610);
+
+        // 【修正】Canvasをimgに変換して表示
+        const outputImage = document.getElementById("outputImage");
+        outputImage.src = canvas.toDataURL("image/png");
+        outputImage.style.display = "block";
+        document.getElementById("saveHint").style.display = "block";
+    };
+}
+
+function drawStatusAndText(ctx, stats, attrs, rarity, caption, offsetY) {
+    ctx.font = "bold 20px sans-serif";
+    ctx.fillStyle = rarityColor[rarity];
+    ctx.fillText(rarity, 230, offsetY + 20);
+
+    ctx.fillStyle = "#fff";
+    ctx.font = "bold 18px sans-serif";
+    ctx.fillText("【ステータス】", 20, offsetY + 20);
+
+    const drawBar = (label, value, y) => {
+        ctx.fillStyle = "#fff"; ctx.font = "14px sans-serif";
+        ctx.fillText(`${label}: ${value}`, 20, y);
+        ctx.fillStyle = "rgba(255,255,255,0.2)";
+        ctx.fillRect(100, y - 10, 150, 8);
+        ctx.fillStyle = "#f20";
+        ctx.fillRect(100, y - 10, (value / 100) * 150, 8);
+    };
+
+    drawBar("容姿", stats.beauty, offsetY + 45);
+    drawBar("知力", stats.intelligence, offsetY + 70);
+    drawBar("体力", stats.stamina, offsetY + 95);
+    drawBar("根性", stats.guts, offsetY + 120);
+    drawBar("精神力", stats.mental, offsetY + 145);
+
+    ctx.fillStyle = "#fff"; ctx.font = "bold 18px sans-serif";
+    ctx.fillText("【特性】", 20, offsetY + 185);
+
+    let ax = 20, ay = offsetY + 210;
+    attrs.forEach(attr => {
+        ctx.fillStyle = positiveAttributes.includes(attr) ? "#ff80ab" : "#80d8ff";
+        ctx.font = "bold 16px sans-serif";
+        ctx.fillText(attr, ax, ay);
+        ax += ctx.measureText(attr).width + 15;
+    });
+
+    ctx.font = "italic 14px sans-serif"; ctx.fillStyle = "#ddd";
+    const lines = caption.match(/.{1,18}/g) || [];
+    let cy = ay + 35;
+    lines.forEach(line => { ctx.fillText(line, 20, cy); cy += 18; });
+}
+
+function downloadCard() {
+    const canvas = document.getElementById("cardCanvas");
+    const link = document.createElement("a");
+    link.download = "battle_card.png";
+    link.href = canvas.toDataURL();
+    link.click();
+}
+</script>
+</body>
+</html>

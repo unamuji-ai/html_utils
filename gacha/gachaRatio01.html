@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>コンプリート確率計算機</title>
+    <style>
+        :root {
+            --primary: #00d2ff;
+            --btn-grad: linear-gradient(135deg, #00d2ff 0%, #3a86ff 100%);
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --input-bg: #334155;
+            --text: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text);
+            font-family: sans-serif;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100dvh;
+        }
+
+        .container {
+            width: 90%;
+            max-width: 400px;
+            background: var(--card-bg);
+            padding: 30px;
+            border-radius: 24px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+
+        h1 {
+            font-size: 1.4rem;
+            margin-bottom: 25px;
+            text-align: center;
+            color: var(--primary);
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-bottom: 8px;
+        }
+
+        input {
+            width: 100%;
+            padding: 15px;
+            border-radius: 12px;
+            border: 2px solid transparent;
+            background: var(--input-bg);
+            color: var(--text);
+            font-size: 1.2rem;
+            outline: none;
+            box-sizing: border-box;
+        }
+
+        input:focus {
+            border-color: var(--primary);
+        }
+
+        #calc-btn {
+            width: 100%;
+            padding: 16px;
+            border-radius: 12px;
+            border: none;
+            background: var(--btn-grad);
+            color: white;
+            font-size: 1.1rem;
+            font-weight: bold;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: transform 0.1s, opacity 0.2s;
+            box-shadow: 0 4px 15px rgba(0, 210, 255, 0.3);
+        }
+
+        #calc-btn:active {
+            transform: scale(0.98);
+            opacity: 0.9;
+        }
+
+        .result-display {
+            background: rgba(0,0,0,0.2);
+            padding: 20px;
+            border-radius: 20px;
+            margin-top: 25px;
+            text-align: center;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .result-label {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+        }
+
+        .result-value {
+            font-size: 3rem;
+            font-weight: 900;
+            color: var(--primary);
+            margin: 5px 0;
+        }
+
+        /* 未計算状態のスタイル */
+        .pending {
+            color: var(--text-dim) !important;
+            opacity: 0.5;
+        }
+
+        .expected-area {
+            font-size: 0.85rem;
+            color: #ffb100;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>V種類の全アイテムをT回ひいてコンプリートする確率</h1>
+
+    <div class="input-group">
+        <label>アイテム種類数 (V)</label>
+        <input type="number" id="items" value="10" min="1" max="150" oninput="resetResult()">
+    </div>
+
+    <div class="input-group">
+        <label>試行回数 (T)</label>
+        <input type="number" id="trials" value="30" min="1" oninput="resetResult()">
+    </div>
+
+    <button id="calc-btn" onclick="runCalculation()">計算する</button>
+
+    <div class="result-display">
+        <div class="result-label">コンプリート確率</div>
+        <div id="result-val" class="result-value pending">--.-%</div>
+        <div id="expected-val" class="expected-area">平均コンプ回数: --</div>
+    </div>
+</div>
+
+<script>
+    // 数値が変更されたときに結果をリセット
+    function resetResult() {
+        const resultElem = document.getElementById('result-val');
+        const expectedElem = document.getElementById('expected-val');
+        
+        resultElem.textContent = "--.-%";
+        resultElem.classList.add('pending');
+        expectedElem.textContent = "平均コンプ回数: --";
+    }
+
+    // 組み合わせ(nCr)
+    function nCr(n, r) {
+        if (r < 0 || r > n) return 0;
+        if (r === 0 || r === n) return 1;
+        if (r > n / 2) r = n - r;
+        let res = 1;
+        for (let i = 1; i <= r; i++) {
+            res = res * (n - i + 1) / i;
+        }
+        return res;
+    }
+
+    function runCalculation() {
+        const btn = document.getElementById('calc-btn');
+        const V = parseInt(document.getElementById('items').value) || 0;
+        const T = parseInt(document.getElementById('trials').value) || 0;
+        const resultElem = document.getElementById('result-val');
+        const expectedElem = document.getElementById('expected-val');
+
+        resultElem.textContent = "...";
+        btn.disabled = true;
+
+        setTimeout(() => {
+            if (V <= 0) {
+                resultElem.textContent = "0.00%";
+                btn.disabled = false;
+                return;
+            }
+
+            // 期待値
+            let expected = 0;
+            for (let i = 1; i <= V; i++) expected += 1 / i;
+            expected *= V;
+            expectedElem.textContent = `平均コンプ回数: 約 ${expected.toFixed(1)} 回`;
+
+            // 確率計算
+            if (T < V) {
+                resultElem.textContent = "0.00%";
+            } else {
+                let prob = 0;
+                for (let k = 0; k < V; k++) {
+                    const sign = (k % 2 === 0) ? 1 : -1;
+                    const term = nCr(V, k) * Math.pow((V - k) / V, T);
+                    prob += sign * term;
+                }
+                const finalProb = Math.max(0, Math.min(100, prob * 100));
+                resultElem.textContent = finalProb.toFixed(2) + "%";
+            }
+            
+            resultElem.classList.remove('pending');
+            btn.disabled = false;
+        }, 50);
+    }
+</script>
+
+</body>
+</html>

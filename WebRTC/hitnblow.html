@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hit & Blow Online - Pro</title>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f9; margin: 0; padding: 15px; display: flex; flex-direction: column; align-items: center; }
+        .card { background: white; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); padding: 20px; width: 100%; max-width: 350px; text-align: center; }
+        .status-bar { font-weight: bold; padding: 8px; margin-bottom: 15px; border-radius: 5px; width: 100%; transition: 0.3s; }
+        .my-turn { background: #e63946; color: white; }
+        .waiting { background: #ddd; color: #666; }
+        .finished { background: #1d3557; color: white; }
+        
+        input[type="number"] { font-size: 24px; width: 140px; padding: 10px; text-align: center; border: 2px solid #ccc; border-radius: 8px; margin: 10px 0; }
+        .error-msg { color: #e63946; font-size: 12px; height: 18px; font-weight: bold; }
+        
+        .btn { background: #1d3557; color: white; border: none; padding: 12px 24px; border-radius: 8px; cursor: pointer; font-size: 16px; font-weight: bold; margin-top: 10px; }
+        .btn:disabled { background: #ccc; cursor: not-allowed; }
+
+        .logs-container { display: flex; gap: 10px; margin-top: 20px; width: 100%; }
+        .log-box { flex: 1; background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 10px; height: 200px; overflow-y: auto; font-size: 13px; text-align: left; }
+        .log-title { font-weight: bold; font-size: 11px; color: #777; margin-bottom: 5px; border-bottom: 1px solid #eee; }
+        .log-item { margin-bottom: 4px; border-bottom: 1px dashed #eee; padding-bottom: 2px; }
+
+        /* オーバーレイ（初期状態は display: none !important で隠す） */
+        #game-over-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.85); z-index: 10000;
+            display: none; justify-content: center; align-items: center;
+        }
+        #game-over-content {
+            background: #2a2a2a; padding: 30px; border-radius: 20px;
+            border: 2px solid #ffd11a; text-align: center; width: 80%;
+            max-width: 300px; box-shadow: 0 0 20px rgba(255, 209, 26, 0.3); color: white;
+        }
+        #reveal-area { margin: 15px 0; padding: 10px; background: #1a1a1a; border-radius: 8px; border: 1px dashed #ffd11a; }
+    </style>
+</head>
+<body>
+
+<div id="game-over-overlay">
+    <div id="game-over-content">
+        <h2 id="game-over-title">結果</h2>
+        <p id="game-over-message"></p>
+        <div id="reveal-area">
+            <span style="font-size: 12px; color: #aaa;">相手の正解</span><br>
+            <span id="opponent-secret-display" style="font-size: 32px; font-weight: bold; color: #fff; letter-spacing: 5px;">----</span>
+        </div>
+        <button id="overlayRestartBtn" class="btn" onclick="requestRestart()" style="background: #e63946; color: white; width: 100%;">もう一度対戦する</button>
+        <button class="btn" onclick="backToLobby()" style="background: #555; color: white; width: 100%; margin-top: 10px;">ロビーへ戻る</button>
+    </div>
+</div>
+
+<div class="card">
+    <div id="status" class="status-bar waiting">接続中...</div>
+
+    <div id="setup-ui">
+        <p>相手に当てる4桁の数字を決めてください</p>
+        <div class="error-msg" id="setup-error"></div>
+        <input type="number" id="secretInput" placeholder="1234" oninput="validateInput('secretInput', 'setup-error', 'confirmBtn')">
+        <br>
+        <button id="confirmBtn" class="btn" onclick="confirmSecret()" disabled>決定</button>
+    </div>
+
+    <div id="game-ui" style="display:none;">
+        <div id="input-area">
+            <p id="instruction">相手の数字を予想してください</p>
+            <div class="error-msg" id="guess-error"></div>
+            <div id="skill-memo" style="display: flex; justify-content: center; gap: 5px; width: 100%; max-width: 200px; height: 45px; margin: 10px auto; font-family: 'Courier New', monospace;">
+                <div id="memo-pos-0" style="flex: 1; border: 2px solid #2a9d8f; border-radius: 4px; background: #f0fdfa; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; color: #2a9d8f;"></div>
+                <div id="memo-pos-1" style="flex: 1; border: 2px solid #2a9d8f; border-radius: 4px; background: #f0fdfa; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; color: #2a9d8f;"></div>
+                <div id="memo-pos-2" style="flex: 1; border: 2px solid #2a9d8f; border-radius: 4px; background: #f0fdfa; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; color: #2a9d8f;"></div>
+                <div id="memo-pos-3" style="flex: 1; border: 2px solid #2a9d8f; border-radius: 4px; background: #f0fdfa; display: flex; flex-direction: column; justify-content: center; align-items: center; font-size: 11px; color: #2a9d8f;"></div>
+            </div>
+            <input type="number" id="guessInput" placeholder="????" oninput="validateInput('guessInput', 'guess-error', 'guessBtn')" style="letter-spacing: 8px;">
+            <br>
+            <button id="guessBtn" class="btn" onclick="onGuessSubmit()" disabled>予想を送信</button>
+        </div>
+
+        <div class="logs-container">
+            <div class="log-box"><div class="log-title">相手の予想 (自分)</div><div id="my-defend-log"></div></div>
+            <div class="log-box"><div class="log-title">自分の予想 (相手)</div><div id="my-attack-log"></div></div>
+        </div>
+
+        <div id="sp-container" style="width: 100%; margin: 10px 0;">
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 2px;">
+                <span>Skill Points</span><span id="sp-value">0 / 10</span>
+            </div>
+            <div style="width: 100%; height: 8px; background: #eee; border-radius: 4px; overflow: hidden;">
+                <div id="sp-bar" style="width: 0%; height: 100%; background: #2a9d8f; transition: 0.3s;"></div>
+            </div>
+        </div>
+
+        <div id="skill-area" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <button id="skill-0" class="btn" onclick="useSkill(0)" disabled>(空き)</button>
+            <button id="skill-1" class="btn" onclick="useSkill(1)" disabled>(空き)</button>
+            <button id="skill-2" class="btn" onclick="useSkill(2)" disabled>(空き)</button>
+            <button id="skill-3" class="btn" onclick="useSkill(3)" disabled>(空き)</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    const params = new URLSearchParams(window.location.search);
+    const role = params.get('role');
+    let mySecret = "", isMyTurn = false, opponentReady = false, opponentWantsRestart = false;
+    let mySP = 0, skillStock = []; const MAX_SP = 10;
+    let revealedInfo = { HL: [false,false,false,false], OE: [false,false,false,false] };
+    let attackHistory = [], revealedPositions = [];
+
+    window.addEventListener("message", (e) => {
+        const data = e.data;
+        if (data.type === "READY") { opponentReady = true; checkStart(); }
+        else if (data.type === "GUESS") { handleOpponentGuess(data.value); }
+        else if (data.type === "RESULT") { handleResult(data); }
+        else if (data.type === "RESTART") { opponentWantsRestart = true; checkRestart(); }
+        else if (data.type === "SKILL_REQ") { handleSkillRequest(data); }
+        else if (data.type === "SKILL_RES") { updateSkillMemo(data); }
+        else if (data.type === "REVEAL_SECRET") { document.getElementById('opponent-secret-display').innerText = data.value; }
+    });
+
+    function validateInput(inputId, errorId, btnId) {
+        const val = document.getElementById(inputId).value;
+        const errorEl = document.getElementById(errorId);
+        const btn = document.getElementById(btnId);
+        errorEl.innerText = ""; btn.disabled = true;
+
+        if (val.length !== 4) {
+            if (val.length > 0) errorEl.innerText = "4桁で入力してください";
+            return;
+        }
+        if (inputId === 'guessInput' && attackHistory.includes(val)) {
+            errorEl.innerText = "警告：既に入力済みです！";
+            errorEl.style.color = "#ff9800";
+            if (isMyTurn) btn.disabled = false; return;
+        }
+        if (inputId !== 'guessInput' || isMyTurn) btn.disabled = false;
+    }
+
+    function confirmSecret() {
+        mySecret = document.getElementById('secretInput').value;
+        document.getElementById('setup-ui').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'block';
+        updateStatus("相手の準備待ち...");
+        send({ type: "READY" }); checkStart();
+    }
+
+    function checkStart() { if (mySecret && opponentReady) setTurn(role === "host"); }
+
+    function onGuessSubmit() {
+        const val = document.getElementById('guessInput').value;
+        attackHistory.push(val);
+        send({ type: "GUESS", value: val });
+        document.getElementById('guessInput').value = "";
+        setTurn(false);
+    }
+
+    function handleOpponentGuess(guessValue) {
+        let h = 0, b = 0; const g = guessValue.split(""), s = mySecret.split("");
+        for (let i = 0; i < 4; i++) { if (g[i] === s[i]) h++; else if (s.includes(g[i])) b++; }
+        const win = (h === 4);
+        addLog("my-defend-log", `${guessValue} : ${h}H ${b}B`);
+        send({ type: "RESULT", value: guessValue, hit: h, blow: b, win: win });
+        if (win) endGame(false); else setTurn(true);
+    }
+
+    function handleResult(data) {
+        addLog("my-attack-log", `${data.value} : ${data.hit}H ${data.blow}B`);
+        addSP(8 - (data.hit * 2) - data.blow);
+        if (data.win) endGame(true);
+    }
+
+    function setTurn(myTurn) {
+        isMyTurn = myTurn;
+        const status = document.getElementById('status');
+        status.innerText = myTurn ? "あなたのターン" : "相手のターン...";
+        status.className = "status-bar " + (myTurn ? "my-turn" : "waiting");
+        updateSPUI();
+    }
+
+    function endGame(isWin) {
+        send({ type: "REVEAL_SECRET", value: mySecret });
+        const overlay = document.getElementById('game-over-overlay');
+        document.getElementById('game-over-title').innerText = isWin ? "YOU WIN! 🎉" : "YOU LOSE... 💀";
+        document.getElementById('game-over-message').innerText = isWin ? "見事正解です！" : "相手に先を越されました。";
+        overlay.style.display = "flex";
+    }
+
+    function addSP(amount) {
+        if (revealedPositions.length >= 4) return;
+        mySP += amount;
+        while (mySP >= MAX_SP) {
+            if (skillStock.length >= 4) {
+                let av = [0,1,2,3].filter(p => !revealedPositions.includes(p));
+                if (av.length > 0) {
+                    const p = av[Math.floor(Math.random() * av.length)];
+                    send({ type: "SKILL_REQ", skillType: 'FULL', pos: p });
+                    skillStock = []; mySP = 0;
+                } else { mySP = MAX_SP; }
+                break;
+            } else {
+                skillStock.push(Math.random() > 0.5 ? 'HL' : 'OE');
+                mySP -= MAX_SP;
+            }
+        }
+        updateSPUI();
+    }
+
+    function updateSPUI() {
+        document.getElementById('sp-bar').style.width = Math.min((mySP/MAX_SP)*100, 100) + "%";
+        document.getElementById('sp-value').innerText = `${Math.floor(mySP)} / ${MAX_SP}`;
+        for (let i = 0; i < 4; i++) {
+            const btn = document.getElementById(`skill-${i}`);
+            if (skillStock[i]) {
+                btn.innerText = skillStock[i] === 'HL' ? "Hi/Lo" : "Odd/Even";
+                btn.disabled = !isMyTurn;
+                btn.style.background = isMyTurn ? "#2a9d8f" : "#ccc";
+            } else { btn.innerText = "(空き)"; btn.disabled = true; btn.style.background = "#eee"; }
+        }
+    }
+
+    function useSkill(idx) {
+        if (!isMyTurn || !skillStock[idx]) return;
+        const type = skillStock[idx];
+        let av = [0,1,2,3].filter(i => !revealedPositions.includes(i) && !(type === 'HL' ? revealedInfo.HL[i] : revealedInfo.OE[i]));
+        if (av.length === 0) av = [0,1,2,3].filter(p => !revealedPositions.includes(p));
+        if (av.length === 0) return;
+        const p = av[Math.floor(Math.random() * av.length)];
+        send({ type: "SKILL_REQ", skillType: type, pos: p });
+        skillStock.splice(idx, 1); updateSPUI();
+    }
+
+    function handleSkillRequest(d) {
+        const v = Number(mySecret[d.pos]);
+        if (d.skillType === 'FULL') send({ type: "SKILL_RES", resType: 'FULL', pos: d.pos, value: v });
+        else {
+            let m = d.skillType === 'HL' ? (v >= 5 ? "Hi↑" : "Lo↓") : (v % 2 === 0 ? "Evn" : "Odd");
+            send({ type: "SKILL_RES", resType: 'PARTIAL', pos: d.pos, mark: m });
+        }
+    }
+
+    function updateSkillMemo(d) {
+        const el = document.getElementById(`memo-pos-${d.pos}`);
+        if (d.resType === 'FULL') {
+            el.innerText = d.value; el.style.fontSize = "24px"; el.style.background = "#fff1f2";
+            if (!revealedPositions.includes(d.pos)) revealedPositions.push(d.pos);
+        } else {
+            if (d.mark.includes("Hi") || d.mark.includes("Lo")) revealedInfo.HL[d.pos] = true;
+            if (d.mark.includes("Odd") || d.mark.includes("Evn")) revealedInfo.OE[d.pos] = true;
+            if (!el.innerText.includes(d.mark)) {
+                const div = document.createElement('div'); div.innerText = d.mark; div.style.fontSize = "10px";
+                if (el.innerText === "") el.innerHTML = ""; el.appendChild(div);
+            }
+        }
+    }
+
+    function requestRestart() {
+        send({ type: "RESTART" });
+        const b = document.getElementById('overlayRestartBtn');
+        b.disabled = true; b.innerText = "相手の同意待ち...";
+        checkRestart();
+    }
+
+		function backToLobby() {
+		    // 親画面（window.top）のURLをlobby.htmlに書き換えて移動する
+		    window.top.location.href = "lobby.html";
+		}
+
+    function checkRestart() { if (document.getElementById('overlayRestartBtn').disabled && opponentWantsRestart) location.reload(); }
+    function updateStatus(m) { document.getElementById('status').innerText = m; }
+    function send(d) { window.parent.postMessage(d, "*"); }
+    function addLog(id, m) { const el = document.getElementById(id); const div = document.createElement('div'); div.innerText = m; el.prepend(div); }
+</script>
+</body>
+</html>

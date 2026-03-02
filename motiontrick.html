@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>Motion Trick Text</title>
+  <style>
+    body { background:#222; color:#eee; margin:0; font-family:sans-serif; }
+    header { padding:16px; }
+    label { display:block; margin-bottom:8px; }
+    canvas { background:#DAEB00; display:block; margin:auto; }
+  </style>
+</head>
+<body>
+  <header>
+    <label>
+      文字列
+      <input id="textInput" value="うなむじ">
+    </label>
+    <label>
+      フォントサイズ
+      <input id="fontSizeInput" type="number" value="34" min="10" max="200">
+    </label>
+    <button id="renderBtn">描画</button>
+  </header>
+  <canvas id="canvas" width="500" height="500"></canvas>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const dxTbl = [-3,-2,-1,1,2,3,1,-1];
+    const dyTbl = [-3,-2,-1,1,2,3,1,-1];
+
+    function offsetShadow(x,y){ return {dx:dxTbl[x%8], dy:dyTbl[(x+y)%8]}; }
+    function offsetHighlight(x,y){ return {dx:dxTbl[(x+4)%8], dy:dyTbl[(x+y+4)%8]}; }
+    function offsetBody(x,y){ return {dx:0, dy:0}; }
+
+    function drawTextLayer(text,x,y,fontPx,color,ox,oy){
+      ctx.fillStyle = color;
+      ctx.font = `bold ${fontPx}px "Arial Black",sans-serif`;
+      ctx.fillText(text, x+ox, y+oy);
+    }
+
+		function render() {
+		  const text = document.getElementById('textInput').value || 'うなむじ';
+		  const fontSize = parseInt(document.getElementById('fontSizeInput').value, 10) || 40;
+
+		  ctx.fillStyle = "#DAEB00";
+		  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+		  ctx.font = `bold ${fontSize}px "Yu Gothic","Meiryo","Arial Black",sans-serif`;
+		  ctx.textBaseline = 'top';
+		  ctx.textAlign = 'left';
+
+		  const charWidth = ctx.measureText("な").width; // 代表文字で幅を測る
+		  const cellW = charWidth;
+		  const cellH = fontSize;
+
+		  let xPx = 20;
+		  let yPx = 20;
+
+		  // 文字列を一文字ずつ分解して描画
+		  const chars = text.split("");
+
+		  for (let i = 0; i < 500; i++) {
+		    const ch = chars[i % chars.length]; // 繰り返し描画
+
+		    // wrap判定
+		    if (xPx + charWidth > canvas.width - 20) {
+		      xPx = 20;
+		      yPx += cellH;
+		    }
+		    if (yPx + fontSize > canvas.height - 20) break;
+
+		    const gx = Math.floor(xPx / cellW);
+		    const gy = Math.floor(yPx / cellH);
+
+		    const sh = offsetShadow(gx, gy);
+		    const hi = offsetHighlight(gx, gy);
+		    const bo = offsetBody(gx, gy);
+
+		    drawTextLayer(ch, xPx, yPx, fontSize, "black", sh.dx, sh.dy);
+		    drawTextLayer(ch, xPx, yPx, fontSize, "white", hi.dx, hi.dy);
+		    drawTextLayer(ch, xPx, yPx, fontSize, "#5b7cdd", bo.dx, bo.dy);
+
+		    xPx += cellW; // 横に進める
+		  }
+		}
+
+    document.getElementById('renderBtn').addEventListener('click',render);
+    render();
+  </script>
+</body>
+</html>

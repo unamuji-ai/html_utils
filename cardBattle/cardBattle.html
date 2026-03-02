@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Battle - ALL-100 Survival</title>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.1.3/firebase-database-compat.js"></script>
+    <style>
+        :root { --bg: #0b0e14; --card-bg: #16213e; --accent: #e94560; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; text-align: center; margin: 0; padding: 0; }
+        .header { background: #1a1a2e; padding: 10px; border-bottom: 2px solid var(--accent); }
+        .arena { display: flex; flex-direction: column; gap: 10px; padding: 10px; max-width: 500px; margin: 0 auto; }
+        
+        .card { position: relative; width: 200px; height: 280px; background: #1a1a1a; border: 3px solid #444; border-radius: 15px; color: white; margin: 0 auto; }
+        .card-rank { position: absolute; top: 12px; left: 15px; font-size: 1.4rem; font-weight: 900; color: #fff; text-shadow: 0 0 10px rgba(0,0,0,0.5); }
+        .card-name { position: absolute; top: 15px; right: 15px; font-size: 0.8rem; color: rgba(255,255,255,0.8); font-weight: bold; }
+        .card-icon { position: absolute; top: 35px; left: 50%; transform: translateX(-50%); font-size: 4.5rem; filter: drop-shadow(0 0 10px rgba(0,0,0,0.3)); }
+
+        .hp-bar-fill { height: 100%; background: linear-gradient(90deg, #ff4d4d, #ff944d); transition: width 0.3s ease; }
+        .stat-row { padding: 0 15px; margin-bottom: 6px; }
+        .stat-label-container { display: flex; justify-content: space-between; font-size: 0.65rem; margin-bottom: 2px; font-weight: bold; }
+        .stat-label { color: #aaa; } .stat-value { color: #fff; }
+        .bar-bg { height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
+        .stat-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
+        .atk-color { background: #ff4757; } .def-color { background: #1e90ff; } .spd-color { background: #2ed573; }
+
+        .info-section { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; height: 200px; margin-top: 10px; }
+        .log-area { background: #16213e88; overflow-y: auto; padding: 8px; border-radius: 10px; font-size: 0.75rem; text-align: left; border: 1px solid #333; }
+        
+        #tap-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; z-index: 100; cursor: pointer; align-items: center; justify-content: center; flex-direction: column; }
+        #tap-msg { background: var(--accent); padding: 15px 30px; border-radius: 40px; font-weight: bold; font-size: 1.2rem; }
+        #result-screen { display: none; padding: 40px 20px; }
+        .btn { background: var(--accent); color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+    <div id="tap-overlay" onclick="resolveTap()">
+        <div style="color:white; margin-bottom:15px; font-size:0.9rem;">ホストの操作を待機中...</div>
+        <div id="tap-msg">Next</div>
+    </div>
+
+    <div id="game-ui">
+        <div class="header"><b>ALL-100 Survival</b></div>
+        <div class="arena">
+            <div id="enemy-view"></div>
+            <div id="battle-msg" style="height:70px; font-size:1.1rem; color:#f9d423; font-weight:bold; display:flex; align-items:center; justify-content:center; text-align:center;">接続中...</div>
+            <div id="player-view"></div>
+            <div class="info-section">
+                <div id="wait-list" class="log-area"><h3>👥 生存</h3><div id="wait-content"></div></div>
+                <div id="log-view" class="log-area"><h3>📝 ログ</h3><div id="log-content"></div></div>
+            </div>
+        </div>
+    </div>
+
+		<div id="result-screen">
+		    <h2>🏆 最終順位 🏆</h2>
+		    <div id="rank-list" ...></div>
+		    <button id="exit-btn" class="btn" style="margin-top:20px;">戻る</button>
+		</div>
+
+<script>
+    // --- Firebase設定 ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyBIWXpu0NjMHZnAEYItt-AQ35JOpMOt3Sk",
+        authDomain: "cardbattle-86925.firebaseapp.com",
+        databaseURL: "https://cardbattle-86925-default-rtdb.firebaseio.com",
+        projectId: "cardbattle-86925",
+        storageBucket: "cardbattle-86925.firebasestorage.app",
+        messagingSenderId: "1014522332791",
+        appId: "1:1014522332791:web:d515e72f3547744ef06872"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    const ELEMENTS = [{name:"火", icon:"🔥"}, {name:"水", icon:"💧"}, {name:"木", icon:"🍃"}, {name:"土", icon:"⛰️"}];
+    const MATRIX = [[1, 0.8, 1.2, 1], [1.2, 1, 0.8, 1], [0.8, 1.2, 1, 1], [1, 1, 1, 1]];
+
+    let roomId = localStorage.getItem('multi_roomId');
+    let myName = localStorage.getItem('multi_myName');
+    let players = [];
+    let isHost = false;
+    let currentResolve = null;
+    let ranking = [];
+
+    // --- 1. 初期化処理 ---
+    async function init() {
+        if (!roomId || !myName) { window.location.href = 'lobby.html'; return; }
+
+        const snap = await db.ref(`rooms/${roomId}`).once('value');
+        const data = snap.val();
+        if (!data) return;
+
+				// ホストが通信を切断したら、その部屋を自動削除する予約 ---
+		    if (data.members[myName] && data.members[myName].isHost) {
+		        db.ref(`rooms/${roomId}`).onDisconnect().remove();
+		    }
+
+        // プレイヤーデータ構築
+        players = Object.values(data.members).map(m => {
+            const p = {
+                name: m.name,
+                isHost: m.isHost || false,
+                cards: Array.isArray(m.cards) ? JSON.parse(JSON.stringify(m.cards)) : []
+            };
+            if (p.name === myName && p.isHost) isHost = true;
+
+            p.cards.forEach(c => {
+                let hpF = c.elmIdx === 3 ? 3.0 : 2.5; 
+                c.atk = c.raw.atk * 0.6;
+                c.maxHp = Math.floor(c.raw.hp * hpF);
+                c.currentHp = c.maxHp;
+                c.spd = c.raw.spd;
+                c.def = c.raw.def * 0.3;
+            });
+            return p;
+        });
+
+        // 司令塔：Firebaseの sync ノードを監視
+				db.ref(`rooms/${roomId}/sync`).on('value', snap => {
+        const state = snap.val();
+        if (state) {
+            // データが届いたらUIを更新（これで「接続中」が消える）
+            updateUI(state);
+        } else if (!isHost) {
+            // 💡 データがまだ無い（ホストがまだ開始していない）ゲストへの表示
+            document.getElementById('battle-msg').innerText = "ホストの対戦開始を待っています...";
+        }
+    });
+
+
+        if (isHost) {
+            setTimeout(runHostLogic, 1000);
+        }
+    }
+
+    // --- 2. 状態放送 (Host Only) ---
+    async function broadcastState(phase, extra = {}) {
+        if (!isHost) return;
+        const state = {
+            phase: phase,
+            players: players.map(p => ({
+                name: p.name,
+                cardCount: p.cards.length,
+                hp: p.cards[0] ? p.cards[0].currentHp : 0,
+                maxHp: p.cards[0] ? p.cards[0].maxHp : 0
+            })),
+            battle: {
+                p1Name: extra.p1Name || "",
+                p2Name: extra.p2Name || "",
+                msg: extra.msg || "",
+                log: extra.log || "",
+                btnText: extra.btnText || "次へ"
+            },
+            ranking: ranking,
+            time: Date.now()
+        };
+        await db.ref(`rooms/${roomId}/sync`).set(state);
+    }
+
+    // --- 3. 描画・同期ロジック (View Layer) ---
+    function updateUI(state) {
+        // A. データの完全同期（自己修復）
+        state.players.forEach(remoteP => {
+            const localP = players.find(p => p.name === remoteP.name);
+            if (localP) {
+                // 枚数を合わせる
+                while (localP.cards.length > remoteP.cardCount) localP.cards.shift();
+                // 現在のカードのHPを合わせる
+                if (localP.cards[0]) {
+                    localP.cards[0].currentHp = remoteP.hp;
+                    localP.cards[0].maxHp = remoteP.maxHp;
+                }
+            }
+        });
+        ranking = state.ranking || [];
+
+        // B. バトル画面の描画
+        const p1 = players.find(p => p.name === state.battle.p1Name);
+        const p2 = players.find(p => p.name === state.battle.p2Name);
+
+        if (p1 && p1.cards[0]) {
+            document.getElementById('player-view').innerHTML = renderCard(p1.cards[0]);
+            updateHpBar('#player-view', p1.cards[0].currentHp);
+        }
+        if (p2 && p2.cards[0]) {
+            document.getElementById('enemy-view').innerHTML = renderCard(p2.cards[0]);
+            updateHpBar('#enemy-view', p2.cards[0].currentHp);
+        }
+
+        // C. メッセージとログ
+        if (state.battle.msg) document.getElementById('battle-msg').innerHTML = state.battle.msg;
+        if (state.battle.log) {
+            const logContent = document.getElementById('log-content');
+            logContent.innerHTML = `<div>${state.battle.log}</div>` + logContent.innerHTML;
+        }
+
+        // D. 各種リスト
+        updateWaitList();
+
+        // E. オーバーレイ
+        const overlay = document.getElementById('tap-overlay');
+        if (state.phase === 'wait_next') {
+            if (isHost) {
+                document.getElementById('tap-msg').innerText = state.battle.btnText;
+                overlay.style.display = 'flex';
+            }
+        } else {
+            overlay.style.display = 'none';
+        }
+
+        if (state.phase === 'finish') showFinalResult(ranking);
+    }
+
+    // --- 4. ホストロジック (Logic Layer) ---
+    async function runHostLogic() {
+        ranking = [];
+        const roles = ["先鋒", "中堅", "大将"];
+
+				// 開始直後にまず「準備中」の状態をブロードキャストする
+		    await broadcastState('ready', { msg: "対戦カードを組んでいます..." });
+		    await new Promise(r => setTimeout(r, 1000)); // 少し待機してゲストの接続時間を確保
+
+        while (true) {
+            let alives = players.filter(p => p.cards.length > 0);
+            
+            if (alives.length <= 1) {
+                if (alives.length === 1 && !ranking.includes(alives[0].name)) ranking.unshift(alives[0].name);
+                await broadcastState('finish');
+                break;
+            }
+
+            // マッチング
+            let p1 = alives[Math.floor(Math.random() * alives.length)];
+            let p2; do { p2 = alives[Math.floor(Math.random() * alives.length)]; } while(p1 === p2);
+
+            const r1 = roles[Math.max(0, 3 - p1.cards.length)];
+            const r2 = roles[Math.max(0, 3 - p2.cards.length)];
+
+            await broadcastState('match', { 
+                p1Name: p1.name, p2Name: p2.name, 
+                msg: `<span style="color:var(--accent)">${p1.name}の${r1}</span> VS <span style="color:#4da6ff">${p2.name}の${r2}</span>` 
+            });
+            await hostWaitNext("試合開始！");
+
+            // バトル
+            let c1 = p1.cards[0], c2 = p2.cards[0];
+            let turn = 0;
+            while (c1.currentHp > 0 && c2.currentHp > 0) {
+                turn++;
+                let volt = turn > 20 ? 1 + (turn - 20) * 0.05 : 1.0;
+                const isP1Attack = Math.random() * (c1.spd + c2.spd) < c1.spd;
+                const atk = isP1Attack ? c1 : c2;
+                const def = isP1Attack ? c2 : c1;
+                const dmg = Math.max(1, Math.floor((atk.atk * volt) * MATRIX[atk.elmIdx][def.elmIdx] - def.def));
+                def.currentHp -= dmg;
+
+                await broadcastState('turn', { 
+                    p1Name: p1.name, p2Name: p2.name,
+                    log: `${turn}T: ${isP1Attack?p1.name:p2.name}の攻撃！ ${dmg}dmg` 
+                });
+                await new Promise(r => setTimeout(r, 600));
+            }
+
+            // 決着処理
+            const winPlayer = c1.currentHp > 0 ? p1 : p2;
+            const losePlayer = c1.currentHp > 0 ? p2 : p1;
+            const winRole = roles[Math.max(0, 3 - winPlayer.cards.length)];
+            const loseRole = roles[Math.max(0, 3 - losePlayer.cards.length)];
+
+            await broadcastState('result', { 
+                p1Name: p1.name, p2Name: p2.name,
+                msg: `<div style="color:gold">📢 ${winPlayer.name}の${winRole}が<br>${losePlayer.name}の${loseRole}を撃破！</div>` 
+            });
+            await hostWaitNext("次の試合へ");
+
+            losePlayer.cards.shift(); // ホスト側でカードを減らす
+            if (losePlayer.cards.length === 0) ranking.unshift(losePlayer.name);
+        }
+    }
+
+    // --- その他ツール関数 ---
+    async function hostWaitNext(btnText) {
+        await broadcastState('wait_next', { btnText: btnText });
+        return new Promise(resolve => { currentResolve = resolve; });
+    }
+
+    async function resolveTap() {
+        if (!isHost || !currentResolve) return;
+        const res = currentResolve;
+        currentResolve = null;
+        res();
+    }
+
+    function updateHpBar(selector, currentHp) {
+        const cardEl = document.querySelector(`${selector} .card`);
+        if (!cardEl) return;
+        const maxHp = parseFloat(cardEl.dataset.maxHp);
+        const hpBar = cardEl.querySelector('.hp-bar-fill');
+        if (hpBar) hpBar.style.width = Math.max(0, (currentHp / maxHp) * 100) + "%";
+    }
+
+    function renderCard(c) {
+        if (!c) return "";
+        const icons = ["🔥", "💧", "🍃", "⛰️"];
+        return `
+            <div class="card" data-max-hp="${c.maxHp}">
+                <div class="card-rank">${c.rank}</div>
+                <div class="card-name">${c.pName}</div>
+                <div class="card-icon">${icons[c.elmIdx]}</div>
+                <div class="stat-row" style="margin-top: 110px;">
+                    <div class="stat-label-container"><span class="stat-label">HP</span><span class="stat-value">${Math.floor(c.currentHp)}</span></div>
+                    <div class="bar-bg"><div class="hp-bar-fill" style="width:100%"></div></div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-label-container"><span class="stat-label">ATK</span><span class="stat-value">${Math.floor(c.raw.atk)}</span></div>
+                    <div class="bar-bg"><div class="stat-bar-fill atk-color" style="width:${Math.min(100, c.raw.atk)}%"></div></div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-label-container"><span class="stat-label">DEF</span><span class="stat-value">${Math.floor(c.raw.def)}</span></div>
+                    <div class="bar-bg"><div class="stat-bar-fill def-color" style="width:${Math.min(100, c.raw.def)}%"></div></div>
+                </div>
+                <div class="stat-row">
+                    <div class="stat-label-container"><span class="stat-label">SPD</span><span class="stat-value">${Math.floor(c.raw.spd)}</span></div>
+                    <div class="bar-bg"><div class="stat-bar-fill spd-color" style="width:${Math.min(100, c.raw.spd)}%"></div></div>
+                </div>
+            </div>`;
+    }
+
+    function updateWaitList() {
+        const container = document.getElementById('wait-content');
+        if (!container) return;
+        container.innerHTML = players.map(p => {
+            const count = p.cards.length;
+            return `<div style="margin-bottom:5px; color:${count>0?'#4da6ff':'#888'}">
+                ${p.name} : ${'★'.repeat(count)}${'☆'.repeat(3-count)}
+            </div>`;
+        }).join('');
+    }
+
+		function showFinalResult(ranking) {
+		    document.getElementById('game-ui').style.display = 'none';
+		    document.getElementById('result-screen').style.display = 'block';
+		    
+		    // ランキング描画
+		    document.getElementById('rank-list').innerHTML = ranking.map((name, i) => `
+		        <div style="display:flex; justify-content:space-between; padding:10px; border-bottom:1px solid #333; ${i===0?'color:gold; font-weight:bold;':''}">
+		            <span>${i+1}位</span><span>${name}</span>
+		        </div>`).join('');
+
+		    // 💡 ボタンの切り替えロジック
+		    const exitBtn = document.getElementById('exit-btn');
+		    if (isHost) {
+						console.log("リザルト画面を表示。30秒後にルームを破棄します。");
+
+		        // 1. 30秒後に自動削除するタイマー
+		        const autoDeleteTimer = setTimeout(async () => {
+		            try {
+		                await db.ref(`rooms/${roomId}`).remove();
+		                console.log("ルームを自動破棄しました。");
+		            } catch (e) { console.error(e); }
+		        }, 30000);
+
+		        // 2. 「戻る」ボタンが押されたら、30秒待たずに即削除
+		        const exitBtn = document.getElementById('exit-btn');
+		        exitBtn.innerText = "ロビーへ戻る";
+		        exitBtn.onclick = async () => {
+		            clearTimeout(autoDeleteTimer); // 自動削除タイマーをキャンセル
+		            try {
+		                await db.ref(`rooms/${roomId}`).remove();
+		            } finally {
+		                location.href = 'lobby.html';
+		            }
+		        };
+
+		    } else {
+		        exitBtn.innerText = "終了する";
+		        exitBtn.onclick = () => {
+		            // タブを閉じる試行
+		            window.opener = null;
+		            window.open('', '_self').close();
+		            window.close();
+		            
+		            // 万が一閉じられなかった時のためのメッセージ
+		            alert("対戦ありがとうございました！このタブを閉じて終了してください。");
+		        };
+		    }
+		}
+
+    init();
+</script>
+</body>
+</html>

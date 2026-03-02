@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>P2P対戦：背景同期</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body { font-family: sans-serif; display: flex; flex-direction: column; align-items: center; padding: 10px; background: #f0f2f5; margin: 0; }
+        .box { background: white; border-radius: 12px; padding: 15px; margin: 5px; width: 95%; max-width: 400px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); box-sizing: border-box; }
+        .game-container { display: flex; flex-direction: column; gap: 10px; width: 100%; align-items: center; }
+        .canvas-wrapper { position: relative; width: 100%; max-width: 280px; }
+        .canvas-label { font-size: 12px; font-weight: bold; margin-bottom: 2px; color: #555; }
+        
+        canvas { border: 2px solid #ddd; background: #fff; touch-action: none; width: 100%; height: 150px; border-radius: 8px; background-size: cover; background-position: center; }
+        #myCanvas { border-color: #4444ff; }
+        #opponentCanvas { border-color: #ff4444; pointer-events: none; }
+
+        .emoji-selector { display: flex; justify-content: center; gap: 10px; margin: 10px 0; flex-wrap: wrap; }
+        .emoji-selector label { cursor: pointer; font-size: 20px; padding: 5px; border: 1px solid #eee; border-radius: 5px; }
+        .emoji-selector input { display: none; }
+        .emoji-selector input:checked + span { background: #e3f2fd; border-bottom: 2px solid #2196f3; }
+
+        #log { width: 100%; height: 60px; border: 1px solid #eee; overflow-y: auto; font-size: 11px; margin-top: 10px; text-align: left; background: #fafafa; padding: 5px; box-sizing: border-box; }
+        .hidden { display: none; }
+        #status { font-size: 14px; color: #2196f3; font-weight: bold; }
+        button { cursor: pointer; background: #2196f3; color: white; border: none; padding: 8px 12px; border-radius: 5px; }
+        
+        /* ★追加：QRコード表示用のスタイル */
+        #qrcode-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-top: 15px;
+            padding: 10px;
+            background: #fff;
+        }
+        #qrcode img {
+            border: 4px solid #fff;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="box">
+        <div id="status">通信準備中...</div>
+        <div id="setup-area">
+            <div id="invite-link-display">URL生成中...</div>
+            <div id="qrcode-wrapper" class="hidden">
+                <div id="qrcode"></div>
+                <p style="font-size: 10px; color: #666; margin-top: 5px;">対戦相手にカメラで読み取ってもらってください</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="game-area" class="game-container hidden">
+        <div style="width: 95%; max-width: 400px; text-align: right; margin-bottom: 5px;">
+            <button onclick="quitGame()" style="background: #ff4444; font-size: 12px; padding: 8px 15px; border-radius: 20px; font-weight: bold; box-shadow: 0 2px 5px rgba(0,0,0,0.2);">
+                対戦を終了する
+            </button>
+        </div>
+
+        <div class="canvas-wrapper">
+            <div class="canvas-label">相手のフィールド (相手が選んだ背景)</div>
+            <canvas id="opponentCanvas" width="280" height="150"></canvas>
+        </div>
+
+        <div class="box">
+            <div class="canvas-label">あなたのフィールド (自分が選んだ背景)</div>
+            <div style="margin: 10px 0; padding: 10px; border: 1px dashed #ccc; border-radius: 8px;">
+                <span style="font-size: 11px;">自分の背景を設定・送信：</span><br>
+                <input type="file" id="bgInput" accept="image/*" style="font-size: 11px; width: 100%;">
+            </div>
+
+            <div class="emoji-selector">
+                <label><input type="radio" name="emoji" value="??" checked onchange="changeEmoji(this.value)"><span>??</span></label>
+                <label><input type="radio" name="emoji" value="??" onchange="changeEmoji(this.value)"><span>??</span></label>
+                <label><input type="radio" name="emoji" value="??" onchange="changeEmoji(this.value)"><span>??</span></label>
+                <label><input type="radio" name="emoji" value="??" onchange="changeEmoji(this.value)"><span>??</span></label>
+                <label><input type="radio" name="emoji" value="??" onchange="changeEmoji(this.value)"><span>??</span></label>
+            </div>
+            
+            <div class="canvas-wrapper">
+                <canvas id="myCanvas" width="280" height="150"></canvas>
+            </div>
+            <div id="log"></div>
+        </div>
+    </div>
+
+    <div id="exit-area" class="box hidden">
+        <h2 style="color: #ff4444;">伝票：お会計</h2>
+        <p id="exit-message" style="font-size: 14px; margin-bottom: 10px;"></p>
+        <div style="background: #fff9c4; padding: 15px; border: 2px dashed #fbc02d; border-radius: 8px; margin: 10px 0;">
+            <span style="font-size: 12px; color: #666;">プレイ料金</span><br>
+            <span id="final-bill" style="font-size: 28px; font-weight: bold; color: #d32f2f;">0</span><br>
+            <span style="font-size: 16px; font-weight: bold;">をお相手に請求してください</span>
+        </div>
+        <div style="margin-top: 20px;">
+            <button onclick="location.href=location.pathname" style="background: #2196f3;">トップに戻る</button>
+        </div>
+    </div>
+
+    <script>
+        // ... (中略：変数の初期化などは変更なし) ...
+        const peer = new Peer({ debug: 2 });
+        let conn = null;
+        let myPos = { x: 0.5, y: 0.5 };
+        let opponentPos = { x: 0.5, y: 0.5 };
+        let myEmoji = "??";
+        let opponentEmoji = "??";
+        let myScore = 0;
+        let opponentScore = 0;
+        let lastTouchPos = { x: 0, y: 0 };
+        let comboCount = 0;
+        const emojiPower = { "??": 500, "??": 300, "??": 800, "??": 1500, "??": 1000 };
+        let myCounts = { "??": 0, "??": 0, "??": 0, "??": 0, "??": 0 };
+        let opponentCounts = { "??": 0, "??": 0, "??": 0, "??": 0, "??": 0 };
+        let myEffectTimer = 0;
+        let oppEffectTimer = 0;
+        let opponentFinalScore = 0;
+
+        const myCanvas = document.getElementById("myCanvas");
+        const oppCanvas = document.getElementById("opponentCanvas");
+        const myCtx = myCanvas.getContext("2d");
+        const oppCtx = oppCanvas.getContext("2d");
+        const logDiv = document.getElementById("log");
+
+        // スコアボード生成
+        const scoreBoard = document.createElement("div");
+        scoreBoard.style = "display:flex; justify-content:space-around; width:100%; font-weight:bold; margin:10px 0; font-size:18px;";
+        scoreBoard.innerHTML = `
+            <div style="color:blue;">あなた: <span id="my-score">0</span></div>
+            <div style="margin:0 20px;">VS</div>
+            <div style="color:red;">相手: <span id="opp-score">0</span></div>
+        `;
+        document.getElementById("game-area").prepend(scoreBoard);
+
+        // --- PeerJS Event Listeners ---
+        peer.on('open', (id) => {
+            document.getElementById('status').textContent = "ID発行完了";
+            const urlParams = new URLSearchParams(window.location.search);
+            const roomID = urlParams.get('room');
+            if (roomID) {
+                conn = peer.connect(roomID, { reliable: true });
+                setupDataChannel();
+            } else {
+                generateInviteLink(id);
+            }
+        });
+
+        peer.on('connection', (c) => {
+            conn = c;
+            setupDataChannel();
+        });
+
+        // ★QRコード生成を含む関数
+        function generateInviteLink(id) {
+            const url = window.location.origin + window.location.pathname + "?room=" + id;
+            const displayArea = document.getElementById('invite-link-display');
+            
+            displayArea.innerHTML = `
+                <p style="font-size:11px;">招待用URL:</p>
+                <input type="text" value="${url}" id="inviteURL" readonly style="width:70%; padding:5px; font-size:10px;">
+                <button onclick="copyURL()" style="font-size:10px; padding:5px 8px;">コピー</button>
+            `;
+
+            // QRコードの表示
+            const qrWrapper = document.getElementById('qrcode-wrapper');
+            qrWrapper.classList.remove('hidden');
+            
+            // 既存のQRがあれば削除
+            document.getElementById('qrcode').innerHTML = "";
+            
+            // QRコード生成
+            new QRCode(document.getElementById("qrcode"), {
+                text: url,
+                width: 168,
+                height: 168,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
+        }
+
+        function copyURL() {
+            const target = document.getElementById("inviteURL");
+            target.select();
+            document.execCommand("Copy");
+            alert("URLをコピーしました！");
+        }
+
+        // --- 描画・通信ロジックは以前のまま継承 ---
+        function setupDataChannel() {
+            conn.on('open', () => {
+                document.getElementById('setup-area').classList.add('hidden');
+                document.getElementById('game-area').classList.remove('hidden');
+                document.getElementById('status').textContent = "接続成功！";
+                render();
+            });
+
+            conn.on('data', (payload) => {
+                if (payload.type === 'MOVE') {
+                    opponentPos = { x: payload.x, y: payload.y };
+                    if (payload.isClick) {
+                        oppEffectTimer = 10;
+                    }
+                } else if (payload.type === 'SCORE') {
+                    opponentScore = payload.data;
+                    document.getElementById("opp-score").textContent = opponentScore;
+                } else if (payload.type === 'EMOJI') {
+                    opponentEmoji = payload.data;
+                } else if (payload.type === 'QUIT') {
+                    opponentFinalScore = payload.score;
+                    opponentCounts = payload.counts;
+                    if (conn && conn.open && !document.getElementById('game-area').classList.contains('hidden')) {
+                        conn.send({ type: 'QUIT_RESPONSE', score: myScore, counts: myCounts });
+                    }
+                    showExitScreen("相手がお会計しました。", "opponent");
+                } else if (payload.type === 'QUIT_RESPONSE') {
+                    opponentFinalScore = payload.score;
+                    opponentCounts = payload.counts;
+                    showExitScreen("あなたがお会計しました。", "opponent");
+                    peer.destroy();
+                } else if (payload.type === 'IMAGE') {
+                    const blob = new Blob([payload.data], { type: payload.mime });
+                    const url = URL.createObjectURL(blob);
+                    myCanvas.style.backgroundImage = `url(${url})`;
+                }
+                render();
+            });
+
+            conn.on('close', () => {
+                if(!document.getElementById('game-area').classList.contains('hidden')) {
+                    showExitScreen("通信が切断されました。");
+                }
+            });
+        }
+
+        // --- 以下、以前の関数群をそのまま保持 ---
+        document.getElementById('bgInput').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (!file || !conn || !conn.open) return;
+            const previewUrl = URL.createObjectURL(file);
+            oppCanvas.style.backgroundImage = `url(${previewUrl})`;
+            conn.send({ type: 'IMAGE', data: file, mime: file.type });
+        });
+
+        function changeEmoji(val) {
+            myEmoji = val;
+            if (conn && conn.open) conn.send({ type: 'EMOJI', data: val });
+            render();
+        }
+
+        function handleInput(clientX, clientY, isClick = false) {
+            if (!conn || !conn.open) return;
+            const rect = myCanvas.getBoundingClientRect();
+            const x = (clientX - rect.left) / rect.width;
+            const y = (clientY - rect.top) / rect.height;
+            myPos = { x, y };
+            if (isClick) {
+                calculatePoint(x, y);
+                myEffectTimer = 10; 
+            }
+            conn.send({ type: 'MOVE', x: myPos.x, y: myPos.y, isClick: isClick });
+            render();
+        }
+
+        function calculatePoint(x, y) {
+            const dist = Math.sqrt(Math.pow(x - lastTouchPos.x, 2) + Math.pow(y - lastTouchPos.y, 2));
+            if (dist < 0.05) comboCount++; else comboCount = 1;
+            lastTouchPos = { x, y };
+            if (myCounts[myEmoji] !== undefined) myCounts[myEmoji]++;
+            const basePower = emojiPower[myEmoji] || 10;
+            const comboMultiplier = 1 + (comboCount * 0.2);
+            const earned = Math.floor(basePower * comboMultiplier);
+            myScore += earned;
+            document.getElementById("my-score").textContent = myScore;
+            conn.send({ type: 'SCORE', data: myScore });
+        }
+
+        myCanvas.addEventListener("mousedown", (e) => handleInput(e.clientX, e.clientY, true));
+        myCanvas.addEventListener("touchstart", (e) => {
+            handleInput(e.touches[0].clientX, e.touches[0].clientY, true);
+            e.preventDefault();
+        }, { passive: false });
+
+        function render() {
+            myCtx.clearRect(0, 0, myCanvas.width, myCanvas.height);
+            if (myEffectTimer > 0) {
+                drawEmoji(myCtx, myEmoji, myPos, myCanvas, 80, 0.5);
+                myEffectTimer--;
+                requestAnimationFrame(render); 
+            } else {
+                drawEmoji(myCtx, myEmoji, myPos, myCanvas, 40, 1.0);
+            }
+            oppCtx.clearRect(0, 0, oppCanvas.width, oppCanvas.height);
+            if (oppEffectTimer > 0) {
+                drawEmoji(oppCtx, opponentEmoji, opponentPos, oppCanvas, 80, 0.5);
+                oppEffectTimer--;
+                requestAnimationFrame(render);
+            } else {
+                drawEmoji(oppCtx, opponentEmoji, opponentPos, oppCanvas, 40, 1.0);
+            }
+        }
+
+        function drawEmoji(ctx, emoji, pos, cv, size, alpha) {
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            ctx.font = `${size}px serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+            ctx.fillText(emoji, pos.x * cv.width, pos.y * cv.height);
+            ctx.restore();
+        }
+
+        function quitGame() {
+            if (confirm("プレイを終了（お会計）してもよろしいですか？")) {
+                if (conn && conn.open) {
+                    conn.send({ type: 'QUIT', score: myScore, counts: myCounts });
+                    setTimeout(() => {
+                        if (!document.getElementById('game-area').classList.contains('hidden')) {
+                            showExitScreen("終了します。", "me");
+                            peer.destroy();
+                        }
+                    }, 2000); 
+                } else {
+                    showExitScreen("プレイを終了しました。", "me");
+                }
+            }
+        }
+
+        function showExitScreen(msg, who) {
+            document.getElementById('game-area').classList.add('hidden');
+            document.getElementById('exit-area').classList.remove('hidden');
+            document.getElementById('exit-message').textContent = msg;
+            const targetScore = (who === "me") ? myScore : opponentFinalScore;
+            const targetCounts = (who === "me") ? myCounts : opponentCounts;
+            document.getElementById('final-bill').textContent = `￥${targetScore.toLocaleString()}`;
+            
+            let detailHtml = '<div style="text-align:left; font-size:12px; font-family:monospace; border-top:1px solid #ccc; padding-top:10px; margin-top:10px;"><b>【内訳】</b><br>';
+            for (let key in targetCounts) {
+                if (targetCounts[key] > 0) {
+                    const price = emojiPower[key] || 0;
+                    detailHtml += `${key} × ${targetCounts[key]} … ￥${(price * targetCounts[key]).toLocaleString()}<br>`;
+                }
+            }
+            detailHtml += '</div>';
+            const oldDetail = document.getElementById('bill-detail');
+            if (oldDetail) oldDetail.remove();
+            const detailDiv = document.createElement('div');
+            detailDiv.id = 'bill-detail';
+            detailDiv.innerHTML = detailHtml;
+            document.getElementById('final-bill').parentNode.appendChild(detailDiv);
+        }
+    </script>
+</body>
+</html>

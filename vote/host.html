@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8">
+  <title>司会者用ページ</title>
+  <!-- Chart.js を CDNから読み込む（UMD版） -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+	<style>
+		/* 全体のレイアウト */
+		body {
+		  font-family: sans-serif;
+		  margin: 10px;
+		  padding: 0;
+		}
+
+		/* 質問テキスト */
+		#question {
+		  font-size: 1.2em;
+		  margin-bottom: 12px;
+		}
+
+		/* 投票ボタン */
+		#choices button {
+		  display: block;
+		  width: 100%;          /* 横幅いっぱい */
+		  padding: 14px;
+		  margin: 8px 0;
+		  font-size: 1em;
+		  border-radius: 6px;
+		  border: 1px solid #ccc;
+		  background-color: #f0f0f0;
+		  cursor: pointer;
+		}
+
+		#choices button:hover {
+		  background-color: #e0e0e0;
+		}
+
+		/* 履歴セクション */
+		#history h3 {
+		  font-size: 1em;
+		  margin-top: 20px;
+		}
+
+		/* Chart.js キャンバス */
+		canvas {
+		  width: 100% !important;   /* 親要素に合わせる */
+		  height: auto !important;  /* 高さは自動調整 */
+		  max-height: 260px;        /* スマホで見やすい高さに制限 */
+		}
+	</style>
+</head>
+<body>
+  <h2>出題者用ページ</h2>
+	<hr>
+	ゲームを開始する際に押してください。<br>
+	表示されたQRを参加者に読ませてください。<br>
+	<button id="startGameBtn">ゲーム開始</button>
+	<div id="gameInfo"></div>
+
+	<hr>
+	ゲームが終了したら押してください。<br>
+	参加者は解散されます。<br>
+	<button id="endGameBtn">ゲーム終了</button>
+	<hr>
+
+  <div>
+    <label for="categorySelect">Category:</label>
+    <select id="categorySelect">
+      <option value="">--選択してください--</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="questionSelect">Question:</label>
+    <select id="questionSelect">
+      <option value="">--選択してください--</option>
+    </select>
+  </div>
+
+	QRコードを参加者が読み込み終わったらここから設問を選びます。<br>
+  <button id="setQuestion">この設問を出す</button>
+	<hr>
+  <div id="history"></div>
+
+  <!-- 集計ボタン -->
+	終了時や途中、いつでも投票結果の内訳が確認できます。<br>
+  <button onclick="aggregateVotes()">集計</button>
+  <div id="results"></div>
+	<hr>
+	同じ参加者で最初から行う場合はリセットを押してください。<br>
+	<button id="resetBtn">ゲームをリセット</button>
+
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+    import { getFirestore, doc, setDoc, addDoc, collection, getDoc, getDocs, deleteDoc, onSnapshot, serverTimestamp } 
+      from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+    // Firebase設定
+    const firebaseConfig = {
+      apiKey: "AIzaSyAI8svAsgMv7iUEvdhBd8Iig75EV4LiDp4",
+      authDomain: "una-vote.firebaseapp.com",
+      projectId: "una-vote",
+      storageBucket: "una-vote.firebasestorage.app",
+      messagingSenderId: "431820061710",
+      appId: "1:431820061710:web:c489e5f2efe30c4dd7d05f",
+      measurementId: "G-N259J06NXW"
+    };
+		
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    let questionsData = {};
+
+
+		// ランダムID生成
+		function generateGameId() {
+		  return Math.random().toString(36).substring(2, 8);
+		}
+
+		function saveGameId(gameId) {
+		  let ids = JSON.parse(localStorage.getItem("gameIds") || "[]");
+		  if (!ids.includes(gameId)) {
+		    ids.push(gameId);
+		  }
+		}
+
+		//	セーフデリート
+		async function safeDelete(path, id) {
+//			await deleteDoc(doc(db, path, id));
+
+
+		  const ref = doc(db, path, id);
+		  const snap = await getDoc(ref);
+		  if (snap.exists()) {
+		    await deleteDoc(ref);
+		  }
+		}
+
+		//	ゲーム開始・QR表示
+		document.getElementById("startGameBtn").onclick = async () => {
+		  const gameId = generateGameId();
+			saveGameId(gameId);
+
+			//	終了およびリセットを削除
+		  await safeDelete("current", "reset");
+		  await safeDelete("current", "end");
+
+		  // Firestoreにゲーム情報を保存
+		  await setDoc(doc(db, "games", gameId), {
+		    active: true,
+		    createdAt: serverTimestamp()
+		  });
+
+			// guest.html のURLを生成
+			const baseUrl = `${location.origin}${location.pathname.replace(/\/[^\/]*$/, '/')}`;
+
+			// guest.html の絶対URLを生成
+			const url = `${baseUrl}guest.html?gameId=${gameId}`;
+
+		  // QRコード生成（例: QRCode.jsを利用）
+		  const gameInfoDiv = document.getElementById("gameInfo");
+		  gameInfoDiv.innerHTML = `
+		    <p>参加用URL: <a href="${url}" target="_blank">${url}</a></p>
+		    <div id="qrcode"></div>
+		  `;
+		  new QRCode(document.getElementById("qrcode"), url);
+		};
+
+
+		// リセット処理関数
+		async function resetGame() {
+		  // resetフラグを立てる（参加者側で localStorage を消すトリガー）
+		  await setDoc(doc(db, "current", "reset"), { resetFlag: true });
+
+		  // questionsHistory を削除
+		  const qSnap = await getDocs(collection(db, "questionsHistory"));
+		  const qDeletes = qSnap.docs.map(d => safeDelete("questionsHistory", d.id));
+		  await Promise.all(qDeletes);
+
+		  // votes を削除
+		  const vSnap = await getDocs(collection(db, "votes"));
+		  const vDeletes = vSnap.docs.map(d => safeDelete("votes", d.id));
+		  await Promise.all(vDeletes);
+
+		  // current/question を削除
+		  await safeDelete("current", "question");
+
+		  // current/category を削除
+		  await safeDelete("current", "category");
+		}
+
+		// リセットボタン
+		document.getElementById("resetBtn").onclick = async () => {
+		  await resetGame();
+		  alert("ゲームをリセットしました");
+		};
+
+		// ゲーム終了ボタン
+		document.getElementById("endGameBtn").onclick = async () => {
+		  // reset処理
+		  await resetGame();
+
+		  // games コレクションの全ドキュメントを削除
+		  const gSnap = await getDocs(collection(db, "games"));
+		  const gDeletes = gSnap.docs.map(d => safeDelete("games", d.id));
+		  await Promise.all(gDeletes);
+
+		  // 終了フラグを立てる（参加者側が監視して強制終了）
+		  await setDoc(doc(db, "current", "end"), { endFlag: true });
+
+		  // QRコードとURLを消す
+		  const gameInfoDiv = document.getElementById("gameInfo");
+		  gameInfoDiv.innerHTML = "";
+		  const resultDiv = document.getElementById("results");
+		  resultDiv.innerHTML = "";
+
+			//	ドロップダウンリストのリセット
+      const category = document.getElementById("categorySelect");
+      const question = document.getElementById("questionSelect");
+			// 中身をクリア
+			categorySelect.innerHTML = "";
+			questionSelect.innerHTML = "";
+
+			// 初期状態の option を追加
+			const optCategory = document.createElement("option");
+			optCategory.textContent = "--選択してください--";
+			optCategory.value = "";
+			categorySelect.appendChild(optCategory);
+			categorySelect.selectedIndex = 0;
+
+			const optQuestion = document.createElement("option");
+			optQuestion.textContent = "--選択してください--";
+			optQuestion.value = "";
+			questionSelect.appendChild(optQuestion);
+			questionSelect.selectedIndex = 0;
+
+		  // 再度リストを構築
+		  await loadQuestions();
+
+		  alert("ゲームを終了しました");
+		};
+
+    async function loadQuestions() {
+      const res = await fetch("questions.json");
+      questionsData = await res.json();
+
+      const categorySelect = document.getElementById("categorySelect");
+
+      Object.keys(questionsData).forEach(cat => {
+        const opt = document.createElement("option");
+        opt.value = cat;
+        opt.textContent = cat;
+        categorySelect.appendChild(opt);
+      });
+    }
+
+    const categorySelect = document.getElementById("categorySelect");
+    categorySelect.addEventListener("change", () => {
+      const questionSelect = document.getElementById("questionSelect");
+      questionSelect.innerHTML = "<option value=''>--選択してください--</option>";
+
+      const selectedCat = categorySelect.value;
+      if (selectedCat && questionsData[selectedCat]) {
+        questionsData[selectedCat].forEach(q => {
+          const opt = document.createElement("option");
+          opt.value = String(q.id);
+          opt.textContent = q.question;
+          questionSelect.appendChild(opt);
+        });
+      }
+    });
+
+    document.getElementById("setQuestion").addEventListener("click", async () => {
+      const category = document.getElementById("categorySelect").value;
+      const questionId = document.getElementById("questionSelect").value;
+
+      if (category && questionId) {
+        const questionObj = questionsData[category].find(q => String(q.id) === questionId);
+
+        if (!questionObj) {
+          alert("選択した設問が見つかりません");
+          return;
+        }
+
+        const snapshot = await getDocs(collection(db, "questionsHistory"));
+        const number = snapshot.size + 1;
+
+        await setDoc(doc(db, "current", "question"), {
+          number,
+          question: questionObj.question,
+          choices: questionObj.choices
+        });
+
+        await addDoc(collection(db, "questionsHistory"), {
+          number,
+          question: questionObj.question,
+          choices: questionObj.choices,
+					answer: questionObj.answer,
+          createdAt: serverTimestamp()
+        });
+
+        alert("設問を出しました！");
+      }
+    });
+
+		onSnapshot(collection(db, "questionsHistory"), (snapshot) => {
+		  const historyDiv = document.getElementById("history");
+		  historyDiv.innerHTML = "";
+
+		  const items = [];
+		  snapshot.forEach(docSnap => items.push(docSnap.data()));
+		  items.sort((a, b) => (b.number ?? 0) - (a.number ?? 0));
+
+		  items.forEach(data => {
+		    const section = document.createElement("div");
+		    // 設問と答えを横並びで表示
+		    section.innerHTML = `<h3>${data.number}. ${data.question} <span style="color:green;">答え: ${data.answer || ""}</span></h3>`;
+		    const canvas = document.createElement("canvas");
+		    section.appendChild(canvas);
+		    historyDiv.appendChild(section);
+
+		    // グラフ描画
+		    drawChart(canvas, data.number, data.choices);
+		  });
+		});
+
+		function drawChart(canvas, questionNumber, choices) {
+		  // 選択肢がゼロならグラフを描画しない
+		  if (!choices || choices.length === 0) {
+		    return;
+		  }
+
+		  if (!canvas._chartInstance) {
+		    canvas._chartInstance = new Chart(canvas, {
+		      type: "bar",
+		      data: {
+		        labels: choices,
+		        datasets: [{
+		          data: choices.map(() => 0),
+		          backgroundColor: "skyblue",
+		          barThickness: 10,       // 棒を細く
+		          maxBarThickness: 15     // 最大太さ制限
+		        }]
+		      },
+		      options: {
+		        indexAxis: "y",           // 横棒グラフにする
+		        animation: false,
+			      maintainAspectRatio: false,
+		        scales: {
+		          x: {
+		            ticks: {
+		              stepSize: 1,        // 票数軸を整数に
+		              precision: 0
+		            },
+		            beginAtZero: true
+		          }
+		        },
+			      plugins: {
+			        legend: { display: false }, // 凡例を消す
+			        title: { display: false }   // タイトルも消す
+			      }
+		      }
+		    });
+		  }
+
+		  const chartInstance = canvas._chartInstance;
+
+		  onSnapshot(collection(db, "votes"), (snapshot) => {
+		    const counts = {};
+		    choices.forEach(c => counts[c] = 0);
+
+		    snapshot.forEach(docSnap => {
+		      const v = docSnap.data();
+		      if (Number(v.questionNumber) === Number(questionNumber)) {
+		        counts[v.choice] = (counts[v.choice] || 0) + 1;
+		      }
+		    });
+
+		    chartInstance.data.labels = Object.keys(counts);
+		    chartInstance.data.datasets[0].data = Object.values(counts);
+		    chartInstance.update();
+		  });
+		}
+
+    async function aggregateVotes() {
+		  const snapshot = await getDocs(collection(db, "votes"));
+
+		  // 設問番号ごとに集計
+		  const grouped = {};
+		  snapshot.forEach(docSnap => {
+		    const v = docSnap.data();
+		    const qNum = v.questionNumber || 0;
+		    if (!grouped[qNum]) grouped[qNum] = {};
+		    if (!grouped[qNum][v.choice]) grouped[qNum][v.choice] = [];
+		    grouped[qNum][v.choice].push(v.name || "匿名");
+		  });
+
+		  // 表示用
+		  const resultDiv = document.getElementById("results");
+		  resultDiv.innerHTML = "";
+
+		  Object.keys(grouped).sort((a, b) => Number(b) - Number(a)).forEach(qNum => {
+		    // 設問番号の見出し
+		    const h = document.createElement("h3");
+		    h.textContent = `設問 ${qNum}`;
+		    resultDiv.appendChild(h);
+
+		    // 選択肢ごとの投票者名
+		    Object.keys(grouped[qNum]).forEach(choice => {
+		      const names = grouped[qNum][choice].join(", ");
+		      const p = document.createElement("p");
+		      p.textContent = `${choice}: ${names}`;
+		      resultDiv.appendChild(p);
+		    });
+
+		    // 区切り線
+		    const hr = document.createElement("hr");
+		    resultDiv.appendChild(hr);
+		  });
+
+    }
+
+    loadQuestions();
+    window.aggregateVotes = aggregateVotes;
+  </script>
+</body>
+</html>

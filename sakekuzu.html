@@ -1,0 +1,184 @@
+<html>
+<head>
+  <title>酒クズルーレット</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: sans-serif; padding: 10px; margin: 0; background: #fafafa; }
+    h1, h3 { text-align: center; }
+    input, select, button {
+      width: 100%; padding: 10px; margin: 5px 0;
+      font-size: 16px; box-sizing: border-box;
+    }
+    button {
+      background: #d12a5b; color: white; border: none;
+      border-radius: 5px; cursor: pointer;
+    }
+    button:hover { background: #a81f46; }
+    .participant-card {
+      background: white; border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      padding: 12px; margin: 8px 0;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .participant-name { font-weight: bold; color: #333; }
+    .participant-role { font-size: 14px; color: #666; }
+    .result {
+      margin-top: 20px; font-weight: bold; color: #d12a5b;
+      text-align: center; font-size: 18px;
+    }
+    .timer {
+      margin-top: 10px; font-size: 16px; color: #333; text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>酒クズバトルロワイヤル</h1>
+
+  <!-- 参加者登録フォーム -->
+  <h3>参加者登録</h3>
+  名前: <input type="text" id="name">
+  属性: 
+  <select id="role">
+    <option value="客">客</option>
+    <option value="キャスト">キャスト</option>
+  </select>
+  <button onclick="addParticipant()">登録</button>
+
+  <!-- 参加者リスト -->
+  <h3>参加者一覧</h3>
+  <div id="participants"></div>
+
+  <!-- モード選択 -->
+  <h3>モード選択</h3>
+  <select id="mode">
+    <option value="easy">イージー（ドリンクのみ）</option>
+    <option value="normal">ノーマル（ドリンク＋ショット）</option>
+    <option value="hard">ハード（ショットのみ）</option>
+  </select>
+
+  <!-- 指示ルーレット -->
+  <h3>次の指示</h3>
+  <button onclick="showInstruction()">Mission</button>
+  <div class="result" id="result"></div>
+  <div class="timer" id="timer"></div>
+  <button onclick="stopCountdown()">カウントダウン停止</button>
+
+<script>
+  const participants = [];
+  let countdownInterval;
+  let currentTarget = null; // 今回飲む予定の人を記録
+
+  function addParticipant() {
+    const name = document.getElementById('name').value.trim();
+    const role = document.getElementById('role').value;
+    if (!name) { alert("名前を入力してください"); return; }
+    participants.push({ name, role });
+    updateParticipantList();
+    document.getElementById('name').value = "";
+  }
+
+  function updateParticipantList() {
+    const listDiv = document.getElementById('participants');
+    listDiv.innerHTML = "";
+    participants.forEach(p => {
+      const div = document.createElement("div");
+      div.className = "participant-card";
+      div.innerHTML = `
+        <div class="participant-name">${p.name}</div>
+        <div class="participant-role">${p.role}</div>
+      `;
+      listDiv.appendChild(div);
+    });
+  }
+
+  const modeData = {
+    easy: {
+      styles: ["自分のペースで","なるべく早く","休まずに","笑顔で","今から3秒以内に","ひと言添えて"],
+      drinks: ["ドリンク"],
+      amounts: ["1/4","1/3","1/2"]
+    },
+    normal: {
+      styles: ["好きなように","一気に","今から3秒以内に","ひと言添えて","変顔で","チェイサーなしで"],
+      drinks: ["ドリンク","ショット"],
+      amounts: ["1/4","1/3","1/2","1杯"]
+    },
+    hard: {
+      styles: ["一気に","ポーズを取りながら","変顔で","チェイサーなしで","泣きながら","ひみつを1つ話して"],
+      drinks: ["ショット"],
+      amounts: ["1杯","2杯"]
+    }
+  };
+
+  function randomPick(arr) {
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function showInstruction() {
+    if (participants.length < 1) {
+      alert("参加者を登録してください");
+      return;
+    }
+
+    const mode = document.getElementById('mode').value;
+    const styles = modeData[mode].styles;
+    const drinks = modeData[mode].drinks;
+    const amounts = modeData[mode].amounts;
+
+    const style = randomPick(styles);
+    const drink = randomPick(drinks);
+    const amount = randomPick(amounts);
+
+    let action = "";
+    if (Math.random() < 0.25 && participants.length >= 2) {
+      let giver, receiver;
+      do {
+        giver = randomPick(participants);
+        receiver = randomPick(participants);
+      } while (giver.role === receiver.role || giver.name === receiver.name);
+      action = `${giver.name} (${giver.role}) が ${receiver.name} (${receiver.role}) に ${style} ${drink} を ${amount} 飲ませる`;
+      currentTarget = receiver; // 飲む予定の人
+    } else {
+      const person = randomPick(participants);
+      action = `${person.name} (${person.role}) が ${style} ${drink} を ${amount} 飲む`;
+      currentTarget = person; // 飲む予定の人
+    }
+
+    const now = new Date();
+    const timeStr = now.toLocaleTimeString();
+
+    document.getElementById('result').textContent = "指示: " + action + " （時刻: " + timeStr + "）";
+
+    startCountdown(60); // 60秒カウントダウン
+  }
+
+  function startCountdown(seconds) {
+    clearInterval(countdownInterval);
+    let remaining = seconds;
+    const timerDiv = document.getElementById('timer');
+    timerDiv.textContent = `残り時間: ${remaining} 秒`;
+
+    countdownInterval = setInterval(() => {
+      remaining--;
+      if (remaining <= 0) {
+        clearInterval(countdownInterval);
+        // ペナルティ指示
+        if (currentTarget) {
+	        const mode = document.getElementById('mode').value;
+  	      const penaltyDrink = (mode === "easy") ? "ドリンク" : "ショット";
+    	    timerDiv.textContent = `時間切れ！ ペナルティ: ${currentTarget.name} (${currentTarget.role}) が ${penaltyDrink} を 1杯 飲む！`;
+        } else {
+          timerDiv.textContent = "時間切れ！";
+        }
+      } else {
+        timerDiv.textContent = `残り時間: ${remaining} 秒`;
+      }
+    }, 1000);
+  }
+
+  function stopCountdown() {
+    clearInterval(countdownInterval);
+    document.getElementById('timer').textContent = "カウントダウン停止";
+  }
+</script>
+</body>
+</html>

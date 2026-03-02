@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ちくわ賞味期限カウントダウン</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", "Noto Sans JP", "Yu Gothic", sans-serif;
+    background: #f7f7f9;
+    color: #222;
+    margin: 0;
+    padding: 16px;
+    text-align: center;
+  }
+  .card {
+    max-width: 480px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0,0,0,.08);
+    padding: 20px;
+  }
+  h1 { font-size: 1.3rem; margin-bottom: 16px; }
+  input[type="time"] {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-sizing: border-box;
+  }
+  button {
+    margin-top: 16px;
+    width: 100%;
+    padding: 14px;
+    font-size: 1rem;
+    border: none;
+    border-radius: 8px;
+    background: #2b7;
+    color: #fff;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .countdown {
+    margin-top: 20px;
+    font-size: 1.4rem;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+  <div class="card">
+    <input id="timeInput" type="time">
+    <button id="setBtn">退勤時間をセット</button>
+    <h1>ちくわの賞味期限は残り</h1>
+    <div class="countdown" id="countdown"></div>
+		<img src="./chikuwa.jpg"><br>
+		残り時間がなくなるまでにとうふちくわを食べ終えなければならない注意喚起のページです
+  </div>
+
+<script>
+(function(){
+  const timeInput = document.getElementById('timeInput');
+  const setBtn = document.getElementById('setBtn');
+  const countdownEl = document.getElementById('countdown');
+
+  // 保存された退勤時間を読み込み
+  const savedTime = localStorage.getItem('leaveTime');
+  if (savedTime) {
+    timeInput.value = savedTime;
+    startCountdown(savedTime);
+  }
+
+  setBtn.addEventListener('click', () => {
+    const val = timeInput.value;
+    if (!val) return;
+    localStorage.setItem('leaveTime', val);
+    startCountdown(val);
+  });
+
+  function startCountdown(timeStr){
+    function update(){
+      const now = new Date();
+      const [h,m] = timeStr.split(':').map(Number);
+      const target = new Date(now.getFullYear(), now.getMonth(), now.getDate(), h, m, 0);
+      if (target < now) {
+        countdownEl.textContent = "退勤時間を過ぎました！";
+        return;
+      }
+      const diff = target - now;
+      const hrs = Math.floor(diff / 1000 / 60 / 60);
+      const mins = Math.floor(diff / 1000 / 60) % 60;
+      const secs = Math.floor(diff / 1000) % 60;
+      countdownEl.textContent = `${hrs}時間 ${mins}分 ${secs}秒`;
+    }
+    update();
+    clearInterval(window._timer);
+    window._timer = setInterval(update, 1000);
+  }
+})();
+</script>
+</body>
+</html>

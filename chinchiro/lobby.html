@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DICEロビー</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: white; text-align: center; }
+        .container { max-width: 500px; margin: auto; padding: 20px; }
+        .box { background: #2a2a2a; padding: 20px; border-radius: 12px; margin-bottom: 20px; border: 1px solid #444; }
+        input { padding: 12px; width: 80%; border-radius: 8px; border: none; margin-bottom: 10px; font-size: 16px; }
+        .btn { padding: 12px 24px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        .create-btn { background: #e63946; color: white; }
+        .join-btn { background: #457b9d; color: white; margin-top: 5px; }
+        ul { list-style: none; padding: 0; }
+        li { background: #333; margin: 10px 0; padding: 15px; border-radius: 8px; display: flex; justify-content: space-between; align-items: center; border-left: 4px solid #e63946; }
+        .room-info { text-align: left; }
+        .room-name { font-weight: bold; color: #fff; }
+        .player-count { font-size: 0.8rem; color: #aaa; }
+        #lobby-ui, #game-room-ui { display: none; }
+        #lobby-ui.active, #game-room-ui.active { display: block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>🎲 DICEロビー</h2>
+
+    <div id="name-setup" class="box active">
+        <input type="text" id="user-name" placeholder="あなたの名前を入力" maxlength="10">
+        <button class="btn create-btn" onclick="confirmName()">ロビーに入る</button>
+    </div>
+
+    <div id="lobby-ui" class="box">
+        <div style="margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 15px;">
+            <input type="text" id="new-room-name" placeholder="新しい部屋の名前">
+            <button class="btn create-btn" onclick="createRoom()">＋ 部屋を作る</button>
+        </div>
+        <h3>公開中の部屋</h3>
+        <ul id="room-list"></ul>
+    </div>
+
+		<div id="game-room-ui" class="box">
+		    <h3 id="display-room-name">部屋名</h3>
+		    <p style="font-size: 0.9rem; color: #ffd11a;">ルームID: <span id="display-room-id"></span></p>
+		    <hr>
+		    <h4>参加者リスト</h4>
+		    <ul id="player-list"></ul>
+		    
+		    <div style="margin-top: 20px; display: flex; flex-direction: column; gap: 10px;">
+						<div id="host-controls" style="display:none; border: 1px solid #ffd11a; padding: 15px; border-radius: 8px; background: rgba(255, 209, 26, 0.1); margin-bottom: 10px;">
+						    <label style="display: flex; align-items: center; justify-content: flex-start; gap: 8px; margin-bottom: 15px; cursor: pointer; text-align: left;">
+						        <input type="checkbox" id="curse-mode-check" style="width: 18px; height: 18px; cursor: pointer;"> 
+						        <span style="color: #ffd11a; font-weight: bold; font-size: 0.95rem;">妨害モードを有効にする</span>
+						    </label>
+						    <button id="start-game-btn" class="btn create-btn" style="width: 100%;" onclick="startGame()">ゲーム開始！</button>
+						</div>
+		        <button class="btn join-btn" onclick="leaveRoom()">部屋を抜ける</button>
+		    </div>
+		</div>
+</div>
+
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, get, set, push, onValue, onDisconnect, remove, update, runTransaction } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+		// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+		const firebaseConfig = {
+				  apiKey: "AIzaSyDXQstrCY2Xo6MG5aKcM_orNxhddlDx3rA",
+				  authDomain: "dice-a59f3.firebaseapp.com",
+				  projectId: "dice-a59f3",
+				  storageBucket: "dice-a59f3.firebasestorage.app",
+				  messagingSenderId: "1013783488303",
+				  appId: "1:1013783488303:web:828116dfd3852ff85de3da",
+				  measurementId: "G-5GFX1S7DHQ"
+		};
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
+    let myName = "";
+    let myId = "p_" + Math.random().toString(36).substr(2, 9);
+    let currentRoomId = null;
+
+    window.confirmName = () => {
+        const input = document.getElementById('user-name').value.trim();
+        if (input.length < 2) return alert("名前を2文字以上で入力してください");
+        myName = input;
+        document.getElementById('name-setup').classList.remove('active');
+        document.getElementById('lobby-ui').classList.add('active');
+        listenToRooms();
+    };
+
+    function listenToRooms() {
+        const roomsRef = ref(db, 'rooms');
+        onValue(roomsRef, (snapshot) => {
+            const rooms = snapshot.val();
+            const listEl = document.getElementById('room-list');
+            listEl.innerHTML = "";
+            
+            if (!rooms) {
+                listEl.innerHTML = "<p style='color:#888'>現在、部屋はありません</p>";
+                return;
+            }
+
+            Object.entries(rooms).forEach(([id, data]) => {
+                // 【ゴミ掃除】プレイヤーがいない部屋を見つけたら即削除
+                if (!data.players || Object.keys(data.players).length === 0) {
+                    remove(ref(db, `rooms/${id}`));
+                    return;
+                }
+
+                if (data.status !== "waiting") return;
+
+                const pCount = Object.keys(data.players).length;
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <div class="room-info">
+                        <div class="room-name">${data.roomName}</div>
+                        <div class="player-count">参加者: ${pCount}名 / ホスト: ${data.hostName}</div>
+                    </div>
+                    <button class="btn join-btn" style="width:auto; padding: 8px 15px;" onclick="joinRoom('${id}')">参加</button>
+                `;
+                listEl.appendChild(li);
+            });
+        });
+    }
+
+
+		window.createRoom = async () => {
+		    const nameInput = document.getElementById('new-room-name');
+		    const roomName = nameInput.value.trim() || "無名の部屋";
+		    
+		    // pushで参照を先に作る
+		    const roomsListRef = ref(db, 'rooms');
+		    const newRoomRef = push(roomsListRef); 
+		    currentRoomId = newRoomRef.key;
+
+		    const initialData = {
+		        roomName: roomName,
+		        hostName: myName,
+		        hostId: myId,
+		        status: "waiting",
+		        createdAt: Date.now(),
+		        // プレイヤー構造を初期から持たせる
+		        players: {
+		            [myId]: { name: myName, isReady: false }
+		        }
+		    };
+
+		    try {
+		        // 書き込みが完了するまで待つ
+		        await set(newRoomRef, initialData);
+		        enterRoom(currentRoomId, true);
+		    } catch (e) {
+		        console.error("Create Room Error:", e);
+		    }
+		};
+
+		function enterRoom(roomId, isHost) {
+		    const roomPath = `rooms/${roomId}`;
+		    const playerRef = ref(db, `${roomPath}/players/${myId}`);
+		    
+		    set(playerRef, { name: myName, isReady: false });
+
+		    const myDisconnect = onDisconnect(playerRef);
+		    myDisconnect.remove();
+
+		    document.getElementById('lobby-ui').classList.remove('active');
+		    document.getElementById('game-room-ui').classList.add('active');
+		    document.getElementById('display-room-id').innerText = roomId;
+
+		    onValue(ref(db, `rooms/${roomId}`), (snapshot) => {
+		        const data = snapshot.val();
+		        if (!data) return;
+
+		        if (data.status === "playing") {
+		            myDisconnect.cancel();
+		            window.location.href = `game.html?id=${roomId}&uid=${myId}&uname=${encodeURIComponent(myName)}`;
+		            return; 
+		        }
+
+		        const players = data.players || {};
+		        const playerIds = Object.keys(players);
+		        let currentHostId = data.hostId;
+
+		        // --- ホスト昇格ロジック ---
+		        if (!currentHostId || !players[currentHostId]) {
+		            if (playerIds.length > 0) {
+		                const nextHostId = playerIds[0];
+		                if (nextHostId === myId) {
+		                    currentHostId = myId;
+		                    update(ref(db, `rooms/${roomId}`), { hostId: myId, hostName: myName });
+		                }
+		            }
+		        }
+
+		        updatePlayerList(players, currentHostId);
+
+		        // --- UIの表示制御（修正箇所） ---
+		        const amIHost = (currentHostId === myId);
+		        const hostControls = document.getElementById('host-controls'); 
+		        const startBtn = document.getElementById('start-game-btn');
+
+		        if (amIHost && hostControls && startBtn) {
+		            hostControls.style.display = 'block'; 
+
+		            // 参加人数が2人以上のときだけ活性化
+		            if (playerIds.length >= 2) {
+		                startBtn.disabled = false;
+		                startBtn.style.opacity = "1";
+		                startBtn.style.cursor = "pointer";
+		                startBtn.innerText = "ゲーム開始！";
+		            } else {
+		                // 人数が足りないとき
+		                startBtn.disabled = true;
+		                startBtn.style.opacity = "0.5";
+		                startBtn.style.cursor = "not-allowed";
+		                startBtn.innerText = `あと${2 - playerIds.length}名で開始可能`;
+		            }
+		        } else if (hostControls) {
+		            hostControls.style.display = 'none'; 
+		        }
+		    });
+		}
+
+    window.joinRoom = (roomId) => {
+        currentRoomId = roomId;
+        enterRoom(roomId, false);
+    };
+
+		function updatePlayerList(players, hostId) {
+		    const listEl = document.getElementById('player-list');
+		    listEl.innerHTML = "";
+		    if (!players) return;
+
+		    Object.entries(players).forEach(([id, info]) => {
+		        const li = document.createElement('li');
+		        
+		        // 基本の名前表示
+		        let displayName = info.name;
+		        
+		        // 自分の場合は (あなた) を付与
+		        if (id === myId) {
+		            displayName += " (あなた)";
+		        }
+
+		        // ホストの場合は 👑マーク を付与
+		        if (id === hostId) {
+		            li.style.borderLeft = "4px solid #ffd11a"; // ホストだけ枠線の色を変える
+		            li.innerHTML = `<span style="color: #ffd11a;">👑</span> ${displayName} <span style="font-size: 0.7rem; background: #555; padding: 2px 5px; border-radius: 4px; margin-left: 5px;">HOST</span>`;
+		        } else {
+		            li.innerText = displayName;
+		        }
+
+		        listEl.appendChild(li);
+		    });
+		}
+
+    // 安全な退室（トランザクション）
+    async function safeLeaveRoom(roomId, myId) {
+        const roomRef = ref(db, `rooms/${roomId}`);
+        try {
+            await runTransaction(roomRef, (currentData) => {
+                if (currentData) {
+                    if (currentData.players && currentData.players[myId]) {
+                        delete currentData.players[myId];
+                    }
+                    // プレイヤーが0人なら部屋ごと削除
+                    const remaining = currentData.players ? Object.keys(currentData.players).length : 0;
+                    if (remaining === 0) return null; 
+                }
+                return currentData;
+            });
+        } catch (error) {
+            console.error("Leave error:", error);
+        }
+    }
+
+    window.leaveRoom = async () => {
+        if (!currentRoomId) return;
+        await safeLeaveRoom(currentRoomId, myId);
+        location.reload();
+    };
+
+
+		window.startGame = async () => {
+		    if (!currentRoomId) return;
+		    const roomRef = ref(db, `rooms/${currentRoomId}`);
+		    
+		    // チェックボックスの状態を取得
+		    const curseEnabled = document.getElementById('curse-mode-check').checked;
+		    
+		    try {
+		        const snapshot = await get(roomRef);
+		        const data = snapshot.val();
+
+		        if (data && data.players) {
+		            const playerIds = Object.keys(data.players);
+								const firstPlayerId = playerIds[0]; // 最初の人
+
+		            // 妨害モードがONなら、最初の人にも呪いを抽選する
+		            const curseEnabled = document.getElementById('curse-mode-check').checked;
+		            const initialCurses = generateRandomCurses(curseEnabled);		            
+
+		            await update(roomRef, {
+		                status: "playing",
+										currentTurnPlayer: firstPlayerId,
+		                isCurseMode: curseEnabled, // 妨害モードがONかどうかを保存
+										activeCurses: initialCurses, // ← ここで最初の人への呪いをセット！
+                		curseTarget: firstPlayerId   // ← ターゲットも最初の人に
+		            });
+		        }
+		    } catch (error) {
+		        console.error("開始エラー:", error);
+		    }
+		};
+
+		// 呪いを抽選する関数
+		function generateRandomCurses(isCurseMode) {
+		    // 妨害モードがOFFならすべてfalse
+		    if (!isCurseMode) return { blind: false, fast: false, badLuck: false };
+
+		    // 1. まず「呪いが発生するかどうか」を判定（例：70%で発生）
+		    if (Math.random() < 0.7) {
+		        // 2. 発生する場合、どれか1つは「必ず」ONにする
+		        const curses = {
+		            blind: Math.random() < 0.5,
+		            fast: Math.random() < 0.5,
+		            badLuck: Math.random() < 0.5
+		        };
+
+		        // もし全部falseになっちゃったら、どれか1つを強制的にON
+		        if (!curses.blind && !curses.fast && !curses.badLuck) {
+		            const keys = ['blind', 'fast', 'badLuck'];
+		            const randomKey= keys[Math.floor(Math.random() * keys.length)];
+		            curses[randomKey] = true;
+		        }
+		        return curses;
+		    }
+
+		    // 30%の確率で「平和なターン」
+		    return { blind: false, fast: false, badLuck: false };
+		}
+
+</script>
+</body>
+</html>

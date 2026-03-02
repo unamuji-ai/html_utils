@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>酒類提供飲食店向けユーティリティ</title>
+<style>
+  body {
+    font-family: sans-serif;
+    background: #eef;
+    padding: 20px;
+    text-align: center;
+  }
+  h1 {
+    margin-bottom: 20px;
+  }
+  .menu {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+  .menu a {
+    display: block;
+    padding: 12px;
+    background: #4CAF50;
+    color: white;
+    text-decoration: none;
+    border-radius: 6px;
+    font-weight: bold;
+    transition: background 0.3s;
+  }
+  .menu a:hover {
+    background: #45a049;
+  }
+
+	.menu-item {
+	  background: #fff;
+	  border: 1px solid #ccc;
+	  border-radius: 8px;
+	  padding: 12px;
+	  margin-bottom: 15px;
+	  text-align: left;
+	}
+	.menu-item a {
+	  display: block;
+	  font-weight: bold;
+	  font-size: 1.2em;
+	  margin-bottom: 8px;
+	  text-decoration: none;
+	  color: #fff;
+	}
+	.menu-item p {
+	  margin: 0;
+	  color: #555;
+	  font-size: 0.9em;
+	}
+
+</style>
+</head>
+<body>
+  <h1>Utility Menu</h1>
+	<img src="thispage.png">
+  <div class="menu">
+	  <div class="menu-item">
+	    <a href="xqr.html">X用アカウント QRコード生成</a>
+	    <p>X(Twitter)のアカウント交換の手間削減</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="wifiqr.html">無料Wi-fi用 QRコード生成</a>
+	    <p>店舗の無料Wifi簡単接続</p>
+	  </div>
+
+	  <div class="menu-item">
+    	<a href="DecoTextGenerator.html">罵詈雑言テキスト用モザイク</a>
+	    <p>暴言悪口、罵詈雑言をSNSにポストしたいときにテキストにほんのりモザイクをかけます</p>
+	  </div>
+
+	  <div class="menu-item">
+    	<a href="hiyoko.html">🐤 代弁者ひよこ</a>
+	    <p>客（キャスト）に直接言いにくいことをひよこ🐤に代弁させます</p>
+	  </div>
+
+	  <div class="menu-item">
+    	<a href="vote/host.html">🗳クイズ＆多数決</a>
+	    <p>（多人数通信）クイズの不正解者、もしくはマイノリティはテキーラ🍸</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="chinchiro/lobby.html">🎲チンチロリン</a>
+	    <p>（多人数通信）多人数対応チンチロリン</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="cardBattle/lobby.html">🎴🃏カードバトル</a>
+	    <p>（多人数通信）ランダムで配られたカードでのカードバトル</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="namekuji.html">🐌 なめくじレース</a>
+	    <p>（多人数参加型）参加者を登録して順位を決めます。最下位はテキーラ🍸</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="survival/escape.html">👹 サバイバルゲーム</a>
+	    <p>（多人数参加型）参加者を登録して誰が最後まで鬼から逃げ切り生き残れるか、最初の犠牲者はだれなのか</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="twister.html">指ツイスター</a>
+	    <p>（2人対戦型）片手で参加のお手軽ツイスター。負けたらテキーラ🍸</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="airhockey/airhockey.html">エアホッケー</a>
+	    <p>（2人対戦型）普通のエアホッケー</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="upeed.html">🃏ウピード</a>
+	    <p>（2人対戦型）UNO+スピードみたいなもの</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="WebRTC/lobby.html">Hit&Blow/Geister</a>
+	    <p>（通信2人対戦）4桁の数字推測/お化け脱出ゲーム</p>
+	  </div>
+
+	  <div class="menu-item">
+    	<a href="cardMaker/cardMaker.html">コンカフェ嬢自撮りカードジェネレーター</a>
+	    <p>自撮りをアップロードしてあなたの自撮りはどんなバトルカードになる？</p>
+	  </div>
+
+	  <div class="menu-item">
+    	<a href="poemGenerator.html">自撮り添え痛ポエムジェネレーター</a>
+	    <p>他人の自撮りに痛いポエムを唱えさせましょう</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="yakinikuuranai.html">🍖🔥 焼肉診断</a>
+	    <p>コンカフェ嬢のあなたは焼肉なら何？</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="wineNameGenerator.html">🍷 ワインネームジェネレーター</a>
+	    <p>あなたがワインになるなら何て名前のワインになる？</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="https://htmlutils-gkuq2knhrbcqd6psm8nvic.streamlit.app/">🌐あなたの評判ネットの声</a>
+	    <p>比較的治安が良いネット上でのコンカフェ嬢としてのあなたの評判は？</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="ojitan.html">👴おじさん構文ジェネレーター</a>
+	    <p>身内のキャストにリプするときはおじさん構文で</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="sakekuzu.html">🥃 酒クズルーレット</a>
+	    <p>（多人数参加型）参加者を登録して酒クズバトルロワイヤルを行います🍸</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="relocateFace.html">🚫📷自撮りを別人に…</a>
+	    <p>顔にモザイクをかけずに誰だかわからなくします（使い道不明…）</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="fakeControllApp/cyber-app/dist/index.html">👿精神コントロールアプリ👿</a>
+	    <p>エロ漫画に出てくる謎アプリ、スワイプしてシンクロ率を100%にすれば画像の相手を支配下に置けます</p>
+	  </div>
+
+	  <div class="menu-item">
+    	<a href="bidding/organizer.html">店内オークション</a>
+	    <p>（多人数通信）私物などオークションを店内で開催したいときにここから出品します</p>
+	  </div>
+
+	  <div class="menu-item">
+  	  <a href="twoshotTouch/connector.html">模擬チャットレディ</a>
+	    <p>（二人通信）セクハラ客にはバーチャルチャットレディで料金徴収しましょう</p>
+	  </div>
+
+	  <div class="menu-item">
+  	  <a href="fakephone.html">ニセ電話</a>
+	    <p>「警察呼びますよ？」の脅しをかけて実際110にかけてる所を見せたい時に</p>
+	  </div>
+
+	  <div class="menu-item">
+   	 <a href="gacha/gachaIndex.html">ガチャ確率計算</a>
+	    <p>ガチャや食玩などでコンプリートする確率や期待値を計算</p>
+	  </div>
+
+	  <div class="menu-item">
+    	<a href="eto.html">年齢詐称時の干支カンニング</a>
+	    <p>年齢を詐称して生年月日や干支を聞かれた時のカンニングはこれで</p>
+	  </div>
+
+	  <div class="menu-item">
+   	 <a href="howoldru.html">生年月日から年齢計算</a>
+	    <p>ジジイやババアはすぐ自分の年齢がわからなくなるので</p>
+	  </div>
+
+	  <div class="menu-item">
+    	<a href="reiwa.html">年号変換</a>
+	    <p>西暦や昭和、平成、令和の年号言われても何歳かわかりにくいので</p>
+	  </div>
+
+	  <div class="menu-item">
+    	<a href="kakutei.html">マイナポータル経由の確定申告ガイド</a>
+	    <p>マイナポータルにマイナカード登録済である必要があります</p>
+	  </div>
+
+	  <div class="menu-item">
+	    <a href="chikuwa.html">退勤時間カウントダウン</a>
+	    <p>退勤時間が待ち遠しいお茶引きの時にはちくわを食べましょう</p>
+	  </div>
+  </div>
+</body>
+</html>
