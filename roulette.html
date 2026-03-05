@@ -1,562 +1,299 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
-    <title>多人数向けくじ引き</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>スマホ最適化くじ引き</title>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Helvetica Neue', Arial, "Hiragino Kaku Gothic ProN", "Hiragino Sans", sans-serif;
             text-align: center;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
             margin: 0;
             background-color: #f0f2f5;
             color: #333;
-        }
-        .container {
-            width: 80%;
-            max-width: 600px;
-            margin: 20px auto;
-            padding: 30px;
-            background-color: #fff;
-            border-radius: 12px;
-            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
-            position: relative;
-        }
-
-        /* --- 名前入力セクションのスタイル --- */
-        #nameInputSection {
-            margin-bottom: 20px;
-        }
-        #nameInputSection h2 {
-            color: #2c3e50;
-            margin-bottom: 20px;
-        }
-        .name-input-group {
+            overscroll-behavior: none;
             display: flex;
             justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+        }
+        .container {
+            width: 95%;
+            max-width: 450px;
+            margin: 15px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 20px;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
+            box-sizing: border-box;
+        }
+
+        h2 { font-size: 1.3rem; margin-bottom: 20px; color: #2c3e50; }
+
+        /* --- 入力エリア --- */
+        .name-input-group {
+            display: flex;
+            gap: 5px;
             margin-bottom: 15px;
         }
         #nameInput {
             flex-grow: 1;
-            max-width: 250px;
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 8px 0 0 8px;
+            padding: 12px;
+            font-size: 16px; /* iOSのズーム防止 */
+            border: 2px solid #edf2f7;
+            border-radius: 10px;
+            background-color: #f8fafc;
             outline: none;
         }
         #addNameButton {
-            padding: 10px 15px;
-            font-size: 16px;
-            background-color: #5cb85c;
+            padding: 0 20px;
+            background-color: #48bb78;
             color: white;
             border: none;
-            border-radius: 0 8px 8px 0;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
+            border-radius: 10px;
+            font-weight: bold;
         }
-        #addNameButton:hover {
-            background-color: #4cae4c;
-        }
+
         #nameList {
             list-style: none;
             padding: 0;
             margin: 0 0 20px 0;
-            max-height: 200px;
+            max-height: 25vh;
             overflow-y: auto;
-            border: 1px solid #eee;
-            border-radius: 8px;
-            background-color: #fcfcfc;
+            border: 1px solid #edf2f7;
+            border-radius: 10px;
         }
         #nameList li {
+            padding: 12px 15px;
+            border-bottom: 1px solid #edf2f7;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 8px 15px;
-            border-bottom: 1px solid #eee;
-            font-size: 16px;
-            color: #555;
-        }
-        #nameList li:last-child {
-            border-bottom: none;
-        }
-        #nameList li .remove-button {
-            background: none;
-            border: none;
-            color: #e74c3c;
-            font-size: 1.2em;
-            cursor: pointer;
-            padding: 0 5px;
-        }
-        .register-button {
-            padding: 12px 30px;
-            background-color: #28a745;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            font-size: 18px;
-            transition: background-color 0.3s ease;
-        }
-        .register-button:hover:not(:disabled) {
-            background-color: #218838;
-        }
-        .register-button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
+            background: #fff;
         }
 
-        /* --- ルーレットセクションのスタイル --- */
-        #rouletteSection {
-            display: none;
+        /* --- ルーレットエリア --- */
+        .roulette-display-wrapper {
+            position: relative;
+            width: 75vw;
+            height: 75vw;
+            max-width: 320px;
+            max-height: 320px;
+            margin: 40px auto;
         }
-
-        /* 登録者リスト表示エリア */
-        #registeredNamesDisplay {
-            margin-top: 15px;
-            margin-bottom: 25px;
-            max-height: 120px;
-            overflow-y: auto;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            background-color: #f9f9f9;
-        }
-        #registeredNamesDisplay p {
-            margin: 5px 0;
-            padding: 5px 10px;
-            border-radius: 5px;
-            font-size: 15px;
-            color: #333;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: background-color 0.3s ease;
-        }
-        #registeredNamesDisplay .display-emoji {
-            margin-right: 8px;
-            font-size: 1.2em;
-        }
-
-        /* ルーレットとポインターのラッパー */
-        .roulette-display-wrapper { /* ★追加 */
-            position: relative; /* ポインターの基準にする */
-            width: 280px; /* ルーレットと同じ幅 */
-            height: 280px; /* ルーレットと同じ高さ */
-            margin: 40px auto; /* 元々ルーレットにあったマージンをこちらに移動 */
-        }
-
-        .roulette {
-            width: 100%; /* ラッパーのサイズに合わせる */
-            height: 100%; /* ラッパーのサイズに合わせる */
-            border-radius: 50%;
-            background-color: #f8f8f8;
-            position: absolute; /* ラッパー内で絶対位置 */
-            top: 0;
-            left: 0;
-            border: 6px solid #b2bec3;
-            overflow: hidden;
-            transition: transform 3s ease-out;
-            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.2);
-        }
-        .roulette-segment {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            top: 0;
-            left: 0;
-            transform-origin: 50% 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: #333;
-            font-weight: bold;
-            box-sizing: border-box;
-        }
-        .segment-content-wrapper {
-            position: absolute;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-        .segment-name {
-            word-break: break-all;
-            white-space: normal;
-            line-height: 1;
-            margin-bottom: 2px;
-        }
-        .segment-emoji {
-            line-height: 1;
-            margin-top: 0;
-        }
-        
         .pointer {
-            width: 0;
-            height: 0;
-            border-left: 10px solid transparent;
-            border-right: 10px solid transparent;
-            border-top: 30px solid #e74c3c;
+            width: 0; height: 0;
+            border-left: 15px solid transparent;
+            border-right: 15px solid transparent;
+            border-top: 35px solid #e53e3e;
             position: absolute;
-            top: -20px; /* ★修正: ラッパーの上端から上に突き出すように調整 */
+            top: -25px;
             left: 50%;
             transform: translateX(-50%);
-            z-index: 20;
+            z-index: 10;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+        }
+        .roulette {
+            width: 100%;
+            height: 100%;
+            border-radius: 50%;
+            border: 6px solid #2d3748;
+            position: relative;
+            overflow: hidden;
+            transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1);
+            background-color: #fff;
         }
 
-        .spin-button {
-            padding: 12px 25px;
-            background-color: #3498db;
-            color: white;
+        /* ボタン・結果表示 */
+        .primary-btn {
+            width: 100%;
+            padding: 16px;
+            font-size: 1.1rem;
+            font-weight: bold;
+            border-radius: 12px;
             border: none;
-            border-radius: 8px;
             cursor: pointer;
-            font-size: 18px;
-            margin-top: 20px;
-            transition: background-color 0.3s ease;
+            transition: transform 0.1s;
         }
-        .spin-button:hover:not(:disabled) {
-            background-color: #2980b9;
-        }
-        .spin-button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
-        .back-button {
-            margin-top: 20px;
-            padding: 8px 15px;
-            background-color: #7f8c8d;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            transition: background-color 0.3s ease;
-        }
-        .back-button:hover:not(:disabled) {
-            background-color: #5d6d7e;
-        }
-        .back-button:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
-        }
+        .primary-btn:active { transform: scale(0.98); }
+        .register-btn { background-color: #4299e1; color: white; }
+        .spin-btn { background-color: #48bb78; color: white; margin-top: 10px; }
+        .back-btn { background: none; color: #718096; border: 1px solid #cbd5e0; margin-top: 20px; padding: 10px; }
 
         #result {
-            margin-top: 30px;
-            font-size: 26px;
+            margin: 25px 0;
+            font-size: 1.4rem;
             font-weight: bold;
-            color: #27ae60;
-            min-height: 40px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-wrap: wrap;
+            color: #2f855a;
+            min-height: 1.6em;
         }
-        #result .result-emoji {
-            font-size: 1.2em;
-            margin-left: 10px;
+
+        #registeredNamesDisplay {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: center;
+            margin-bottom: 10px;
+        }
+        .name-tag {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: #4a5568;
+            border: 1px solid #e2e8f0;
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- 名前入力セクション -->
-        <div id="nameInputSection">
-            <h2>参加者の名前を登録</h2>
+        <div id="inputSection">
+            <h2>参加者を登録</h2>
             <div class="name-input-group">
-                <input type="text" id="nameInput" placeholder="名前を入力">
+                <input type="text" id="nameInput" placeholder="名前を入力" enterkeyhint="done">
                 <button id="addNameButton">追加</button>
             </div>
-            <ul id="nameList">
-                <!-- ここに登録された名前が表示されます -->
-            </ul>
-            <button class="register-button" id="registerButton" disabled>登録完了！</button>
+            <ul id="nameList"></ul>
+            <button class="primary-btn register-btn" id="registerButton" disabled>登録完了（ルーレットへ）</button>
         </div>
 
-        <!-- ルーレットセクション -->
-        <div id="rouletteSection">
-            <!-- 登録者リスト表示エリア -->
-            <div id="registeredNamesDisplay">
-                <!-- JavaScriptでここに名前と絵文字のリストを表示します -->
+        <div id="rouletteSection" style="display:none;">
+            <div id="registeredNamesDisplay"></div>
+            <div class="roulette-display-wrapper">
+                <div class="pointer"></div>
+                <div class="roulette" id="roulette"></div>
             </div>
-
-            <div class="roulette-display-wrapper"> <!-- ★追加: ルーレットとポインターのラッパー -->
-                <div class="pointer" id="pointer"></div>
-                <div class="roulette" id="roulette">
-                    <!-- JavaScriptでセグメントを動的に追加します -->
-                </div>
-            </div>
-            
-            <button class="spin-button" id="spinButton">ルーレットを回す</button>
-            <div id="result"></div>
-            <button class="back-button" id="backToInputButton">名前入力に戻る</button>
+            <div id="result">準備完了！</div>
+            <button class="primary-btn spin-btn" id="spinButton">ルーレットを回す</button>
+            <button class="primary-btn back-btn" id="backButton">名前入力に戻る</button>
         </div>
     </div>
 
     <script>
-        // DOM要素の取得
-        const nameInputSection = document.getElementById('nameInputSection');
+        const inputSection = document.getElementById('inputSection');
+        const rouletteSection = document.getElementById('rouletteSection');
         const nameInput = document.getElementById('nameInput');
         const addNameButton = document.getElementById('addNameButton');
         const nameList = document.getElementById('nameList');
         const registerButton = document.getElementById('registerButton');
-        
-        const rouletteSection = document.getElementById('rouletteSection');
+        const roulette = document.getElementById('roulette');
+        const spinButton = document.getElementById('spinButton');
+        const backButton = document.getElementById('backButton');
+        const resultDisplay = document.getElementById('result');
         const registeredNamesDisplay = document.getElementById('registeredNamesDisplay');
-        const roulette = document.getElementById("roulette");
-        const pointer = document.getElementById("pointer");
-        const result = document.getElementById("result");
-        const spinButton = document.getElementById("spinButton");
-        const backToInputButton = document.getElementById('backToInputButton');
 
-        let names = []; // 参加者の名前リスト
-        let nameEmojis = {}; // 名前と絵文字のマップ
-        let segmentColors = {}; // 名前とセグメント色のマップ
+        let names = [];
+        let nameEmojis = {};
+        let currentRotation = 0;
+        const emojis = ['🎉', '✨', '🎁', '🎈', '🌟', '🍀', '🍎', '🍊', '🍓', '🍇', '🐶', '🐱', '🐰', '🦁', '🐸', '🐼', '🦄', '🐝'];
 
-        // 使用する絵文字リスト
-        const emojis = [
-            '🎉', '✨', '🎁', '🎈', '🌟', '🍀', '🍎', '🍊', '🍓', '🍇',
-            '🍉', '🍍', '🥭', '🥝', '🍒', '🍑', '🍋', '🍐', '🍏', '🍌',
-            '🥕', '🌶️', '🥦', '🧅', '🍄', '🍆', '🥔', '🌽', '🍠', '🌰',
-            '🌸', '🌼', '🌻', '🌷', '🌹', '🌺', '🌲', '🌳', '🌴', '🌵',
-            '🌞', '🌈', '🌙', '⭐', '☁️', '☔', '⚡', '❄️', '🔥', '💧',
-            '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯',
-            '🦁', '🐮', '🐷', '🐸', '🐒', '🐔', '🐧', '🐦', '🐥', '🦆',
-            '🦉', '🦅', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🐛', '🦋'
-        ];
+        // 名前の追加
+        addNameButton.onclick = () => {
+            const name = nameInput.value.trim();
+            if (name && !names.includes(name)) {
+                names.push(name);
+                nameEmojis[name] = emojis[Math.floor(Math.random() * emojis.length)];
+                updateList();
+                nameInput.value = '';
+            }
+        };
 
-        // 名前リストの表示を更新する関数 (名前入力セクション用)
-        function updateNameListDisplay() {
-            nameList.innerHTML = ''; // リストをクリア
-            names.forEach((name, index) => {
-                const li = document.createElement('li');
-                li.innerHTML = `<span>${nameEmojis[name]} ${name}</span> <button class="remove-button" data-name="${name}">🗑️</button>`;
-                nameList.appendChild(li);
-            });
-            // 登録完了ボタンの有効/無効を切り替え
+        function updateList() {
+            nameList.innerHTML = names.map(n => `
+                <li>
+                    <span>${nameEmojis[n]} ${n}</span>
+                    <span onclick="removeName('${n}')" style="color:#e53e3e; padding:5px 10px;">✕</span>
+                </li>
+            `).join('');
             registerButton.disabled = names.length < 2;
         }
 
-        // ルーレットセクションに登録者リストを表示する関数
-        function updateRegisteredNamesDisplay() {
-            registeredNamesDisplay.innerHTML = '';
-            if (names.length === 0) {
-                registeredNamesDisplay.innerHTML += '<p>参加者が登録されていません。</p>';
-                return;
-            }
-            names.forEach(name => {
-                const p = document.createElement('p');
-                p.innerHTML = `<span class="display-emoji">${nameEmojis[name]}</span> ${name}`;
-                p.style.backgroundColor = segmentColors[name]; // ルーレットのセグメント色を適用
-                registeredNamesDisplay.appendChild(p);
-            });
-        }
+        window.removeName = (name) => {
+            names = names.filter(n => n !== name);
+            updateList();
+        };
 
-        // 名前に絵文字と色を割り当てる関数
-        function assignEmojisAndColors() {
-            nameEmojis = {};
-            segmentColors = {};
-            const numSegments = names.length;
-            const segmentAngle = 360 / numSegments;
-
-            names.forEach((name, index) => {
-                nameEmojis[name] = emojis[index % emojis.length]; // 絵文字リストを繰り返して割り当てる
-                // ルーレットセグメントと同じ色を生成して保存
-                segmentColors[name] = `hsl(${index * segmentAngle + 90}, 80%, 85%)`; 
-            });
-        }
-
-        // 角度をラジアンに変換するヘルパー関数
-        const toRadians = (angle) => angle * (Math.PI / 180);
-
-        // ルーレットのセグメントを動的に生成
-        function createRouletteSegments() {
-            roulette.innerHTML = ''; // 既存のセグメントをクリア
-            if (names.length === 0) return;
-
-            const numSegments = names.length;
-            const segmentAngle = 360 / numSegments; // 1セグメントあたりの角度
-
-            // セグメント数に応じたフォントサイズを計算
-            const baseNameFontSize = 16;
-            const minNameFontSize = 10;
-            const maxNameFontSize = 20;
-            let currentNameFontSize = Math.max(minNameFontSize, Math.min(maxNameFontSize, baseNameFontSize - (numSegments - 2) * 0.8));
-            
-            const baseEmojiFontSize = 24;
-            const minEmojiFontSize = 16;
-            const maxEmojiFontSize = 30;
-            let currentEmojiFontSize = Math.max(minEmojiFontSize, Math.min(maxEmojiFontSize, baseEmojiFontSize - (numSegments - 2) * 1.0));
-
-            // ルーレットの半径 (CSSのwidth/height 280pxの半分)
-            const rouletteRadius = 140; // px
-            // テキストをルーレットの中心からどのくらい離すか（相対値）
-            const textOffsetRatio = 0.6; // 半径の60%の位置
-
-            names.forEach((name, index) => {
-                const segment = document.createElement('div');
-                segment.classList.add('roulette-segment');
-                
-                segment.style.backgroundColor = segmentColors[name]; // 割り当てられた色を使用
-                
-                // clip-pathの計算: 円弧を表現するため、複数の点を追加
-                const startAngle = index * segmentAngle;
-                const endAngle = (index + 1) * segmentAngle;
-
-                const center = { x: 50, y: 50 }; // CSSのパーセンテージ座標 (ルーレットの中心)
-                const radius = 50; // CSSのパーセンテージ半径 (ルーレットの半径)
-                const arcPoints = 10; // 円弧を構成する点の数 (多いほど滑らか)
-
-                const path = [
-                    `${center.x}% ${center.y}%` // 中心点
-                ];
-
-                // 円弧上の点を計算して追加
-                for (let i = 0; i <= arcPoints; i++) {
-                    const angle = startAngle + (endAngle - startAngle) * (i / arcPoints);
-                    const rad = toRadians(angle - 90); // 0度を上にするため-90度オフセット
-                    const x = center.x + radius * Math.cos(rad);
-                    const y = center.y + radius * Math.sin(rad);
-                    path.push(`${x}% ${y}%`);
-                }
-                
-                segment.style.clipPath = `polygon(${path.join(', ')})`;
-                segment.style.webkitClipPath = `polygon(${path.join(', ')})`; // Safari対応
-
-                roulette.appendChild(segment); // まずセグメントをルーレットに追加
-
-                // セグメント内の名前と絵文字を保持するラッパー
-                const contentWrapper = document.createElement('div');
-                contentWrapper.classList.add('segment-content-wrapper');
-                
-                const nameSpan = document.createElement('span');
-                nameSpan.classList.add('segment-name');
-                nameSpan.textContent = name;
-                nameSpan.style.fontSize = currentNameFontSize + 'px'; // 動的にフォントサイズを設定
-                
-                const emojiSpan = document.createElement('span');
-                emojiSpan.classList.add('segment-emoji');
-                emojiSpan.textContent = nameEmojis[name];
-                emojiSpan.style.fontSize = currentEmojiFontSize + 'px'; // 動的にフォントサイズを設定
-
-                contentWrapper.appendChild(nameSpan);
-                contentWrapper.appendChild(emojiSpan);
-                segment.appendChild(contentWrapper); // contentWrapperをsegmentの子として追加
-
-                // テキストの位置と回転を調整
-                const midAngle = startAngle + (segmentAngle / 2); // セグメントの中心角度
-                
-                // translate(-50%, -50%) で contentWrapper 自体の中心を親要素 (セグメント) の中心に合わせ、
-                // rotate(${midAngle}deg) でセグメントの中心角度に合わせて contentWrapper を回転させ、
-                // translateY(-${rouletteRadius * textOffsetRatio}px) でルーレットの中心から外側へ指定の距離だけ移動させ、
-                // rotate(-${midAngle}deg) で contentWrapper の回転を打ち消し、テキストをまっすぐにする
-                contentWrapper.style.transform = `translate(-50%, -50%) rotate(${midAngle}deg) translateY(-${rouletteRadius * textOffsetRatio}px) rotate(-${midAngle}deg)`;
-            });
-        }
-
-        // ルーレットを回す関数
-        function spinRoulette() {
-            spinButton.disabled = true;
-            backToInputButton.disabled = true;
-            result.innerHTML = "ルーレット回転中...";
-
-            const numSegments = names.length;
-            if (numSegments === 0) {
-                result.innerHTML = "参加者がいません。";
-                spinButton.disabled = false;
-                backToInputButton.disabled = false;
-                return;
-            }
-
-            const segmentAngle = 360 / numSegments;
-            const winningIndex = Math.floor(Math.random() * numSegments);
-
-            // ルーレットの最終的な停止角度を計算
-            const targetRotation = (360 * 5) + (winningIndex * segmentAngle) + (segmentAngle * 0.4); 
-
-            roulette.style.transition = "transform 3s ease-out";
-            roulette.style.transform = `rotate(-${targetRotation}deg)`;
-
-            setTimeout(() => {
-                spinButton.disabled = false;
-                backToInputButton.disabled = false;
-                roulette.style.transition = "none";
-                const resetRotation = targetRotation % 360;
-                roulette.style.transform = `rotate(-${resetRotation}deg)`;
-
-                const winnerName = names[winningIndex];
-                const winnerEmoji = nameEmojis[winnerName];
-                result.innerHTML = `当選者は **${winnerName}** です！ <span class="result-emoji">${winnerEmoji}</span>`;
-            }, 3000);
-        }
-
-        // --- イベントリスナー ---
-
-        // 名前追加ボタン
-        addNameButton.addEventListener('click', () => {
-            const newName = nameInput.value.trim();
-            if (newName && !names.includes(newName)) {
-                names.push(newName);
-                assignEmojisAndColors();
-                updateNameListDisplay();
-                nameInput.value = '';
-                nameInput.focus();
-            } else if (names.includes(newName)) {
-                alert('その名前はすでに登録されています。');
-            }
-        });
-
-        // Enterキーでも名前追加
-        nameInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                addNameButton.click();
-            }
-        });
-
-        // 名前削除ボタン
-        nameList.addEventListener('click', (e) => {
-            if (e.target.classList.contains('remove-button')) {
-                const nameToRemove = e.target.dataset.name;
-                names = names.filter(name => name !== nameToRemove);
-                assignEmojisAndColors();
-                updateNameListDisplay();
-            }
-        });
-
-        // 登録完了ボタン
-        registerButton.addEventListener('click', () => {
-            if (names.length < 2) {
-                alert('2人以上の参加者を登録してください。');
-                return;
-            }
-            createRouletteSegments();
-            updateRegisteredNamesDisplay();
-            
-            // 画面切り替え
-            nameInputSection.style.display = 'none';
+        // 登録完了
+        registerButton.onclick = () => {
+            inputSection.style.display = 'none';
             rouletteSection.style.display = 'block';
-            result.innerHTML = 'ルーレットを回してください！';
-        });
+            resultDisplay.innerHTML = 'ルーレットを回してください！';
+            renderRoulette();
+        };
 
-        // ルーレットを回すボタン
-        spinButton.addEventListener("click", spinRoulette);
+        function renderRoulette() {
+            roulette.innerHTML = '';
+            registeredNamesDisplay.innerHTML = names.map(n => `<span class="name-tag">${n}</span>`).join('');
+            
+            const angleStep = 360 / names.length;
+            names.forEach((name, i) => {
+                const segment = document.createElement('div');
+                segment.style.position = 'absolute';
+                segment.style.width = '100%';
+                segment.style.height = '100%';
+                segment.style.backgroundColor = `hsl(${i * (360 / names.length)}, 75%, 88%)`;
+                
+                // クリップパス
+                const start = i * angleStep;
+                const end = (i + 1) * angleStep;
+                const path = ['50% 50%'];
+                for (let a = start; a <= end; a += 1) {
+                    const r = (a - 90) * Math.PI / 180;
+                    path.push(`${50 + 50 * Math.cos(r)}% ${50 + 50 * Math.sin(r)}%`);
+                }
+                segment.style.clipPath = `polygon(${path.join(',')})`;
 
-        // 名前入力に戻るボタン
-        backToInputButton.addEventListener('click', () => {
+                // テキスト
+                const mid = start + angleStep / 2;
+                const label = document.createElement('div');
+                label.style.position = 'absolute';
+                label.style.top = '50%'; label.style.left = '50%';
+                label.style.width = '80px';
+                label.style.textAlign = 'center';
+                label.style.transform = `translate(-50%, -50%) rotate(${mid}deg) translateY(-85px) rotate(${-mid}deg)`;
+                label.innerHTML = `<div style="font-size:11px; font-weight:bold;">${name}</div><div style="font-size:16px;">${nameEmojis[name]}</div>`;
+                
+                segment.appendChild(label);
+                roulette.appendChild(segment);
+            });
+        }
+
+        // 回転ロジック
+        spinButton.onclick = () => {
+            if (names.length < 2) return;
+            
+            spinButton.disabled = true;
+            backButton.disabled = true;
+            resultDisplay.innerHTML = '抽選中...';
+
+            const sectorAngle = 360 / names.length;
+            // 最低5回転 + ランダム角度
+            const extra = Math.floor(Math.random() * 360) + 1800;
+            currentRotation += extra;
+            
+            roulette.style.transform = `rotate(${currentRotation}deg)`;
+            
+            setTimeout(() => {
+                // 停止時の角度から当選者を特定（ポインターは真上 0度）
+                const actualRotation = currentRotation % 360;
+                // 時計回りに回転するので、(360 - 角度) でポインター位置のセグメントを算出
+                const winningIndex = Math.floor(((360 - (actualRotation % 360)) % 360) / sectorAngle);
+                
+                const winner = names[winningIndex];
+                resultDisplay.innerHTML = `当選：${winner} ${nameEmojis[winner]}`;
+                
+                spinButton.disabled = false;
+                backButton.disabled = false;
+            }, 4000);
+        };
+
+        backButton.onclick = () => {
             rouletteSection.style.display = 'none';
-            nameInputSection.style.display = 'block';
-            result.innerHTML = '';
-        });
-
-        // ページロード時に名前入力セクションを表示し、リストを更新
-        document.addEventListener('DOMContentLoaded', () => {
-            nameInputSection.style.display = 'block';
-            rouletteSection.style.display = 'none';
-        });
+            inputSection.style.display = 'block';
+            currentRotation = 0;
+            roulette.style.transition = 'none';
+            roulette.style.transform = 'rotate(0deg)';
+            setTimeout(() => roulette.style.transition = 'transform 4s cubic-bezier(0.15, 0, 0.15, 1)', 50);
+        };
     </script>
 </body>
 </html>
