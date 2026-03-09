@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Project Change History</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-2xl font-bold mb-6">プロジェクト変更履歴</h1>
+        
+        <!-- リスト表示エリア（ここが重要） -->
+        <div id="historyList" class="space-y-4">
+            <!-- JSでここに要素が追加されます -->
+        </div>
+    </div>
+
+    <script>
+        async function loadHistory() {
+            const list = document.getElementById('historyList');
+            if (!list) {
+                console.error("historyList要素が見つかりません。HTMLを確認してください。");
+                return;
+            }
+
+            try {
+                const response = await fetch('history.json');
+                const data = await response.json();
+                
+                if (!Array.isArray(data)) {
+                    console.error("JSONデータが配列ではありません");
+                    return;
+                }
+
+                data.sort((a, b) => new Date(b.date) - new Date(a.date));
+                
+                list.innerHTML = ''; 
+
+
+								data.forEach(item => {
+								    const div = document.createElement('div');
+								    div.className = "bg-white p-4 rounded shadow hover:shadow-md cursor-pointer border-l-4 border-blue-500";
+								    
+								    // ここを以下の内容に差し替えてください
+										div.innerHTML = `
+										    <div class="flex justify-between items-center">
+										        <span class="font-bold text-lg">${item.title}</span>
+										        <span class="text-sm text-gray-400">${item.date}</span>
+										    </div>
+										    <div class="mt-2 flex gap-2">
+										        ${item.tags ? item.tags.map(tag => `<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">${tag}</span>`).join('') : ''}
+										    </div>
+										    <div class="hidden mt-4 p-4 bg-gray-50 rounded detail-view border-t border-gray-200">
+										        <div class="space-y-2">
+										            ${item.details?.purpose ? `<p class="text-sm"><strong>目的:</strong> ${item.details.purpose}</p>` : ''}
+										            ${item.details?.summary ? `<p class="text-sm"><strong>概要:</strong> ${item.details.summary}</p>` : ''}
+										            ${item.details?.cause ? `<p class="text-sm text-red-600"><strong>原因:</strong> ${item.details.cause}</p>` : ''}
+										            ${item.details?.fix ? `<p class="text-sm text-green-600"><strong>修正:</strong> ${item.details.fix}</p>` : ''}
+										            ${item.dependencies ? `<p class="text-sm"><strong>依存:</strong> ${item.dependencies.join(', ')}</p>` : ''}
+										            ${item.related_info?.files ? `<p class="text-sm"><strong>関連ファイル:</strong> ${item.related_info.files.join(', ')}</p>` : ''}
+										        </div>
+										    </div>
+										`;
+								    
+								    div.onclick = () => div.querySelector('.detail-view').classList.toggle('hidden');
+								    list.appendChild(div);
+								});
+            } catch (error) {
+                console.error("JSONの読み込み失敗:", error);
+            }
+        }
+
+        // DOMが読み込まれたら実行
+        document.addEventListener('DOMContentLoaded', loadHistory);
+    </script>
+</body>
+</html>

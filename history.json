@@ -1,0 +1,30 @@
+[
+	{
+	  "id": "20260309-001",
+	  "date": "2026-03-09",
+	  "title": "変更履歴ビューアの作成",
+	  "tags": ["新規実装"],
+	  "details": {
+	    "purpose": "プロジェクトの変更履歴を可視化し、属人化を防ぐこと。",
+	    "summary": "history.jsonを読み込み、リスト表示・詳細表示・フィルタリングを行うHTML/JSビューアの実装。"
+	  },
+	  "dependencies": ["なし"],
+	  "related_info": {
+	    "files": ["historyViewer.html", "history.json"]
+	  }
+	},
+	{
+	  "id": "20260309-002",
+	  "date": "2026-03-09",
+	  "title": "なめくじレース機能の実装",
+	  "tags": ["新規実装"],
+	  "details": {
+	    "purpose": "多人数での序列を公平かつエンタメ性を持って決定するための抽選ツール。",
+	    "summary": "SVG描画とJSによるレース進行ロジックにより、視覚的に順位を決定。乱数による不確実性をあえて許容することで、運の要素を強調した仕様。"
+	  },
+	  "dependencies": ["なし"],
+	  "related_info": {
+	    "files": ["namekuji.html"]
+	  }
+	}
+]
