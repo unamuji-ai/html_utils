@@ -193,6 +193,18 @@
       "last_updated": "2026-03-09"
     },
 	{
+	  "id": "landmine-game",
+	  "title": "リアルタイム多人数対戦地雷ゲーム",
+	  "tags": ["リアルタイム通信", "マルチプレイヤー", "ゲーム"],
+	  "details": {
+	    "purpose": "ホストが作成した部屋にQRコード経由で参加し、リアルタイムに同期された状態で対戦を行う。",
+	    "summary": "Firebase Realtime Databaseを活用した多人数ロビーシステム。ホスト離脱時の自動委譲機能と、開始同期機能を備えたリアルタイムゲーム基盤。"
+	  },
+	  "dependencies": ["Firebase Realtime Database (CDN)"],
+	  "related_files": ["lobby.html", "landmine.html"],
+	  "last_updated": "2026-03-11"
+	},
+	{
 	  "id": "lottery-game",
 	  "title": "順次参加型くじ引きアプリ",
 	  "tags": ["ジョーク・ネタアプリ", "抽選"],
@@ -434,6 +446,27 @@
     }
   ],
   "logs": [
+	{
+	  "tool_id": "landmine-game",
+	  "date": "2026-03-11",
+	  "version": "0.1.2",
+	  "event": "ロビー参加フローおよびホスト自動委譲の実装",
+	  "note": "名前入力画面からの参加フローを確立。onDisconnectとrunTransactionを組み合わせたホスト自動委譲ロジックを実装し、離脱時のホスト不在問題を解決。"
+	},
+	{
+	  "tool_id": "landmine-game",
+	  "date": "2026-03-11",
+	  "version": "0.1.1",
+	  "event": "プロジェクト概要定義と運用ルール化",
+	  "note": "landmineプロジェクトのmetadata.jsonを作成。今後の新規アプリ作成時には、必ずメタデータ作成と履歴追記をセットで行う運用を徹底する。"
+	},
+	{
+	  "tool_id": "landmine-game",
+	  "date": "2026-03-11",
+	  "version": "0.1.0",
+	  "event": "プロジェクト初期化",
+	  "note": "landmineディレクトリを作成し、lobby.html/landmine.htmlの構成を定義。Firebaseルールによるセキュリティ担保方針を策定。"
+	},
 	{
 	  "tool_id": "readme-system",
 	  "date": "2026-03-11",
