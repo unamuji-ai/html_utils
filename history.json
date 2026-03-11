@@ -435,6 +435,20 @@
   ],
   "logs": [
 	{
+	  "tool_id": "readme-system",
+	  "date": "2026-03-11",
+	  "version": "1.2.0",
+	  "event": "AI開発運用ルールの定義",
+	  "note": "READMEにAIへのログ出力形式を明記。history.jsonのフォーマット（インデント・カンマ）とREADME更新用テーブルの出力を標準化。"
+	},
+	{
+	  "tool_id": "readme-system",
+	  "date": "2026-03-11",
+	  "version": "1.1.0",
+	  "event": "README管理運用ルール化",
+	  "note": "README.md内に変更履歴テーブルを設置し、コード開発と同様のログ管理運用を開始。保守の再現性を高める。"
+	},
+	{
 	  "tool_id": "lottery-game",
 	  "date": "2026-03-11",
 	  "version": "2.1.0",
