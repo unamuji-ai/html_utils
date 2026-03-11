@@ -1,30 +1,440 @@
-[
-	{
-	  "id": "20260309-001",
-	  "date": "2026-03-09",
-	  "title": "変更履歴ビューアの作成",
-	  "tags": ["新規実装"],
-	  "details": {
-	    "purpose": "プロジェクトの変更履歴を可視化し、属人化を防ぐこと。",
-	    "summary": "history.jsonを読み込み、リスト表示・詳細表示・フィルタリングを行うHTML/JSビューアの実装。"
-	  },
-	  "dependencies": ["なし"],
-	  "related_info": {
-	    "files": ["historyViewer.html", "history.json"]
-	  }
-	},
-	{
-	  "id": "20260309-002",
-	  "date": "2026-03-09",
-	  "title": "なめくじレース機能の実装",
-	  "tags": ["新規実装"],
-	  "details": {
-	    "purpose": "多人数での序列を公平かつエンタメ性を持って決定するための抽選ツール。",
-	    "summary": "SVG描画とJSによるレース進行ロジックにより、視覚的に順位を決定。乱数による不確実性をあえて許容することで、運の要素を強調した仕様。"
-	  },
-	  "dependencies": ["なし"],
-	  "related_info": {
-	    "files": ["namekuji.html"]
-	  }
-	}
-]
+{
+  "tools": [
+    {
+      "id": "airhockey",
+      "title": "エアホッケー・ゲーム",
+      "tags": ["ゲーム", "Canvas", "TypeScript"],
+      "details": {
+        "purpose": "スマホという狭い空間で、手と手が触れ合う距離での対戦を通じて親近感を高めること。",
+        "summary": "TypeScriptとViteを採用した物理演算ゲーム。完成度を優先し、JSメインでの運用へ最適化。"
+      },
+      "dependencies": ["Node.js", "Vite", "TypeScript"],
+      "related_files": ["[d]airhockey/"],
+      "last_updated": "2026-03-10"
+    },
+    {
+      "id": "bidding",
+      "title": "オークションシステム",
+      "tags": ["通信ゲーム"],
+      "details": {
+        "purpose": "店舗などの閉じた環境で、リアルタイムな競り合いや密封入札を行うためのオークション機能。",
+        "summary": "Firebase Firestoreを活用したリアルタイム入札システム。出品者用管理パネルと参加者用ページで構成。"
+      },
+      "dependencies": ["Firebase", "imgbb API"],
+      "related_files": ["[d]bidding/organizer.html", "[d]bidding/participant.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "cardBattle",
+      "title": "カードバトルシステム",
+      "tags": ["通信ゲーム"],
+      "details": {
+        "purpose": "多人数での通信対戦カードバトル。ランダム生成されたカードで生存を賭けて戦う。",
+        "summary": "Firebase Realtime Databaseを用いたホスト主導型同期システム。属性相性やSPD判定を実装。"
+      },
+      "dependencies": ["Firebase Realtime Database", "qrcode.js"],
+      "related_files": ["[d]cardBattle/lobby.html", "[d]cardBattle/cardBattle.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "cardBattle-sim",
+      "title": "カードバトル・バランス調整用シミュレーター",
+      "tags": ["ゲーム開発", "検証コード"],
+      "details": {
+        "purpose": "カードバトルの属性相性およびステータス配分のバランス調整。",
+        "summary": "Pythonによるモンテカルロシミュレーション。10,000回のバトルで勝率とステータス分布を検証。"
+      },
+      "dependencies": ["pandas", "matplotlib", "seaborn"],
+      "related_files": ["cardBattle/lobby.html", "cardBattle/cardMaker.html", "simulate_battle.py"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "cardMaker",
+      "title": "カード生成アプリ",
+      "tags": ["ジェネレーター"],
+      "details": {
+        "purpose": "自撮り画像をコンカフェ嬢風のバトルカードへ加工するエンタメツール。",
+        "summary": "画像ハッシュを乱数シードとしてステータスを自動生成するCanvasアプリ。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["[d]cardMaker/cardMaker.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "chikuwa",
+      "title": "ちくわ賞味期限カウントダウン",
+      "tags": ["その他"],
+      "details": {
+        "purpose": "退勤時間までを「ちくわの賞味期限」と見立てた注意喚起ツール。",
+        "summary": "指定時刻までの残り時間を視覚化。localStorageによる設定値の永続化機能を実装。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["chikuwa.html", "chikuwa.jpg"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "chinchiro",
+      "title": "チンチロリンゲーム",
+      "tags": ["通信ゲーム"],
+      "details": {
+        "purpose": "多人数で楽しむオンライン・チンチロリン。",
+        "summary": "Firebase Realtime Databaseを用いたルームベース通信対戦。妨害ギミックやションベン判定を実装。"
+      },
+      "dependencies": ["Firebase Realtime Database"],
+      "related_files": ["[d]chinchiro/lobby.html", "[d]chinchiro/game.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "decoText",
+      "title": "テキスト装飾ジェネレーター",
+      "tags": ["ジェネレーター"],
+      "details": {
+        "purpose": "暴言や強い言葉を視覚的に緩和、あるいは装飾してSNS等で表現する。",
+        "summary": "Unicode結合文字を用いたテキスト加工ツール。正規化形式やノイズの調整が可能。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["DecoTextGenerator.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "eto",
+      "title": "年齢詐称サポートツール",
+      "tags": ["ユーティリティ"],
+      "details": {
+        "purpose": "年齢と干支、和暦の整合性を瞬時に確認するカンニングペーパー。",
+        "summary": "年齢から生年・和暦・干支を算出する機能と逆算機能を実装。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["eto.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "fakeControll",
+      "title": "催眠術支配アプリ",
+      "tags": ["ジョーク・ネタアプリ"],
+      "details": {
+        "purpose": "画像の相手を催眠術で支配できるという空想上の体験を提供する。",
+        "summary": "React + Vite構成。スワイプによる同期率増減、CSSフィルター、心電図SVG、触覚フィードバックを実装。"
+      },
+      "dependencies": ["React", "Vite", "ESLint"],
+      "related_files": ["[d]fakeControllApp/src/App.jsx"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "fakePhone",
+      "title": "フェイク電話アプリ",
+      "tags": ["ジョーク・ネタアプリ"],
+      "details": {
+        "purpose": "緊急通報や特定の相手への通話中を装うためのフェイク通話シミュレーター。",
+        "summary": "iOS標準の電話アプリUIを再現。キーパッド入力から通話終了までの一連の挙動をシミュレート。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["fakephone.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "gacha",
+      "title": "ガチャ確率計算ツール",
+      "tags": ["ユーティリティ"],
+      "details": {
+        "purpose": "ガチャの出現確率、期待値、コンプリートまでの回数を計算する。",
+        "summary": "1点狙いや全コンプリートの計算機能を備えたハブアプリケーション。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["[d]gacha/index.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "hiyoko",
+      "title": "代弁者ひよこ",
+      "tags": ["ジョーク・ネタアプリ"],
+      "details": {
+        "purpose": "録音した声をひよこキャラで再生し、言いにくいことを代弁させる。",
+        "summary": "Web Audio APIを用いた録音・ピッチ変換ツール。レベルメーターやエフェクトを実装。"
+      },
+      "dependencies": ["Web Audio API"],
+      "related_files": ["hiyoko.html", "hiyoko.png"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "howoldru",
+      "title": "年齢計算・元号変換ツール",
+      "tags": ["ユーティリティ"],
+      "details": {
+        "purpose": "生年月日から現在の年齢と元号を算出する。",
+        "summary": "元号と西暦の相互変換に加え、誕生日経過による年齢微調整機能を備える。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["howoldru.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "index",
+      "title": "ユーティリティメニューハブ",
+      "tags": ["ポータル"],
+      "details": {
+        "purpose": "現場で利用する全ツールを統合管理するポータルサイト。",
+        "summary": "多様なツールをカテゴリー別に配置したハブ画面。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["index.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "kakutei",
+      "title": "確定申告ガイド",
+      "tags": ["ユーティリティ", "開発停止"],
+      "details": {
+        "purpose": "確定申告の手順をガイドするスマホ向けWebアプリ。",
+        "summary": "ステップ形式のチュートリアルUI。現在は開発停止中。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["kakutei.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "motiontrick",
+      "title": "モーション・トリック・ジェネレーター",
+      "tags": ["ジェネレーター"],
+      "details": {
+        "purpose": "静止画でありながら文字が動いているように見える錯視画像を生成する。",
+        "summary": "Canvas APIを使用し、各文字のオフセット計算によるオプティカル・アート効果を実装。"
+      },
+      "dependencies": ["Canvas API"],
+      "related_files": ["motiontrick.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "namekuji",
+      "title": "なめくじレース",
+      "tags": ["ジョーク・ネタアプリ"],
+      "details": {
+        "purpose": "多人数での序列を公平かつエンタメ性を持って決定するための抽選ツール。",
+        "summary": "SVGとCSSアニメーションを用いたレースシミュレーター。運の要素を強調。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["namekuji.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "ojitan",
+      "title": "おじさん構文ジェネレーター",
+      "tags": ["ジェネレーター"],
+      "details": {
+        "purpose": "入力メッセージを「おじさん構文」に自動変換するジョークツール。",
+        "summary": "語尾変換、絵文字挿入、挨拶スロットを組み合わせた文章生成ロジック。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["ojitan.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "poemGen",
+      "title": "痛ポエムチェキジェネレーター",
+      "tags": ["ジェネレーター"],
+      "details": {
+        "purpose": "自撮り画像に「痛い」ポエムを自動合成する生成ツール。",
+        "summary": "Canvas/html2canvasを用いた画像合成。ランダムフレーズ生成と装飾機能を実装。"
+      },
+      "dependencies": ["html2canvas"],
+      "related_files": ["poemGenerator.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "postGen",
+      "title": "コンカフェ嬢営業スタイル診断",
+      "tags": ["ジョーク・ネタアプリ", "診断"],
+      "details": {
+        "purpose": "営業スタイルを可視化し、ネット上の反応をシミュレートするジョークツール。",
+        "summary": "Streamlitによる診断アプリ。レーダーチャート表示と掲示板風のレス生成機能。"
+      },
+      "dependencies": ["Streamlit", "pandas", "plotly"],
+      "related_files": ["[d]postGenerator/app.py"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "reiwa",
+      "title": "年号・西暦相互変換ツール",
+      "tags": ["ユーティリティ"],
+      "details": {
+        "purpose": "西暦と各元号の相互変換および年齢算出。",
+        "summary": "令和・平成・昭和・西暦を網羅した変換器。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["reiwa.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "relocateFace",
+      "title": "顔面モザイク・前衛的再配置ツール",
+      "tags": ["ジョーク・ネタアプリ", "画像処理"],
+      "details": {
+        "purpose": "顔のパーツをランダム再配置して識別不能にするプライバシー保護（？）ツール。",
+        "summary": "face-api.jsによるパーツ抽出とランダム再合成。"
+      },
+      "dependencies": ["face-api.js"],
+      "related_files": ["relocateFace.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "roulette",
+      "title": "スマホ最適化ルーレット",
+      "tags": ["ジョーク・ネタアプリ", "ユーティリティ"],
+      "details": {
+        "purpose": "多人数の中からランダムで1名を選出する。",
+        "summary": "CSS clip-pathを用いた扇形ルーレット。リアルな回転・停止演出を実装。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["roulette.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "sakekuzu",
+      "title": "酒クズバトルロワイヤル",
+      "tags": ["ジョーク・ネタアプリ"],
+      "details": {
+        "purpose": "飲み会で何を飲むかをランダム決定し場を盛り上げる。",
+        "summary": "難易度選択、ランダム指示、ペナルティカウントダウン機能を実装。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["sakekuzu.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "twister",
+      "title": "指ツイスター",
+      "tags": ["ジョーク・ネタアプリ", "対戦ゲーム"],
+      "details": {
+        "purpose": "スマホ画面を使った二人対戦型指ツイスター。",
+        "summary": "マルチタッチ判定とCSSによるルーレットUIの実装。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["twister.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "upeed",
+      "title": "ウピード(upeed)",
+      "tags": ["ジョーク・ネタアプリ", "対戦ゲーム"],
+      "details": {
+        "purpose": "UNOとスピードを融合させた独自ルールのカードゲーム。",
+        "summary": "Pointer Eventsを活用したドラッグ＆ドロップ対戦ゲーム。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["upeed.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "vote",
+      "title": "投票システム",
+      "tags": ["リアルタイム", "イベント"],
+      "details": {
+        "purpose": "イベントでのクイズやアンケートのリアルタイム集計。",
+        "summary": "FirestoreとChart.jsを活用。司会用グラフ表示とゲスト用回答機能を実装。"
+      },
+      "dependencies": ["Firebase SDK", "Chart.js"],
+      "related_files": ["[d]vote/host.html", "[d]vote/guest.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "webrtc-lobby",
+      "title": "P2P通信対戦ロビー",
+      "tags": ["通信対戦", "インフラ"],
+      "details": {
+        "purpose": "WebRTC通信対戦ゲームのためのマッチング基盤。",
+        "summary": "Firebaseシグナリングによる接続確立とDataChannel同期。"
+      },
+      "dependencies": ["Firebase SDK", "WebRTC API"],
+      "related_files": ["WebRTC/lobby.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "hitnblow",
+      "title": "Hit & Blow Online",
+      "tags": ["通信対戦", "ゲーム"],
+      "details": {
+        "purpose": "戦略要素付きのHit & Blow対戦ゲーム。",
+        "summary": "スキルポイント消費型ヒント開示機能を実装したP2P対戦。"
+      },
+      "dependencies": ["WebRTC API"],
+      "related_files": ["WebRTC/hitnblow.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "geister",
+      "title": "ガイスター通信対戦",
+      "tags": ["通信対戦", "ゲーム"],
+      "details": {
+        "purpose": "二人対戦型ボードゲーム「ガイスター」のオンライン版。",
+        "summary": "駒の正体隠蔽UIと移動同期を実装。"
+      },
+      "dependencies": ["WebRTC API"],
+      "related_files": ["WebRTC/geister.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "yakiniku",
+      "title": "コンカフェ嬢焼肉10タイプ性格診断",
+      "tags": ["ジョーク・ネタアプリ", "診断"],
+      "details": {
+        "purpose": "10の質問から性格を焼肉の部位に例えて診断する。",
+        "summary": "スコア差によるMIX判定機能を持つ診断ツール。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["yakinikuuranai.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "yakiniku-sim",
+      "title": "焼肉10タイプ診断シミュレーション",
+      "tags": ["診断", "検証コード"],
+      "details": {
+        "purpose": "診断ロジックの妥当性評価および結果の偏り検証。",
+        "summary": "モンテカルロ法によるバランス検証ツール。"
+      },
+      "dependencies": ["pandas", "matplotlib", "seaborn"],
+      "related_files": ["yakinikuuranai.html", "simulate_yakiniku.py"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "wineGen",
+      "title": "ワイン風ネームジェネレーター",
+      "tags": ["ジェネレーター"],
+      "details": {
+        "purpose": "名前からワインの銘柄風の名前と格付けを生成する。",
+        "summary": "性格キーワードのスコアリングによる銘柄生成とDOCG等の格付け算出。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["wineNameGenerator.html"],
+      "last_updated": "2026-03-09"
+    },
+    {
+      "id": "twoshot",
+      "title": "模擬チャットレディ・通信対戦コネクター",
+      "tags": ["ジョーク・ネタアプリ", "通信対戦"],
+      "details": {
+        "purpose": "P2P通信でタッチ位置を同期し、プレイ料金を自動算出する。",
+        "summary": "PeerJSを用いたスコア算出と伝票表示機能。"
+      },
+      "dependencies": ["PeerJS", "qrcode.js"],
+      "related_files": ["twoshotTouch/connector.html"],
+      "last_updated": "2026-03-09"
+    }
+  ],
+  "logs": [
+    {
+      "tool_id": "airhockey",
+      "date": "2026-03-09",
+      "version": "1.0.0",
+      "event": "初期登録 (TypeScript/Vite導入)",
+      "note": "物理演算の型安全性確保のためTypeScriptとViteで開発を開始。"
+    },
+    {
+      "tool_id": "airhockey",
+      "date": "2026-03-10",
+      "version": "1.1.0",
+      "event": "JS運用への移行・保守体制の整備",
+      "note": "開発を進めた結果、厳密な型管理がなくても完成に至ったため、環境構築・ビルドの手間（ROI）を考慮してJS直接編集の運用へ切り替え。ビルド環境は残しつつも、実運用はmain.jsを直接編集する形とした。"
+    }
+  ]
+}
