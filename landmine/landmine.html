@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>Landmine 本編</title>
+    <style>
+        #map { display: grid; gap: 2px; }
+        .cell { width: 40px; height: 40px; border: 1px solid #ccc; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    </style>
+</head>
+<body>
+    <h1>Landmine</h1>
+    <div id="map"></div>
+    <ul id="log-list"></ul>
+
+		<script type="module">
+		    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+		    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+
+		    const firebaseConfig = {
+		        apiKey: "AIzaSyACl4sZP_d86CuMiJOqLr_qvRRIyu1cHWo",
+		        authDomain: "landmine-fe71d.firebaseapp.com",
+		        databaseURL: "https://landmine-fe71d-default-rtdb.firebaseio.com",
+		        projectId: "landmine-fe71d",
+		        storageBucket: "landmine-fe71d.firebasestorage.app",
+		        messagingSenderId: "30780557345",
+		        appId: "1:30780557345:web:867cdc81b4d20cb43bbb60"
+		    };
+
+		    // Firebaseの初期化
+		    const app = initializeApp(firebaseConfig);
+		    const db = getDatabase(app);
+
+		    const urlParams = new URLSearchParams(window.location.search);
+		    const roomId = urlParams.get('room');
+
+		    // プレイヤーが追加されるたびにマップを再描画する
+		    if (roomId) {
+				    onValue(ref(db, `rooms/${roomId}/game/players`), (snapshot) => { // ← ここを game/players に！
+				        const players = snapshot.val();
+				        if (!players) {
+				            console.warn("まだゲーム用データが準備されていません");
+				            return;
+				        }
+				        
+								const playerIds = Object.keys(players);
+								const count = playerIds.length; // ここで「人数」という数値にする
+						    console.log("プレイヤー数:", count); 
+								// 人数が少ない場合の最低保証も入れておくと安心です
+								const size = Math.max(count + 3, 5); // 最低でも5x5以上にする
+								renderMap(size);
+				    });
+		    }
+
+		    function renderMap(size) {
+		        const map = document.getElementById('map');
+		        // gridTemplateColumnsを正しく設定
+		        map.style.gridTemplateColumns = `repeat(${size}, 40px)`;
+		        map.innerHTML = '';
+		        for(let i = 0; i < size * size; i++) {
+		            const cell = document.createElement('div');
+		            cell.className = 'cell';
+		            cell.onclick = () => console.log(`Clicked ${i}`);
+		            map.appendChild(cell);
+		        }
+		    }
+		</script>
+
+</body>
+</html>
+
+

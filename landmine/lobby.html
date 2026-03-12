@@ -6,7 +6,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-        import { getDatabase, ref, push, onValue, set, onDisconnect, update, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+        import { getDatabase, ref, push, onValue, get, set, onDisconnect, update, runTransaction } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyACl4sZP_d86CuMiJOqLr_qvRRIyu1cHWo",
@@ -151,15 +151,33 @@
 
                 // ホスト判定とボタン制御
                 const startBtn = document.getElementById('start-btn');
-                if (data.hostId === myPlayerKey) {
-                    if (!startBtn) {
-                        const btn = document.createElement('button');
-                        btn.id = 'start-btn';
-                        btn.textContent = "ゲーム開始";
-                        btn.onclick = () => update(roomRef, { status: 'started' });
-                        document.body.appendChild(btn);
-                    }
-                } else {
+								if (data.hostId === myPlayerKey) {
+								    if (!document.getElementById('start-btn')) {
+								        const btn = document.createElement('button');
+								        btn.id = 'start-btn';
+								        btn.textContent = "ゲーム開始";
+
+												btn.onclick = async () => {
+												    // 1. 部屋全体のデータを最新状態で取得する
+												    const roomSnapshot = await get(ref(db, `rooms/${roomId}`));
+												    const roomData = roomSnapshot.val();
+
+												    if (roomData && roomData.players) {
+												        // 2. 部屋にある全プレイヤーデータを取得
+												        const allPlayers = roomData.players;
+												        
+												        // 3. ゲーム用パスに全プレイヤーをコピー
+												        await set(ref(db, `rooms/${roomId}/game/players`), allPlayers);
+												        
+												        // 4. ゲーム開始ステータスを更新
+												        await update(ref(db, `rooms/${roomId}`), { status: 'started' });
+												    } else {
+												        console.error("プレイヤーデータが見つかりません");
+												    }
+												};
+								        document.body.appendChild(btn);
+								    }
+								} else {
                     if (startBtn) startBtn.remove();
                 }
             });
