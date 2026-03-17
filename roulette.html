@@ -279,12 +279,12 @@
 				        velocity *= 0.97;
 
 				        // 【演出】速度が一定以下（かつ止まりそう）な時、確率で再加速！
-				        if (velocity < 0.5 && velocity > 0.1 && Math.random() < 0.02) {
+				        if (velocity < 0.2 && velocity > 0.05 && Math.random() < 0.02) {
 				            velocity += Math.random() * 20 + 5; // 再加速！
 				        }
 
 				        // 停止判定（速度が十分小さくなったら止める）
-				        if (velocity > 0.1) {
+				        if (velocity > 0.02) {
 				            requestAnimationFrame(animate);
 				        } else {
 				            isSpinning = false;
