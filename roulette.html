@@ -100,7 +100,6 @@
             border: 6px solid #2d3748;
             position: relative;
             overflow: hidden;
-            transition: transform 4s cubic-bezier(0.15, 0, 0.15, 1);
             background-color: #fff;
         }
 
@@ -257,6 +256,9 @@
             });
         }
 
+				let velocity = 0;
+				let isSpinning = false;
+
         // 回転ロジック
         spinButton.onclick = () => {
             if (names.length < 2) return;
@@ -265,25 +267,40 @@
             backButton.disabled = true;
             resultDisplay.innerHTML = '抽選中...';
 
-            const sectorAngle = 360 / names.length;
-            // 最低5回転 + ランダム角度
-            const extra = Math.floor(Math.random() * 360) + 1800;
-            currentRotation += extra;
-            
-            roulette.style.transform = `rotate(${currentRotation}deg)`;
-            
-            setTimeout(() => {
-                // 停止時の角度から当選者を特定（ポインターは真上 0度）
-                const actualRotation = currentRotation % 360;
-                // 時計回りに回転するので、(360 - 角度) でポインター位置のセグメントを算出
-                const winningIndex = Math.floor(((360 - (actualRotation % 360)) % 360) / sectorAngle);
-                
-                const winner = names[winningIndex];
-                resultDisplay.innerHTML = `当選：${winner} ${nameEmojis[winner]}`;
-                
-                spinButton.disabled = false;
-                backButton.disabled = false;
-            }, 4000);
+
+				    velocity = Math.random() * 50 + 80;
+
+				    function animate() {
+				        // 回転させる
+				        currentRotation += velocity;
+				        roulette.style.transform = `rotate(${currentRotation}deg)`;
+
+				        // 摩擦（少しずつ減速）
+				        velocity *= 0.97;
+
+				        // 【演出】速度が一定以下（かつ止まりそう）な時、確率で再加速！
+				        if (velocity < 0.5 && velocity > 0.1 && Math.random() < 0.04) {
+				            velocity += Math.random() * 20 + 5; // 再加速！
+				        }
+
+				        // 停止判定（速度が十分小さくなったら止める）
+				        if (velocity > 0.1) {
+				            requestAnimationFrame(animate);
+				        } else {
+				            isSpinning = false;
+				            spinButton.disabled = false;
+				            backButton.disabled = false;
+				            
+				            // 当選者特定
+				            const finalAngle = currentRotation % 360;
+				            const sectorAngle = 360 / names.length;
+				            const winningIndex = Math.floor(((360 - finalAngle) % 360) / sectorAngle);
+				            const winner = names[winningIndex];
+				            
+				            resultDisplay.innerHTML = `当選：${winner} ${nameEmojis[winner]}`;
+				        }
+				    }
+				    animate();
         };
 
         backButton.onclick = () => {
