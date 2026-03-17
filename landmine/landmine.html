@@ -2,71 +2,319 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Landmine 本編</title>
     <style>
-        #map { display: grid; gap: 2px; }
-        .cell { width: 40px; height: 40px; border: 1px solid #ccc; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+				#map { 
+				    display: grid; 
+				    gap: 2px; 
+				    width: 90vw; 
+				    max-width: 500px; 
+				    margin: 0 auto; 
+				    min-height: 300px; /* マップ領域を確保 */
+				}
+        .cell { width: 100%; aspect-ratio: 1 / 1; border: 1px solid #000; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 80%; font-weight: bold; box-sizing: border-box; }
+        .mine-mine { background-color: #ff9999; }
+        .opened { background: #fff; }
+        .mine-controls { display: flex; gap: 10px; margin-top: 10px; justify-content: center; }
+        .mine-btn { padding: 10px; border: 2px solid #333; cursor: pointer; }
+        .mine-btn.selected { border-color: red; background: #ffe6e6; }
+        #log-box { height: 150px; overflow-y: scroll; border: 1px solid #ccc; padding: 10px; margin-top: 10px; list-style: none; }
+				#turn-display {
+				    text-align: center;
+				    font-size: 1.2em;
+				    font-weight: bold;
+				    margin: 20px;
+				    line-height: 1.6;
+				}
     </style>
 </head>
 <body>
-    <h1>Landmine</h1>
+    <div id="turn-display">地雷を設置してください</div>
     <div id="map"></div>
-    <ul id="log-list"></ul>
+    <div class="mine-controls" id="controls">
+        <div id="btn-large" class="mine-btn" onclick="window.selectMine('large')">大 (残:<span id="rem-large">1</span>)</div>
+        <div id="btn-small" class="mine-btn" onclick="window.selectMine('small')">小 (残:<span id="rem-small">2</span>)</div>
+    </div>
+    <button id="btn-ready" onclick="window.setReady()">設置完了</button>
+    <ul id="log-box"></ul>
+		<div id="game-over-controls" style="display: none;">
+		    <button onclick="window.location.href='lobby.html'">やめる</button>
+		    <button onclick="window.retryGame()">リトライ</button>
+		</div>
 
-		<script type="module">
-		    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
-		    import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getDatabase, ref, onValue, set, remove, get, update } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js";
 
-		    const firebaseConfig = {
-		        apiKey: "AIzaSyACl4sZP_d86CuMiJOqLr_qvRRIyu1cHWo",
-		        authDomain: "landmine-fe71d.firebaseapp.com",
-		        databaseURL: "https://landmine-fe71d-default-rtdb.firebaseio.com",
-		        projectId: "landmine-fe71d",
-		        storageBucket: "landmine-fe71d.firebasestorage.app",
-		        messagingSenderId: "30780557345",
-		        appId: "1:30780557345:web:867cdc81b4d20cb43bbb60"
-		    };
+        const db = getDatabase(initializeApp({
+            apiKey: "AIzaSyACl4sZP_d86CuMiJOqLr_qvRRIyu1cHWo",
+            databaseURL: "https://landmine-fe71d-default-rtdb.firebaseio.com"
+        }), "https://landmine-fe71d-default-rtdb.firebaseio.com");
 
-		    // Firebaseの初期化
-		    const app = initializeApp(firebaseConfig);
-		    const db = getDatabase(app);
+        const params = new URLSearchParams(window.location.search);
+        const roomId = params.get('room');
+        const myId = params.get('uid');
 
-		    const urlParams = new URLSearchParams(window.location.search);
-		    const roomId = urlParams.get('room');
+        let selectedType = null;
+        let myMines = { large: 1, small: 2 };
+        let gridSize = 0;
 
-		    // プレイヤーが追加されるたびにマップを再描画する
-		    if (roomId) {
-				    onValue(ref(db, `rooms/${roomId}/game/players`), (snapshot) => { // ← ここを game/players に！
-				        const players = snapshot.val();
-				        if (!players) {
-				            console.warn("まだゲーム用データが準備されていません");
-				            return;
-				        }
+				window.selectMine = (type) => {
+				    if (myMines[type] <= 0) return;
+				    selectedType = type;
+				    
+				    // クラスの付け替え
+				    document.querySelectorAll('.mine-btn').forEach(el => el.classList.remove('selected'));
+				    const btn = document.getElementById(`btn-${type}`);
+				    if (btn) btn.classList.add('selected');
+				};
+
+				window.setReady = async () => {
+				    // ボタン自体を disabled にしているため、このチェックは念のための保険
+				    if (myMines.large > 0 || myMines.small > 0) return;
+				    
+				    await update(ref(db, `rooms/${roomId}/game/players/${myId}`), { ready: true });
+				    // ここでの disabled = true はあってもなくてもOK
+				};
+
+
+        function addLog(msg) {
+            const logBox = document.getElementById('log-box');
+            const li = document.createElement('li');
+            li.textContent = msg;
+            logBox.prepend(li);
+        }
+
+			  // ログの監視と表示
+			  onValue(ref(db, `rooms/${roomId}/game/logs`), (snapshot) => {
+			      const logBox = document.getElementById('log-box');
+			      logBox.innerHTML = '';
+			      const logs = snapshot.val() || [];
+			      logs.forEach(msg => {
+			          const li = document.createElement('li');
+			          li.textContent = msg;
+			          logBox.prepend(li);
+			      });
+			  });
+
+				onValue(ref(db, `rooms/${roomId}/game`), (snapshot) => {
+				    const game = snapshot.val() || {};
+				    if (!game.players) return;
+
+						// 1. 前回のモードを記録（初期値は 'waiting' でOK）
+						if (window.lastMode === undefined) window.lastMode = 'waiting';
+
+						// 2. finished から waiting への遷移を検知してリセット
+						if (window.lastMode === 'finished' && game.mode === 'waiting') {
+						    myMines.large = 1;
+						    myMines.small = 2;
+						    selectedType = null; // 選択状態も解除
+						    updateUI(); // ローカル変数の反映
+						}
+				    window.lastMode = game.mode; // 現在のモードを保存
+
+				    // 1. 各種状態の計算
+				    if (gridSize === 0) gridSize = Object.keys(game.players).length + 3;
+				    
+				    const isPlaying = game.mode === 'playing';
+				    const isFinished = game.mode === 'finished';
+				    const myReady = game.players[myId]?.ready;
+				    const playerKeys = Object.keys(game.players);
+				    const isHost = (playerKeys[0] === myId);
+				    const allReady = Object.values(game.players).every(p => p.ready === true);
+
+				    // 自分の設置済み地雷数をカウント
+				    let myMinesCount = 0;
+				    if (game.grid) {
+				        Object.values(game.grid).forEach(cell => {
+				            if (Array.isArray(cell)) {
+				                cell.forEach(m => { if (m.owner === myId) myMinesCount++; });
+				            }
+				        });
+				    }
+				    const isFinishedSetting = (myMinesCount >= 3);
+
+				    const turnDisplay = document.getElementById('turn-display');
+				    const controls = document.getElementById('controls');
+				    const btnReady = document.getElementById('btn-ready');
+				    const map = document.getElementById('map');
+
+				    // 2. 結果表示モード
+				    if (isFinished) {
+				        const results = Object.values(game.players)
+				            .sort((a, b) => b.score - a.score)
+				            .map((p, i) => `${i + 1}位: ${p.name} (${p.score}pts)`)
+				            .join('<br>');
 				        
-								const playerIds = Object.keys(players);
-								const count = playerIds.length; // ここで「人数」という数値にする
-						    console.log("プレイヤー数:", count); 
-								// 人数が少ない場合の最低保証も入れておくと安心です
-								const size = Math.max(count + 3, 5); // 最低でも5x5以上にする
-								renderMap(size);
+				        turnDisplay.innerHTML = "ゲーム終了！<br>" + results;
+				        map.innerHTML = '';
+				        controls.style.display = 'none';
+				        btnReady.style.display = 'none';
+
+								if(isHost){
+								    document.getElementById('game-over-controls').style.display = 'block';
+								}
+						    return; 
+						} else {
+						    document.getElementById('game-over-controls').style.display = 'none';
+						}
+
+				    // 3. ホストによる開始判定（最優先）
+				    if (!isPlaying && allReady && isHost) {
+				        const initialPlayers = {};
+				        Object.keys(game.players).forEach(uid => {
+				            initialPlayers[uid] = { ...game.players[uid], score: 0, remainingMines: 3 };
+				        });
+				        update(ref(db, `rooms/${roomId}/game`), { 
+				            mode: 'playing', 
+				            turn: playerKeys[0], 
+				            players: initialPlayers 
+				        });
+				        return; // 更新したら一度抜けて、次のonValueでisPlaying=trueとして描画する
+				    }
+
+				    // 4. ゲーム中モード
+				    if (isPlaying) {
+				        turnDisplay.textContent = (game.turn === myId) ? "あなたの番です！" : `${game.players[game.turn].name} の番です`;
+				        controls.style.display = 'none';
+				        btnReady.style.display = 'none';
+				    } 
+				    // 5. 設置中モード
+				    else {
+				        turnDisplay.textContent = allReady ? "全員準備完了！開始しています..." : (myReady ? "他のプレイヤーの設置完了を待っています..." : "地雷を設置してください");
+				        controls.style.display = 'flex';
+				        btnReady.style.display = 'block';
+				        btnReady.disabled = myReady ? true : !isFinishedSetting;
+				        btnReady.textContent = myReady ? "待機中..." : "設置完了";
+				    }
+
+				    // 6. マップ描画
+				    renderMap(gridSize, game.grid || {}, game.open || {}, isPlaying);
+				});
+
+
+        function renderMap(size, gridData, openData, isPlaying) {
+            const map = document.getElementById('map');
+            map.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+            map.innerHTML = '';
+            for (let i = 0; i < size * size; i++) {
+                const id = `${i % size}_${Math.floor(i / size)}`;
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                
+                if (isPlaying && openData[id]) {
+                    cell.classList.add('opened');
+                    cell.textContent = (gridData[id] && gridData[id].length > 0) ? "💥" : "○";
+                } else if (!isPlaying && Array.isArray(gridData[id])) {
+                    const myMine = gridData[id].find(m => m.owner === myId);
+                    if (myMine) {
+                        cell.classList.add('mine-mine');
+                        cell.textContent = myMine.type === 'large' ? '大' : '小';
+                    }
+                }
+                cell.onclick = () => window.handleCellClick(id, gridData[id]);
+                map.appendChild(cell);
+            }
+        }
+
+				window.handleCellClick = async (id, data) => {
+				    const gameRef = ref(db, `rooms/${roomId}/game`);
+				    const game = (await get(gameRef)).val();
+
+				    if (game.mode === 'playing') {
+				        if (game.turn !== myId || (game.open && game.open[id])) return;
+				        
+				        let scoreChange = 0;
+				        const logs = game.logs || [];
+				        const players = game.players; // ここで1回だけ宣言
+
+				        if (data && data.length > 0) {
+				            data.forEach(m => {
+				                const points = (m.type === 'large' ? -10 : -5);
+				                scoreChange += points;
+				                players[m.owner].remainingMines -= 1;
+				                logs.push(`${players[myId].name} が ${players[m.owner].name} の地雷を踏んだ！ (-${points})(${players[myId].score + scoreChange})`);
+				            });
+				        } else {
+				            scoreChange = 2;
+				            logs.push(`${players[myId].name} はセーフ！ (+2pts)(${players[myId].score + scoreChange})`);
+				        }
+
+				        players[myId].score = (players[myId].score || 0) + scoreChange;
+				        
+				        const isGameOver = Object.values(players).some(p => p.remainingMines <= 0);
+				        const playerIds = Object.keys(players);
+				        const next = playerIds[(playerIds.indexOf(myId) + 1) % playerIds.length];
+
+				        await update(gameRef, { 
+				            [`open/${id}`]: true, 
+				            turn: next,
+				            logs: logs,
+				            players: players,
+				            mode: isGameOver ? 'finished' : 'playing'
+				        });
+				    } else {
+				        // --- 設置中の処理 ---
+				        if (data && Array.isArray(data) && data.some(m => m.owner === myId)) {
+				            const myMinesInCell = data.filter(m => m.owner === myId);
+				            myMinesInCell.forEach(m => myMines[m.type]++);
+				            const remaining = data.filter(m => m.owner !== myId);
+				            await set(ref(db, `rooms/${roomId}/game/grid/${id}`), remaining.length > 0 ? remaining : null);
+				        } else if (selectedType && myMines[selectedType] > 0) {
+				            const current = data || [];
+				            current.push({ type: selectedType, owner: myId });
+				            await set(ref(db, `rooms/${roomId}/game/grid/${id}`), current);
+				            myMines[selectedType]--;
+				            if (myMines[selectedType] === 0) {
+				                selectedType = null;
+				                document.querySelectorAll('.mine-btn').forEach(el => el.classList.remove('selected'));
+				            }
+				        }
+				        updateUI();
+				    }
+				};
+
+
+        function updateUI() {
+            document.getElementById('rem-large').textContent = myMines.large;
+            document.getElementById('rem-small').textContent = myMines.small;
+        }
+
+				window.retryGame = async () => {
+				   // 1. ローカル変数のリセット
+				    myMines.large = 1;
+				    myMines.small = 2;
+				    selectedType = null; // 選択状態も解除
+
+
+				    // 2. Firebaseのリセット
+				    const gameRef = ref(db, `rooms/${roomId}/game`);
+				    const game = (await get(gameRef)).val();
+
+				    // プレイヤー全員の ready を false にし、mode を 'waiting' に戻す
+				    const resetPlayers = {};
+				    Object.keys(game.players).forEach(uid => {
+				        resetPlayers[uid] = { 
+				            ...game.players[uid], 
+				            ready: false, 
+				            score: 0, 
+				            remainingMines: 3 
+				        };
 				    });
-		    }
 
-		    function renderMap(size) {
-		        const map = document.getElementById('map');
-		        // gridTemplateColumnsを正しく設定
-		        map.style.gridTemplateColumns = `repeat(${size}, 40px)`;
-		        map.innerHTML = '';
-		        for(let i = 0; i < size * size; i++) {
-		            const cell = document.createElement('div');
-		            cell.className = 'cell';
-		            cell.onclick = () => console.log(`Clicked ${i}`);
-		            map.appendChild(cell);
-		        }
-		    }
-		</script>
+				    await update(gameRef, {
+				        mode: 'waiting',
+				        players: resetPlayers,
+				        grid: null,    // マップをリセット
+				        open: null,    // 開いたセルをリセット
+				        logs: null,    // ログをリセット
+				        turn: null
+				    });
+				    
+				    // 画面上のUIは onValue が自動的に更新してくれます
+				};
 
+    </script>
 </body>
 </html>
-
-
