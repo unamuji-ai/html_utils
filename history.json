@@ -206,7 +206,7 @@
 	},
 	{
 	  "id": "lottery-game",
-	  "title": "順次参加型くじ引きアプリ",
+	  "title": "順次参加型スロット（くじ引き）アプリ",
 	  "tags": ["ジョーク・ネタアプリ", "抽選"],
 	  "details": {
 	    "purpose": "多人数での順位や役割を、スマホを回し飲みするように順番にボタンを押して決定する。",
@@ -239,6 +239,18 @@
       "dependencies": ["なし"],
       "related_files": ["namekuji.html"],
       "last_updated": "2026-03-09"
+    },
+    {
+      "id": "nekojarachi",
+      "title": "ねこじゃらし",
+      "tags": ["ジョーク・ネタアプリ"],
+      "details": {
+        "purpose": "猫が一人遊びするアプリ。",
+        "summary": "SVGとCSSアニメーションを用いた猫用おもちゃアニメーション。"
+      },
+      "dependencies": ["なし"],
+      "related_files": ["[d]nekojarashi"],
+      "last_updated": "2026-03-18"
     },
     {
       "id": "ojitan",
@@ -446,6 +458,13 @@
     }
   ],
   "logs": [
+	{
+	  "tool_id": "roulette",
+	  "date": "2026-03-17",
+	  "version": "1.1.0",
+	  "event": "ルーレットの物理演出実装とアニメーション最適化",
+	  "note": "CSS transitionからrequestAnimationFrameによる物理ベースの回転へ移行。ある確率で再加速するロジックを追加し、予測不能な演出を実現。CSS transitionとの競合による描画遅延問題を解消し、GPUアクセラレーションを活用して滑らかな動作を確保。"
+	},
 	{
 	  "tool_id": "landmine-game",
 	  "date": "2026-03-13",
