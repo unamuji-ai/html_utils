@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+    />
+    <title>Markdown プレビュー</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #0b0c10;
+        --panel: rgba(20, 22, 28, 0.72);
+        --border: rgba(255, 255, 255, 0.12);
+        --text: rgba(255, 255, 255, 0.86);
+        --muted: rgba(255, 255, 255, 0.68);
+        --accent: rgba(120, 175, 255, 0.9);
+        --shadow: rgba(0, 0, 0, 0.35);
+        --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+        --sans: system-ui, -apple-system, "Segoe UI", Roboto, "Noto Sans JP", sans-serif;
+      }
+
+      html,
+      body {
+        height: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--sans);
+        overflow: hidden;
+        overscroll-behavior: none;
+      }
+
+      .app {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        grid-template-rows: auto 1fr;
+      }
+
+      .topbar {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        padding: 10px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(0, 0, 0, 0.22);
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+      }
+
+      .title {
+        font-weight: 650;
+        letter-spacing: 0.2px;
+        font-size: 13px;
+        margin-right: auto;
+        user-select: none;
+      }
+
+      .btn {
+        font: 12px/1 var(--sans);
+        padding: 9px 10px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        color: var(--text);
+        background: rgba(255, 255, 255, 0.06);
+        user-select: none;
+      }
+
+      .btn:active {
+        transform: scale(0.99);
+      }
+
+      .file {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 10px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.04);
+        user-select: none;
+      }
+
+      .file input[type="file"] {
+        max-width: 240px;
+      }
+
+      .main {
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+      }
+
+      @media (max-width: 900px) {
+        .main {
+          grid-template-columns: 1fr;
+          grid-template-rows: 1fr 1fr;
+        }
+      }
+
+      .pane {
+        min-width: 0;
+        min-height: 0;
+        display: grid;
+        grid-template-rows: auto 1fr;
+        border-right: 1px solid var(--border);
+      }
+
+      @media (max-width: 900px) {
+        .pane {
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+        }
+      }
+
+      .pane:last-child {
+        border-right: none;
+      }
+
+      .paneHeader {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 10px;
+        color: var(--muted);
+        font-size: 12px;
+        border-bottom: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.03);
+        user-select: none;
+      }
+
+      textarea {
+        width: 100%;
+        height: 100%;
+        box-sizing: border-box;
+        border: none;
+        outline: none;
+        resize: none;
+        padding: 12px;
+        background: transparent;
+        color: var(--text);
+        font-family: var(--mono);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .preview {
+        height: 100%;
+        box-sizing: border-box;
+        padding: 12px 14px 18px;
+        overflow: auto;
+        background: transparent;
+      }
+
+      /* Minimal markdown styling */
+      .preview :where(h1, h2, h3) {
+        margin: 0.8em 0 0.35em;
+        line-height: 1.2;
+      }
+      .preview h1 {
+        font-size: 22px;
+      }
+      .preview h2 {
+        font-size: 18px;
+      }
+      .preview h3 {
+        font-size: 15px;
+      }
+      .preview p {
+        margin: 0.5em 0;
+      }
+      .preview a {
+        color: var(--accent);
+      }
+      .preview code {
+        font-family: var(--mono);
+        font-size: 12px;
+        padding: 2px 5px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .preview pre {
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        background: rgba(255, 255, 255, 0.03);
+        overflow: auto;
+        box-shadow: 0 10px 30px var(--shadow);
+      }
+      .preview pre code {
+        border: none;
+        background: transparent;
+        padding: 0;
+      }
+      .preview blockquote {
+        margin: 0.8em 0;
+        padding: 0.1em 0 0.1em 0.9em;
+        border-left: 3px solid rgba(255, 255, 255, 0.18);
+        color: var(--muted);
+      }
+      .preview hr {
+        border: none;
+        border-top: 1px solid var(--border);
+        margin: 1em 0;
+      }
+      .preview ul,
+      .preview ol {
+        margin: 0.6em 0 0.6em 1.2em;
+        padding: 0;
+      }
+      .preview li {
+        margin: 0.25em 0;
+      }
+      .preview table {
+        border-collapse: collapse;
+        margin: 0.8em 0;
+        width: 100%;
+      }
+      .preview th,
+      .preview td {
+        border: 1px solid var(--border);
+        padding: 8px 10px;
+        vertical-align: top;
+      }
+      .preview th {
+        background: rgba(255, 255, 255, 0.04);
+      }
+      .note {
+        font-size: 11px;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app">
+      <div class="topbar">
+        <div class="title">Markdown プレビュー（HTMLタグ無効）</div>
+        <label class="file">
+          <span>ファイル</span>
+          <input id="file" type="file" accept=".md,text/markdown,text/plain" />
+        </label>
+        <button id="clear" class="btn" type="button">クリア</button>
+        <button id="copyHtml" class="btn" type="button">HTMLをコピー</button>
+      </div>
+
+      <div class="main">
+        <div class="pane">
+          <div class="paneHeader">
+            <div>Markdown</div>
+            <div class="note">自動保存（この端末）</div>
+          </div>
+          <textarea id="md" spellcheck="false"></textarea>
+        </div>
+        <div class="pane">
+          <div class="paneHeader">
+            <div>Preview</div>
+            <div class="note">変換: marked</div>
+          </div>
+          <div id="preview" class="preview"></div>
+        </div>
+      </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+      ;(() => {
+        const STORAGE_KEY = 'md-preview:markdown'
+        const $md = document.getElementById('md')
+        const $preview = document.getElementById('preview')
+        const $file = document.getElementById('file')
+        const $clear = document.getElementById('clear')
+        const $copyHtml = document.getElementById('copyHtml')
+
+        const renderer = new marked.Renderer()
+        renderer.html = () => '' // HTMLタグは無効化（生HTMLは出力しない）
+
+        marked.setOptions({
+          renderer,
+          gfm: true,
+          breaks: false,
+          headerIds: false,
+          mangle: false,
+        })
+
+        function render() {
+          const src = $md.value || ''
+          localStorage.setItem(STORAGE_KEY, src)
+          const html = marked.parse(src)
+          $preview.innerHTML = html
+        }
+
+        function setSampleIfEmpty() {
+          if ($md.value.trim()) return
+          $md.value =
+            '## 使い方 左にMarkdownを貼るかmdファイルを読み込むと右にプレビューします。HTMLタグは無効です'
+        }
+
+        // Init
+        const saved = localStorage.getItem(STORAGE_KEY)
+        if (typeof saved === 'string') $md.value = saved
+        setSampleIfEmpty()
+        render()
+
+        let raf = 0
+        $md.addEventListener('input', () => {
+          cancelAnimationFrame(raf)
+          raf = requestAnimationFrame(render)
+        })
+
+        $file.addEventListener('change', async (e) => {
+          const file = e.target.files && e.target.files[0]
+          if (!file) return
+          const text = await file.text()
+          $md.value = text
+          render()
+        })
+
+        $clear.addEventListener('click', () => {
+          $md.value = ''
+          localStorage.removeItem(STORAGE_KEY)
+          setSampleIfEmpty()
+          render()
+        })
+
+        $copyHtml.addEventListener('click', async () => {
+          const html = $preview.innerHTML
+          try {
+            await navigator.clipboard.writeText(html)
+            $copyHtml.textContent = 'コピーしました'
+            setTimeout(() => ($copyHtml.textContent = 'HTMLをコピー'), 900)
+          } catch {
+            // Fallback
+            const ta = document.createElement('textarea')
+            ta.value = html
+            document.body.appendChild(ta)
+            ta.select()
+            document.execCommand('copy')
+            document.body.removeChild(ta)
+          }
+        })
+      })()
+    </script>
+  </body>
+</html>
+
