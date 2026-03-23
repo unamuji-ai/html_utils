@@ -27,6 +27,7 @@
     <textarea id="input" rows="3" cols="30">日本語テキストです</textarea>
     <select id="mode">
         <option value="vertical">縦書き</option>
+        <option value="flip">左右反転</option>
         <option value="diagonal">斜め</option>
         <option value="spiral">うずまき</option>
     </select>
@@ -43,6 +44,9 @@
             let result = "";
             if (mode === 'vertical') {
                 result = verticalTransform(text);
+
+            } else if (mode === 'flip') {
+								result = flipTransform(text);
 
             } else if (mode === 'diagonal') {
 								result = diagonalTransform(text);
@@ -85,6 +89,17 @@
 				    }
 				    return result;
 				}
+
+				function flipTransform(text) {
+				    // 改行で分割し、各行を個別に処理する
+				    return text.split('\n').map(line => {
+				        // 1. 行内の文字を全角変換
+				        const fullLine = toFullWidth(line);
+				        // 2. 文字列を逆順にする
+				        return fullLine.split('').reverse().join('');
+				    }).join('\n'); // 3. 元の改行位置で結合
+				}
+
 
 				function diagonalTransform(text) {
 				    const fullText = toFullWidth(text.replace(/\n/g, ''));
