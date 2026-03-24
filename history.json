@@ -215,7 +215,7 @@
 	  "dependencies": ["None (Vanilla JS)"],
 	  "related_files": ["laterLayouter.html"],
 	  "last_updated": "2026-03-23"
-	}
+	},
 	{
 	  "id": "lottery-game",
 	  "title": "順次参加型スロット（くじ引き）アプリ",
