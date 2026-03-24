@@ -101,38 +101,68 @@
 				}
 
 
-				function diagonalTransform(text) {
-				    const fullText = toFullWidth(text.replace(/\n/g, ''));
-				    let rows = [];
-				    
-				    // 1. 文字を階段状に分配する
-				    // 1文字目 → 0行目
-				    // 2文字目 → 0行目, 3文字目 → 1行目
-				    // 4文字目 → 0行目, 5文字目 → 1行目, 6文字目 → 2行目...
-				    let currentLine = 0;
-				    let countInLine = 0;
-				    let maxLineReached = 0;
+function diagonalTransform(text) {
+    const lines = text.split('\n');
+    let grid = [];
+    let r = 0, c = 0; // 現在の座標
 
-				    for (let char of fullText) {
-				        if (!rows[currentLine]) rows[currentLine] = "";
-				        rows[currentLine] += char;
-				        
-				        // 次の行へ移動
-				        currentLine++;
-				        // もし行が足りなくなったら0行目に戻る
-				        if (currentLine > maxLineReached) {
-				            maxLineReached++;
-				            currentLine = 0;
-				        }
-				    }
+    for (let i = 0; i < lines.length; i++) {
+        const fullLine = toFullWidth(lines[i]);
+        
+        // 【改行の処理】
+        // 2行目以降の開始時、または改行後は「現在の全体の最大列数」まで右にジャンプする
+        if (i > 0) {
+            let maxCol = 0;
+            grid.forEach(row => { if (row) maxCol = Math.max(maxCol, row.length); });
+            r = 0;
+            c = maxCol;
+        }
 
-				    // 2. パディング処理（エラー回避版）
-				    const maxLen = rows[0].length; // 0行目が一番長いはず
-				    return rows.map(r => {
-				        const diff = maxLen - r.length;
-				        return r + (diff > 0 ? "　".repeat(diff) : "");
-				    }).join('\n');
-				}
+        for (let char of fullLine) {
+            // 1. 配置場所の確保：埋まっていたら右へずらす（次の対角線の開始へ）
+            while (grid[r] && grid[r][c] !== undefined) {
+                r = 0;
+                c++;
+            }
+
+            // 2. 配置
+            if (!grid[r]) grid[r] = [];
+            grid[r][c] = char;
+
+            // 3. 次の配置場所（左下優先）
+            // r+1 < 10 (行制限) かつ c-1 >= 0 (左端制限) かつ 左下が空いている
+            if (r + 1 < 10 && c - 1 >= 0 && (!grid[r + 1] || grid[r + 1][c - 1] === undefined)) {
+                r++;
+                c--;
+            } else {
+                // 左下に行けないなら、0行目の「次に空いている右側」へ
+                r = 0;
+                c = findNextAvailableCol(grid, c + 1);
+            }
+        }
+    }
+
+    function findNextAvailableCol(grid, startFrom) {
+        let col = startFrom;
+        while (grid[0] && grid[0][col] !== undefined) {
+            col++;
+        }
+        return col;
+    }
+
+    // 文字列化
+    let maxCols = 0;
+    grid.forEach(row => { if (row) maxCols = Math.max(maxCols, row.length); });
+    let result = [];
+    for (let r = 0; r < grid.length; r++) {
+        let rowStr = "";
+        for (let col = 0; col < maxCols; col++) {
+            rowStr += (grid[r] && grid[r][col] !== undefined) ? grid[r][col] : "　";
+        }
+        result.push(rowStr);
+    }
+    return result.join('\n');
+}
 
 
 				function spiralTransform(text) {
