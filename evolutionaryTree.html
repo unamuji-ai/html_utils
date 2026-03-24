@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nightlife Evolution Tree - Visual Routes</title>
+    <style>
+        :root { 
+            --bg: #0d0d0d; --line: #333; --accent: #ff4d88; --text: #e0e0e0; 
+            --sub-text: #888; --abyss: #9b59b6; --exit: #1abc9c;
+            --ace: #f1c40f; /* エース用：ゴールド */
+            --策士: #e67e22; /* 策士用：オレンジ */
+        }
+        body { 
+            background: var(--bg); color: var(--text); 
+            font-family: sans-serif; margin: 0; padding: 20px; padding-bottom: 80px; line-height: 1.5;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .container { display: flex; flex-direction: column; align-items: center; gap: 0; width: 100%; max-width: 500px; margin: 0 auto; position: relative; }
+        
+        /* フェーズ区切りラベル */
+        .tier-label { font-size: 10px; color: var(--sub-text); text-transform: uppercase; letter-spacing: 2px; border-bottom: 1px solid #222; width: 100%; text-align: center; padding-bottom: 5px; margin-top: 30px; margin-bottom: 15px; z-index: 10; position: relative; background: var(--bg); }
+
+        /* ノード接続用の共通縦線 */
+        .v-line { width: 2px; background: var(--line); height: 30px; z-index: 1; }
+
+        /* ノード設定 */
+        .tier { display: flex; flex-direction: column; align-items: center; gap: 15px; width: 100%; position: relative; z-index: 2; }
+        
+        .node { 
+            background: #161616; border: 1px solid var(--line); border-radius: 10px;
+            width: 100%; max-width: 340px;
+            cursor: pointer; overflow: hidden; transition: 0.3s;
+            position: relative;
+        }
+        .node:active { transform: scale(0.98); background: #222; }
+        
+        /* ノードヘッダー */
+        .node-header { padding: 15px; text-align: center; position: relative; }
+        .level { font-size: 10px; background: var(--sub-text); color: #fff; padding: 2px 8px; border-radius: 10px; font-weight: bold; position: absolute; top: 10px; right: 10px; }
+        .node h4 { margin: 15px 0 0; color: var(--text); font-size: 17px; letter-spacing: 1px; }
+
+        /* 詳細キャプション（アコーディオン） */
+        .details { 
+            max-height: 0; overflow: hidden; transition: max-height 0.4s ease-out;
+            background: #1f1f1f; text-align: left; font-size: 13px;
+        }
+        .node.open .details { max-height: 1000px; border-top: 1px solid #333; }
+        .details-inner { padding: 15px; }
+        .details b { color: var(--accent); display: block; margin-bottom: 4px; font-size: 11px; text-decoration: underline; }
+        .details p { margin: 0 0 10px 0; padding-left: 8px; border-left: 2px solid var(--accent); color: #ccc; }
+
+        /* --- ルート色分け定義 --- */
+        
+        /* Phase 2: コンカフェ嬢（基準） */
+        .node.standard { border-color: var(--accent); }
+        .node.standard h4 { color: var(--accent); }
+        .node.standard .level { background: var(--accent); }
+
+        /* Phase 3 & 4: 分岐カラー */
+        /* エースルート（金） */
+        .node.ace { border-color: var(--ace); }
+        .node.ace h4 { color: var(--ace); }
+        .node.ace .level { background: var(--ace); }
+        .node.ace.open .details p { border-left-color: var(--ace); }
+        .node.ace.open .details b { color: var(--ace); }
+
+        /* 策士ルート（オレンジ） */
+        .node.策士 { border-color: var(--策士); }
+        .node.策士 h4 { color: var(--策士); }
+        .node.策士 .level { background: var(--策士); }
+        .node.策士.open .details p { border-left-color: var(--策士); }
+        .node.策士.open .details b { color: var(--策士); }
+
+        /* 深淵ルート（紫） */
+        .node.abyss { border-color: var(--abyss); }
+        .node.abyss h4 { color: var(--abyss); }
+        .node.abyss .level { background: var(--abyss); }
+        .node.abyss.open .details p { border-left-color: var(--abyss); }
+        .node.abyss.open .details b { color: var(--abyss); }
+
+        /* 脱出・一般人ルート（緑） */
+        .node.exit { border-color: var(--exit); }
+        .node.exit h4 { color: var(--exit); }
+        .node.exit .level { background: var(--exit); }
+        .node.exit.open .details p { border-left-color: var(--exit); }
+        .node.exit.open .details b { color: var(--exit); }
+
+        /* --- 分岐矢印・ルート線の描画 (CSS) --- */
+        
+        /* Phase 3からPhase 4への複雑な分岐網 */
+        .branch-net { width: 100%; max-width: 400px; height: 60px; position: relative; margin: -10px 0; z-index: 1; }
+        
+        /* 共通の線スタイル */
+        .route-line { position: absolute; background: var(--line); z-index: 1; }
+        .route-label { position: absolute; font-size: 9px; color: var(--sub-text); background: var(--bg); padding: 0 4px; transform: translateX(-50%); z-index: 2; }
+
+        /* エース -> グループオーナー (垂直) */
+        .line-ace-owner { top: 0; left: 25%; width: 2px; height: 100%; background: var(--ace); }
+        /* 策士 -> グループオーナー (斜め) */
+        .line-策士-owner { top: 0; left: 50%; width: 2px; height: 50%; background: var(--策士); transform: skewX(-25deg); transform-origin: top; }
+        .line-策士-owner-v { top: 50%; left: 38%; width: 2px; height: 50%; background: var(--策士); }
+
+        /* 渡り鳥 -> 深淵 (垂直・途切れ) */
+        .line-abyss-deep { top: 0; left: 75%; width: 2px; height: 100%; background: var(--abyss); border-bottom: 4px dashed var(--abyss); }
+        
+        /* 脱出者 -> 一般人 (垂直) */
+        .line-exit-silent { top: 0; left: 88%; width: 2px; height: 100%; background: var(--exit); }
+
+        /* UI要素 */
+        .arrow-v { font-size: 16px; color: var(--line); margin: 5px 0; z-index: 1; }
+        .header-ui { text-align: center; margin-bottom: 10px; width: 100%; }
+        .header-ui h2 { margin: 0; font-size: 20px; color: #fff; letter-spacing: 2px; }
+        .header-ui p { font-size: 11px; color: #666; margin: 5px 0 0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-ui">
+        <h2>Nightlife Evolution</h2>
+        <p>Phase 3の分岐クリックで究極体へのルートが色付きます</p>
+    </div>
+
+    <div class="tier-label">Phase 1: 幼体（出自）</div>
+    <div class="tier">
+        <div class="node" onclick="toggle(this)">
+            <div class="node-header"><span class="level">Lv.1</span><h4>無垢の幼体</h4></div>
+            <div class="details"><div class="details-inner">
+                <b>特徴</b><p>不登校・通信制。対人恐怖症気味。スーパーの品出しで培った「無心」が武器。</p>
+                <b>動機</b><p>居場所の確保。どうせ居酒屋バイトで酔っ払いの相手をするなら、かわいい場所でかわいい格好で。</p>
+            </div></div>
+        </div>
+        <div class="node" onclick="toggle(this)">
+            <div class="node-header"><span class="level">Lv.1</span><h4>転生した残響</h4></div>
+            <div class="details"><div class="details-inner">
+                <b>特徴</b><p>地下アイドル/下級インフルエンサー出身。加工技術とレスは高いが承認欲求の割に金がない。炎上未来への不安。</p>
+                <b>動機</b><p>背に腹は代えられない物理的な金欠。過去の知名度を現金に換算したい切実な欲望。</p>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="v-line"></div>
+    <div class="arrow-v">▼</div>
+
+    <div class="tier-label">Phase 2: 成体（キャスト化）</div>
+    <div class="tier">
+        <div class="node standard" onclick="toggle(this)">
+            <div class="node-header"><span class="level">Lv.20</span><h4>コンカフェ嬢</h4></div>
+            <div class="details"><div class="details-inner">
+                <b>生存環境</b><p>女同士の陰湿な派閥争い、金銭窃盗、客泥棒。メンコン繋がりでの即日解雇を横目に「人間がダメになる」と実感。</p>
+                <b>直面する災厄</b><p>オーナーのセクハラ、トイレ盗撮、給料未払いや警察の摘発。法の外側にいる実感を消せない。</p>
+                <b>対人リスク</b><p>太客の裏オプ強要、執拗な店外要求。これらをいなしてドリンクを絞る神経戦。SNSでの病み投稿連投。</p>
+                <b>変異の兆し</b><p>この地獄を「合理的」に処理し始めた者は、次の「成熟期」へ進化する。</p>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="v-line"></div>
+    <div class="arrow-v">▼</div>
+
+    <div class="tier-label">Phase 3: 成熟期（分岐・専門化）</div>
+    <div class="branch-net">
+        <div class="route-line" style="top:0; left:50%; width:2px; height:20px;"></div> <div class="route-line" style="top:20px; left:12%; width:76%; height:2px;"></div> <div class="route-line" style="top:20px; left:12%; width:2px; height:40px; background:var(--ace);"></div>
+        <div class="route-line" style="top:20px; left:38%; width:2px; height:40px; background:var(--策士);"></div>
+        <div class="route-line" style="top:20px; left:62%; width:2px; height:40px; background:var(--abyss);"></div>
+        <div class="route-line" style="top:20px; left:88%; width:2px; height:40px; background:var(--exit);"></div>
+    </div>
+
+    <div class="tier" id="tier3">
+        <div class="node ace" onclick="toggleRoute(this, 'ace')">
+            <div class="node-header"><span class="level">Lv.60</span><h4>不動のエース</h4></div>
+            <div class="details"><div class="details-inner">
+                <b>特徴</b><p>売上の柱。客を演算対象として処理。地獄を通り過ぎた先の「無」の境地。店を私物化する暴君化のリスクも。</p>
+            </div></div>
+        </div>
+        <div class="node 策士" onclick="toggleRoute(this, '策士')">
+            <div class="node-header"><span class="level">Lv.60</span><h4>野心の策士</h4></div>
+            <div class="details"><div class="details-inner">
+                <b>特徴</b><p>太客を金主（パトロン）へ育成。搾取される側から搾取する側（オーナー）へ脱皮。パトロン選びに失敗し呪縛に陥る者も。</p>
+            </div></div>
+        </div>
+        <div class="node abyss" onclick="toggleRoute(this, 'abyss')">
+            <div class="node-header"><span class="level">Lv.60</span><h4>夜の渡り鳥</h4></div>
+            <div class="details"><div class="details-inner">
+                <b>特徴</b><p>キャバ・風俗へ。「自分」の切り売り効率を最大化。金銭感覚と倫理観の完全な崩壊、人生の迷宮入り。</p>
+            </div></div>
+        </div>
+        <div class="node exit" onclick="toggleRoute(this, 'exit')">
+            <div class="node-header"><span class="level">Lv.60</span><h4>賢明なる脱出者</h4></div>
+            <div class="details"><div class="details-inner">
+                <b>現状</b><p>一般昼職へ卒業。承認欲求の禁断症状、昼職の稼げなさに絶望しつつ、ブラック企業耐性は人並み以上。</p>
+            </div></div>
+        </div>
+    </div>
+
+    <div class="branch-net" style="height: 80px; margin-top: 10px;">
+        <div class="line-ace-owner route-line" id="path-ace"></div>
+        <div class="route-label" style="top: 40%; left: 25%;" id="label-ace">エース継承</div>
+
+        <div class="line-策士-owner route-line" id="path-策士-1"></div>
+        <div class="line-策士-owner-v route-line" id="path-策士-2"></div>
+        <div class="route-label" style="top: 20%; left: 45%;" id="label-策士">独立・買収</div>
+
+        <div class="line-abyss-deep route-line" id="path-abyss"></div>
+        <div class="route-label" style="top: 40%; left: 75%;" id="label-abyss">（消息不明）</div>
+
+        <div class="line-exit-silent route-line" id="path-exit"></div>
+        <div class="route-label" style="top: 40%; left: 88%;" id="label-exit">擬態完遂</div>
+    </div>
+
+    <div class="tier-label">Phase 4: 究極体（支配と代償）</div>
+    <div class="tier">
+        <div class="node" id="node-owner" onclick="toggle(this)">
+            <div class="node-header"><span class="level">Lv.99</span><h4>グループオーナー</h4></div>
+            <div class="details"><div class="details-inner">
+                <b>裏の社交</b><p>規模拡大と共に反社や胡散臭い投資家が寄る。均衡を保つ上納や接待も業務の内。断り方を間違えれば店ごと潰される。</p>
+                <b>昼夜の断絶</b><p>行政の立ち入り、スタッフの不祥事。「夜のルール」で戦い続ける孤独な司令塔。安らげる場所はないが、客の弁護士や警察官人脈に助けられることも。</p>
+            </div></div>
+        </div>
+
+        <div class="node exit" id="node-silent" onclick="toggle(this)">
+            <div class="node-header"><span class="level">Lv.99</span><h4>沈黙の一般人</h4></div>
+            <div class="details"><div class="details-inner">
+                <b>擬態の限界</b><p>過去を消して昼の世界へ潜るもまともな出会いがない。結果、客層に似た「クズイケメン」に捕まり、シングルマザーとして生活苦に陥るパターン。</p>
+                <b>愛人の末路</b><p>あるいは「金持ちおじさん」の愛人に収まり贅沢に慣れきった末にポイ捨て。婚期を逃し、二度と戻れない「普通」の影を追い続ける。</p>
+            </div></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 通常のアコーディオン開閉
+    function toggle(el) {
+        el.classList.toggle('open');
+    }
+
+    // Phase 3専用：ルートの色付けと究極体の強調
+    function toggleRoute(el, routeType) {
+        // 1. まず全詳細を閉じる
+        document.querySelectorAll('.node').forEach(n => n.classList.remove('open'));
+        // 2. クリックした詳細を開く
+        el.classList.add('open');
+
+        // 3. 全ルートの色を初期化
+        resetRoutes();
+
+        // 4. 選択されたルートに応じた色付け
+        const ownerNode = document.getElementById('node-owner');
+        const silentNode = document.getElementById('node-silent');
+
+        switch(routeType) {
+            case 'ace':
+                colorize('path-ace', 'label-ace', ownerNode, 'ace');
+                break;
+            case '策士':
+                colorize('path-策士-1', 'label-策士', ownerNode, '策士');
+                colorize('path-策士-2', null, null, '策士');
+                break;
+            case 'abyss':
+                colorize('path-abyss', 'label-abyss', null, 'abyss');
+                // 渡り鳥は消息不明なので究極体は強調しない
+                break;
+            case 'exit':
+                colorize('path-exit', 'label-exit', silentNode, 'exit');
+                break;
+        }
+    }
+
+    // ルートの色をグレーに戻す
+    function resetRoutes() {
+        // 線
+        document.querySelectorAll('.route-line[id^="path-"]').forEach(line => {
+            line.style.background = 'var(--line)';
+            line.style.borderBottomColor = 'var(--line)'; // ダッシュ線用
+        });
+        // ラベル
+        document.querySelectorAll('.route-label[id^="label-"]').forEach(label => {
+            label.style.color = 'var(--sub-text)';
+            label.style.fontWeight = 'normal';
+        });
+        // 究極体ノードの強調解除
+        const ownerNode = document.getElementById('node-owner');
+        const silentNode = document.getElementById('node-silent');
+        ownerNode.style.borderColor = 'var(--line)';
+        ownerNode.querySelector('h4').style.color = 'var(--text)';
+        ownerNode.querySelector('.level').style.background = 'var(--sub-text)';
+        
+        silentNode.style.borderColor = 'var(--line)';
+        silentNode.querySelector('h4').style.color = 'var(--exit)'; // exit色は維持
+        silentNode.querySelector('.level').style.background = 'var(--exit)';
+    }
+
+    // 特定のルートを色付けする
+    function colorize(lineId, labelId, targetNode, type) {
+        const colorVar = `var(--${type})`;
+        
+        if(lineId) {
+            const line = document.getElementById(lineId);
+            line.style.background = colorVar;
+            if(type === 'abyss') line.style.borderBottomColor = colorVar; // ダッシュ線
+        }
+        if(labelId) {
+            const label = document.getElementById(labelId);
+            label.style.color = colorVar;
+            label.style.fontWeight = 'bold';
+        }
+        if(targetNode) {
+            targetNode.style.borderColor = colorVar;
+            targetNode.querySelector('h4').style.color = colorVar;
+            targetNode.querySelector('.level').style.background = colorVar;
+        }
+    }
+</script>
+
+</body>
+</html>
