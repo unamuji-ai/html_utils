@@ -471,6 +471,13 @@
   ],
   "logs": [
 	{
+	  "tool_id": "analytics-system",
+	  "date": "2026-03-25",
+	  "version": "1.0.0",
+	  "event": "GA4統合によるアクセス解析基盤の導入",
+	  "note": "全ツールにGA4トラッキングコードを配置し、tool_idをカスタムイベントとして送信する計測基盤を構築"
+	},
+	{
 	  "tool_id": "text-layouter",
 	  "date": "2026-03-24",
 	  "version": "1.1.6",
