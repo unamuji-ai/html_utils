@@ -145,6 +145,18 @@
       "last_updated": "2026-03-09"
     },
     {
+      "id": "gray-scott",
+      "title": "グレイスコット・シミュレーター",
+      "tags": ["ジェネレーター", "Canvas", "数学"],
+      "details": {
+        "purpose": "反応拡散系アルゴリズムによる自己組織化パターンをリアルタイムで生成し、視覚的な美しさを提供すること。",
+        "summary": "ラプラシアン演算を用いた反応拡散系シミュレーション。Canvas APIによる高速描画とパラメータ調整機能を実装。"
+      },
+      "dependencies": ["Canvas API"],
+      "related_files": ["grayscott.html"],
+      "last_updated": "2026-03-25"
+    },
+    {
       "id": "hiyoko",
       "title": "代弁者ひよこ",
       "tags": ["ジョーク・ネタアプリ"],
@@ -470,6 +482,13 @@
     }
   ],
   "logs": [
+	{
+	  "tool_id": "gray-scott",
+	  "date": "2026-03-25",
+	  "version": "1.0.0",
+	  "event": "グレイスコット・シミュレーター初期化",
+	  "note": "反応拡散系アルゴリズムの実装およびプロジェクト定義への追加"
+	},
 	{
 	  "tool_id": "analytics-system",
 	  "date": "2026-03-25",
