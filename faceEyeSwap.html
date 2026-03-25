@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Digital Eye Mask</title>
+    <style>
+        body { margin: 0; overflow: hidden; touch-action: none; transition: background 0.2s; }
+        canvas { display: block; width: 100vw; height: 100vh; }
+        #settingsPanel {
+            position: absolute; top: 0; right: -250px; width: 250px; height: 100vh;
+            background: rgba(50, 50, 50, 0.9); color: white; padding: 20px;
+            transition: right 0.3s; z-index: 10; box-sizing: border-box;
+        }
+        #settingsPanel.open { right: 0; }
+        .control-group { margin-bottom: 20px; }
+        label { display: block; font-size: 14px; margin-bottom: 5px; }
+        input[type="range"] { width: 100%; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div id="settingsPanel">
+        <div class="control-group">
+            <label>背景色</label>
+						<input type="color" id="bgColor" value="#f1c27d">
+        </div>
+        <div class="control-group">
+            <label>目の大きさ</label>
+            <input type="range" id="eyeSize" min="0.5" max="2.0" step="0.1" value="1.0">
+        </div>
+        <div class="control-group">
+            <label>目の間隔</label>
+            <input type="range" id="eyeGap" min="0.5" max="1.5" step="0.1" value="1.2">
+        </div>
+        <button onclick="togglePanel()">閉じる</button>
+    </div>
+    <div style="position:absolute; top:10px; right:10px; color:white; font-size: 24px; cursor:pointer;" onclick="togglePanel()">⚙️</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+let w, h, tiltX = 0, tiltY = 0;
+let settings = { bgColor: '#f1c27d', size: 1.0, gap: 1.2 };
+document.body.style.backgroundColor = settings.bgColor;
+
+function togglePanel() { document.getElementById('settingsPanel').classList.toggle('open'); }
+function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; w = canvas.width; h = canvas.height; }
+window.addEventListener('resize', resize);
+resize();
+
+function handleOrientation(event) { tiltX = event.gamma / 45; tiltY = event.beta / 45; }
+function requestPermission() {
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+        DeviceOrientationEvent.requestPermission().then(s => { if(s==='granted') window.addEventListener('deviceorientation', handleOrientation); });
+    } else { window.addEventListener('deviceorientation', handleOrientation); }
+}
+
+let blinkTimer = 0; // まばたき用タイマー
+let wanderX = 0, wanderY = 0; // 勝手に動く眼球用
+let blinkProgress = 0; // 0:開, 1:閉
+let isBlinking = false;
+
+function updateAnimation() {
+    // まばたき開始判定
+    if (!isBlinking && Math.random() < 0.02) {
+        isBlinking = true;
+    }
+
+    if (isBlinking) {
+        if (blinkProgress < 1) blinkProgress += 0.2; // 閉じる速度
+        else {
+            blinkProgress = 1;
+            isBlinking = false; // 開き始める
+        }
+    } else {
+        if (blinkProgress > 0) blinkProgress -= 0.1; // 開く速度
+    }
+}
+
+// 追加：眼球の目標位置と現在の位置
+let targetX = 0, targetY = 0;
+let currentX = 0, currentY = 0;
+
+// 離散的に視線を動かす処理（0.5秒〜2秒おきにランダムに）
+function updateGaze() {
+    targetX = (Math.random() - 0.5) * 0.5; // 左右の動き
+    targetY = (Math.random() - 0.5) * 0.3; // 上下の動き
+    setTimeout(updateGaze, 500 + Math.random() * 1500);
+}
+updateGaze();
+
+function drawEye(cx, cy, isHorizontal) {
+    const baseRadiusX = Math.min(w, h) * 0.20 * settings.size;
+    const baseRadiusY = Math.min(w, h) * 0.12 * settings.size;
+    
+    currentX += (targetX - currentX) * 0.2;
+    currentY += (targetY - currentY) * 0.2;
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    if (!isHorizontal) ctx.rotate(Math.PI / 2);
+
+    // 1. 白目の背景（常に描画）
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.ellipse(0, 0, baseRadiusX, baseRadiusY, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // 2. 眼球（虹彩・瞳孔）の描画
+    // まぶたの下にあるべきなので、先に描画します
+    ctx.save();
+    ctx.beginPath();
+    // 白目の範囲でクリッピング（これより外にはみ出さない）
+    ctx.ellipse(0, 0, baseRadiusX, baseRadiusY, 0, 0, Math.PI * 2);
+    ctx.clip();
+
+    const offsetX = (isHorizontal ? tiltX : tiltY) * 30 + (currentX * 50);
+    const offsetY = (isHorizontal ? tiltY : -tiltX) * 30 + (currentY * 50);
+
+    const grad = ctx.createRadialGradient(offsetX, offsetY, baseRadiusY * 0.2, offsetX, offsetY, baseRadiusY * 0.8);
+    grad.addColorStop(0, '#4a2c1a'); grad.addColorStop(1, '#8b5a2b');
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.ellipse(offsetX, offsetY, baseRadiusY * 0.8, baseRadiusY * 0.8, 0, 0, Math.PI * 2); ctx.fill();
+
+    ctx.fillStyle = '#000';
+    ctx.beginPath(); ctx.arc(offsetX, offsetY, baseRadiusY * 0.4, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+
+    // 3. 上まぶた（上から下に降りる）
+    // 完全に閉じるために、blinkProgress が 1 の時に白目全体を覆うようにします
+    ctx.fillStyle = settings.bgColor;
+    ctx.beginPath();
+    // 上端(-baseRadiusY)から下端(+baseRadiusY)までを blinkProgress(0〜1) で覆う
+    const eyelidTop = -baseRadiusY;
+    const eyelidHeight = (baseRadiusY * 2) * blinkProgress;
+    ctx.rect(-baseRadiusX * 1.2, eyelidTop, baseRadiusX * 2.4, eyelidHeight);
+    ctx.fill();
+
+    // 4. ハイライト（まぶたの下に隠れるよう、かつ一番手前に描画）
+    // まぶたが閉じている時（blinkProgress > 0.5）はハイライトを消す
+    if (blinkProgress < 0.5) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+        ctx.beginPath();
+        // 瞳孔の位置(offsetX, offsetY)に合わせてハイライトを描画
+        ctx.arc(offsetX - baseRadiusY * 0.1, offsetY - baseRadiusY * 0.1, baseRadiusY * 0.2, 0, Math.PI * 2);
+        ctx.fill();
+    }
+
+    ctx.restore();
+}
+
+document.getElementById('bgColor').oninput = (e) => { settings.bgColor = e.target.value; document.body.style.backgroundColor = settings.bgColor; };
+document.getElementById('eyeSize').oninput = (e) => settings.size = parseFloat(e.target.value);
+document.getElementById('eyeGap').oninput = (e) => settings.gap = parseFloat(e.target.value);
+
+function loop() {
+    updateAnimation(); // 追加
+    ctx.clearRect(0, 0, w, h);
+    const isHorizontal = w >= h;
+    const longSide = Math.max(w, h);
+    const shortSide = Math.min(w, h);
+    
+    // 目の間隔調整 (gapを適用)
+    const centerOffset = (longSide * 0.15) * settings.gap;
+    const eyeLeftX = (longSide / 2) - centerOffset;
+    const eyeRightX = (longSide / 2) + centerOffset;
+
+    if (isHorizontal) {
+        drawEye(eyeLeftX, shortSide / 2, true);
+        drawEye(eyeRightX, shortSide / 2, true);
+    } else {
+        drawEye(shortSide / 2, eyeLeftX, false);
+        drawEye(shortSide / 2, eyeRightX, false);
+    }
+    requestAnimationFrame(loop);
+}
+
+document.body.addEventListener('click', requestPermission, { once: true });
+
+document.getElementById('bgColor').oninput = (e) => { 
+    settings.bgColor = e.target.value; 
+    document.body.style.backgroundColor = settings.bgColor; 
+};
+
+loop();
+</script>
+</body>
+</html>
