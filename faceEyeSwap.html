@@ -31,7 +31,7 @@
         </div>
         <div class="control-group">
             <label>目の間隔</label>
-            <input type="range" id="eyeGap" min="0.5" max="1.5" step="0.1" value="1.2">
+            <input type="range" id="eyeGap" min="0.5" max="2.0" step="0.1" value="1.4">
         </div>
         <button onclick="togglePanel()">閉じる</button>
     </div>
@@ -41,7 +41,7 @@
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 let w, h, tiltX = 0, tiltY = 0;
-let settings = { bgColor: '#f1c27d', size: 1.0, gap: 1.2 };
+let settings = { bgColor: '#f1c27d', size: 1.0, gap: 1.4 };
 document.body.style.backgroundColor = settings.bgColor;
 
 function togglePanel() { document.getElementById('settingsPanel').classList.toggle('open'); }
@@ -49,12 +49,6 @@ function resize() { canvas.width = window.innerWidth; canvas.height = window.inn
 window.addEventListener('resize', resize);
 resize();
 
-function handleOrientation(event) { tiltX = event.gamma / 45; tiltY = event.beta / 45; }
-function requestPermission() {
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-        DeviceOrientationEvent.requestPermission().then(s => { if(s==='granted') window.addEventListener('deviceorientation', handleOrientation); });
-    } else { window.addEventListener('deviceorientation', handleOrientation); }
-}
 
 let blinkTimer = 0; // まばたき用タイマー
 let wanderX = 0, wanderY = 0; // 勝手に動く眼球用
@@ -90,10 +84,12 @@ function updateGaze() {
 }
 updateGaze();
 
+// --- 修正後の drawEye 関数 ---
 function drawEye(cx, cy, isHorizontal) {
     const baseRadiusX = Math.min(w, h) * 0.20 * settings.size;
     const baseRadiusY = Math.min(w, h) * 0.12 * settings.size;
     
+    // 視線の補間（離散的な動きのみ使用）
     currentX += (targetX - currentX) * 0.2;
     currentY += (targetY - currentY) * 0.2;
 
@@ -101,22 +97,21 @@ function drawEye(cx, cy, isHorizontal) {
     ctx.translate(cx, cy);
     if (!isHorizontal) ctx.rotate(Math.PI / 2);
 
-    // 1. 白目の背景（常に描画）
+    // 1. 白目
     ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.ellipse(0, 0, baseRadiusX, baseRadiusY, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // 2. 眼球（虹彩・瞳孔）の描画
-    // まぶたの下にあるべきなので、先に描画します
+    // 2. 眼球（虹彩・瞳孔）
     ctx.save();
     ctx.beginPath();
-    // 白目の範囲でクリッピング（これより外にはみ出さない）
     ctx.ellipse(0, 0, baseRadiusX, baseRadiusY, 0, 0, Math.PI * 2);
     ctx.clip();
 
-    const offsetX = (isHorizontal ? tiltX : tiltY) * 30 + (currentX * 50);
-    const offsetY = (isHorizontal ? tiltY : -tiltX) * 30 + (currentY * 50);
+    // ジャイロの変数を 0 に固定し、離散的な動き(currentX/Y)のみ反映
+    const offsetX = (currentX * 100); 
+    const offsetY = (currentY * 100);
 
     const grad = ctx.createRadialGradient(offsetX, offsetY, baseRadiusY * 0.2, offsetX, offsetY, baseRadiusY * 0.8);
     grad.addColorStop(0, '#4a2c1a'); grad.addColorStop(1, '#8b5a2b');
@@ -127,26 +122,21 @@ function drawEye(cx, cy, isHorizontal) {
     ctx.beginPath(); ctx.arc(offsetX, offsetY, baseRadiusY * 0.4, 0, Math.PI * 2); ctx.fill();
     ctx.restore();
 
-    // 3. 上まぶた（上から下に降りる）
-    // 完全に閉じるために、blinkProgress が 1 の時に白目全体を覆うようにします
+    // 3. 上まぶた
     ctx.fillStyle = settings.bgColor;
     ctx.beginPath();
-    // 上端(-baseRadiusY)から下端(+baseRadiusY)までを blinkProgress(0〜1) で覆う
     const eyelidTop = -baseRadiusY;
     const eyelidHeight = (baseRadiusY * 2) * blinkProgress;
     ctx.rect(-baseRadiusX * 1.2, eyelidTop, baseRadiusX * 2.4, eyelidHeight);
     ctx.fill();
 
-    // 4. ハイライト（まぶたの下に隠れるよう、かつ一番手前に描画）
-    // まぶたが閉じている時（blinkProgress > 0.5）はハイライトを消す
+    // 4. ハイライト
     if (blinkProgress < 0.5) {
         ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
         ctx.beginPath();
-        // 瞳孔の位置(offsetX, offsetY)に合わせてハイライトを描画
         ctx.arc(offsetX - baseRadiusY * 0.1, offsetY - baseRadiusY * 0.1, baseRadiusY * 0.2, 0, Math.PI * 2);
         ctx.fill();
     }
-
     ctx.restore();
 }
 
@@ -175,8 +165,6 @@ function loop() {
     }
     requestAnimationFrame(loop);
 }
-
-document.body.addEventListener('click', requestPermission, { once: true });
 
 document.getElementById('bgColor').oninput = (e) => { 
     settings.bgColor = e.target.value; 
