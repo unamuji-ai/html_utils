@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gray-Scott Simulation</title>
+    <style>
+				body { 
+				    margin: 0; 
+				    padding: 0; 
+				    overflow: hidden; /* スクロールバーによるズレを防止 */
+				    background: #000; 
+				    display: flex; 
+				    justify-content: center; 
+				    align-items: center; 
+				    height: 100vh; 
+				}
+				canvas { 
+				    display: block; 
+				    cursor: crosshair; 
+				    image-rendering: pixelated; 
+				    max-width: 100vw; 
+				    max-height: 100vh; 
+				    object-fit: contain; 
+				}
+        .controls { position: absolute; top: 10px; background: rgba(0,0,0,0.5); padding: 10px; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="controls">反応拡散系シミュレーター (Gray-Scott)<br>画面をクリックして物質を追加</div>
+    <canvas id="canvas"></canvas>
+
+		<div class="controls">
+		    反応拡散系シミュレーター (Gray-Scott)<br>
+		    <select id="preset">
+		        <option value="0.037,0.06">ストライプ (Stripes)</option>
+		        <option value="0.055,0.062" selected>複雑な迷路 (Maze)</option>
+		        <option value="0.030,0.062">斑点 (Spots)</option>
+		        <option value="0.0367,0.0649">分裂 (Mitosis)</option>
+		    </select>
+		    <br>画面をクリックして物質を追加
+		</div>
+
+<script>
+const canvas = document.getElementById('canvas');
+const ctx = canvas.getContext('2d');
+const W = 200, H = 200; // ここを大きくする
+canvas.width = W; 
+canvas.height = H;
+
+let grid = createGrid();
+let next = createGrid(); // ここで初期化を確実に実行
+// パラメータ
+let feed = 0.055, kill = 0.062;
+
+// 描画CSSを画面いっぱいに広げる設定
+canvas.style.width = "100vw";
+canvas.style.height = "100vh";
+canvas.style.objectFit = "contain"; // 比率を維持して表示
+
+const presetSelect = document.getElementById('preset');
+
+presetSelect.addEventListener('change', (e) => {
+    const [f, k] = e.target.value.split(',').map(Number);
+    feed = f;
+    kill = k;
+    // パラメータ変更時にリセットすると見やすい
+    init();
+});
+
+// init関数の修正（nextも確実に初期化）
+function init() {
+    grid = []; next = [];
+    for (let x = 0; x < W; x++) {
+        grid[x] = []; next[x] = [];
+        for (let y = 0; y < H; y++) {
+            grid[x][y] = { a: 1, b: 0 };
+            next[x][y] = { a: 1, b: 0 };
+        }
+    }
+    // 種を撒く範囲も大きくする
+    let centerX = Math.floor(W/2), centerY = Math.floor(H/2);
+    for (let i = centerX-5; i < centerX+5; i++) {
+        for (let j = centerY-5; j < centerY+5; j++) {
+            grid[i][j].b = 1;
+        }
+    }
+}
+
+function laplace(x, y, type) {
+    let sum = 0;
+    sum += grid[x][y][type] * -1;
+    sum += grid[(x-1+W)%W][y][type] * 0.2;
+    sum += grid[(x+1)%W][y][type] * 0.2;
+    sum += grid[x][(y-1+H)%H][type] * 0.2;
+    sum += grid[x][(y+1)%H][type] * 0.2;
+    sum += grid[(x-1+W)%W][(y-1+H)%H][type] * 0.05;
+    sum += grid[(x+1)%W][(y-1+H)%H][type] * 0.05;
+    sum += grid[(x-1+W)%W][(y+1)%H][type] * 0.05;
+    sum += grid[(x+1)%W][(y+1)%H][type] * 0.05;
+    return sum;
+}
+
+// 配列の初期化を確実に行う
+function createGrid() {
+    let arr = [];
+    for (let x = 0; x < W; x++) {
+        arr[x] = [];
+        for (let y = 0; y < H; y++) {
+            arr[x][y] = { a: 1, b: 0 };
+        }
+    }
+    return arr;
+}
+
+function update() {
+    for (let x = 0; x < W; x++) {
+        for (let y = 0; y < H; y++) {
+            let a = grid[x][y].a;
+            let b = grid[x][y].b;
+            let abb = a * b * b;
+            
+            // 計算結果を一時的に変数に保持
+            let nextA = a + (1.0 * laplace(x, y, 'a') - abb + feed * (1 - a));
+            let nextB = b + (0.5 * laplace(x, y, 'b') + abb - (kill + feed) * b);
+
+            // next配列に値を格納（ここが一番安全です）
+            next[x][y].a = nextA;
+            next[x][y].b = nextB;
+        }
+    }
+    
+    // 入れ替えではなく、値のコピーを行うことで配列の整合性を保つ
+    for (let x = 0; x < W; x++) {
+        for (let y = 0; y < H; y++) {
+            grid[x][y].a = next[x][y].a;
+            grid[x][y].b = next[x][y].b;
+        }
+    }
+}
+
+// update関数を以下のように呼び出す（loop内）
+function loop() {
+    for(let i=0; i<8; i++) update(); // 8回計算して速度を上げる
+    draw(); 
+    requestAnimationFrame(loop); 
+}
+
+// draw関数を以下に差し替え
+function draw() {
+    let img = ctx.createImageData(W, H);
+    for (let x = 0; x < W; x++) {
+        for (let y = 0; y < H; y++) {
+            let pix = (x + y * W) * 4;
+            // 0〜1の範囲に収めてグレースケール化
+            let val = Math.floor(grid[x][y].a * 255);
+            img.data[pix] = val;     // R
+            img.data[pix+1] = val;   // G
+            img.data[pix+2] = val;   // B
+            img.data[pix+3] = 255;   // Alpha
+        }
+    }
+    ctx.putImageData(img, 0, 0);
+}
+
+canvas.addEventListener('mousedown', e => {
+    const rect = canvas.getBoundingClientRect();
+    
+    // 1. 表示されているサイズと実際のグリッドサイズの比率
+    // object-fit: contain を考慮するために、CSSの横幅と内部解像度の比率を取る
+    const scale = Math.min(rect.width / W, rect.height / H);
+    
+    // 2. キャンバス内での描画開始位置（余白部分）を計算
+    const offsetX = (rect.width - W * scale) / 2;
+    const offsetY = (rect.height - H * scale) / 2;
+    
+    // 3. クリック位置から余白を引いてスケールで割る
+    const x = Math.floor(((e.clientX - rect.left) - offsetX) / scale);
+    const y = Math.floor(((e.clientY - rect.top) - offsetY) / scale);
+    
+    // 範囲内かチェック
+    if (x >= 0 && x < W && y >= 0 && y < H) {
+        const brushSize = 5;
+        for(let i = -brushSize; i <= brushSize; i++) {
+            for(let j = -brushSize; j <= brushSize; j++) {
+                let nx = (x + i + W) % W;
+                let ny = (y + j + H) % H;
+                grid[nx][ny].b = 1;
+            }
+        }
+    }
+});
+
+
+init();
+loop();
+</script>
+</body>
+</html>

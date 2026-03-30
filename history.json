@@ -117,7 +117,7 @@
         "summary": "画面に2つのアニメーションする目を表示し、スマホを顔に当てた際に目元が入れ替わったように見せるジョークアプリ。"
       },
       "dependencies": ["Canvas API"],
-      "related_files": ["face-eye-swap.html"],
+      "related_files": ["faceEyeSwap.html"],
       "last_updated": "2026-03-25"
     },
     {
