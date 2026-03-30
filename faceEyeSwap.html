@@ -27,23 +27,45 @@
     </style>
 </head>
 <body>
-    <canvas id="canvas"></canvas>
-    <div id="settingsPanel">
-        <div class="control-group">
-            <label>背景色</label>
-						<input type="color" id="bgColor" value="#f1c27d">
-        </div>
-        <div class="control-group">
-            <label>目の大きさ</label>
-            <input type="range" id="eyeSize" min="0.5" max="2.5" step="0.1" value="1.4">
-        </div>
-        <div class="control-group">
-            <label>目の間隔</label>
-            <input type="range" id="eyeGap" min="0.5" max="2.5" step="0.1" value="1.8">
-        </div>
-        <button onclick="togglePanel()">閉じる</button>
-    </div>
-    <div style="position:absolute; top:10px; right:10px; color:white; font-size: 24px; cursor:pointer;" onclick="togglePanel()">⚙️</div>
+		<!-- 描画領域のコンテナ内に配置 -->
+		<div id="canvasContainer" style="position: relative;">
+		    <!-- 既存のcanvas要素など -->
+		    <canvas id="canvas"></canvas>
+		    <div id="settingsPanel">
+		        <div class="control-group">
+		            <label>背景色</label>
+								<input type="color" id="bgColor" value="#f1c27d">
+		        </div>
+		        <div class="control-group">
+		            <label>目の大きさ</label>
+		            <input type="range" id="eyeSize" min="0.5" max="2.5" step="0.1" value="1.4">
+		        </div>
+		        <div class="control-group">
+		            <label>目の間隔</label>
+		            <input type="range" id="eyeGap" min="0.5" max="2.5" step="0.1" value="1.8">
+		        </div>
+						<div class="control-group">
+						    <label>表示テキスト:</label>
+						    <input type="text" id="textInput" placeholder="文字を入力...">
+						</div>
+						<div class="control-group">
+						    <label>最大透明度:</label>
+						    <select id="opacitySelect">
+						        <option value="0.1">0.1</option>
+						        <option value="0.3">0.3</option>
+						        <option value="0.5" selected>0.5</option>
+						        <option value="0.7">0.7</option>
+						    </select>
+						</div>
+
+		        <button onclick="togglePanel()">閉じる</button>
+		    </div>
+		    <div style="position:absolute; top:10px; right:10px; color:white; font-size: 24px; cursor:pointer;" onclick="togglePanel()">⚙️</div>
+		    
+		    <!-- 追加するテキスト表示用要素 -->
+		    <div id="floatingText" style="position: absolute; display: none; pointer-events: none; transform: rotate(90deg); transform-origin: center; color: white; font-weight: bold; z-index: 10;">
+				</div>
+		</div>
 
 <script>
 const canvas = document.getElementById('canvas');
@@ -147,6 +169,91 @@ function drawEye(cx, cy, isHorizontal) {
     }
     ctx.restore();
 }
+
+const floatingText = document.getElementById('floatingText');
+const textInput = document.getElementById('textInput'); // コントロールパネルの入力欄
+const opacitySelect = document.getElementById('opacitySelect');
+let isAnimating = false; // アニメーション中かどうかのフラグ
+const VERTICAL_MARGIN = 80; // 目の上下から最低限離す距離
+
+function showRandomText() {
+    if (isAnimating) return;
+    
+    const text = textInput.value;
+    if (!text) return;
+
+    isAnimating = true;
+    const maxOpacity = parseFloat(opacitySelect.value);
+
+    const container = document.getElementById('canvasContainer');
+    const rect = container.getBoundingClientRect();
+    
+    // 目の位置を定義（既存の変数が利用可能と仮定）
+    const eyeY = rect.height / 2;
+    const eyeLeftX = window.eyeLeftX || (rect.width * 0.4); // フォールバック値
+    const eyeRightX = window.eyeRightX || (rect.width * 0.6);
+    
+    const HORIZONTAL_MARGIN = 60; // 目の横幅を考慮した余白
+    const VERTICAL_MARGIN = 80;   // 目の高さ方向の余白
+
+    let randomX, randomY;
+    let isOverlapping = true;
+    let attempts = 0;
+
+    while (isOverlapping && attempts < 200) {
+        randomX = Math.random() * (rect.width - 100) + 50;
+        randomY = Math.random() * (rect.height - 100) + 50;
+        
+        // 判定ロジック：
+        // 1. 左右の目の範囲内（eyeLeftX ～ eyeRightX）にあるか？
+        // 2. その上で、上下の範囲内（eyeY ± VERTICAL_MARGIN）にあるか？
+        const inHorizontalRange = (randomX > (eyeLeftX - HORIZONTAL_MARGIN) && randomX < (eyeRightX + HORIZONTAL_MARGIN));
+        const inVerticalRange = Math.abs(randomY - eyeY) < VERTICAL_MARGIN;
+
+        // 目に近い（横範囲内 かつ 縦範囲内）場合は重なっているとみなす
+        if (!(inHorizontalRange && inVerticalRange)) {
+            isOverlapping = false;
+        }
+        attempts++;
+    }
+
+    floatingText.textContent = text;
+    floatingText.style.left = randomX + 'px';
+    floatingText.style.top = randomY + 'px';
+    floatingText.style.opacity = 0;
+    floatingText.style.display = 'block';
+    
+    // フェードイン処理
+    let opacity = 0;
+    const fadeIn = setInterval(() => {
+        opacity += 0.05;
+        if (opacity >= maxOpacity) {
+            floatingText.style.opacity = maxOpacity;
+            clearInterval(fadeIn);
+            setTimeout(() => fadeOut(maxOpacity), 1000);
+        } else {
+            floatingText.style.opacity = opacity;
+        }
+    }, 50);
+}
+
+function fadeOut(maxOpacity) {
+    let opacity = maxOpacity;
+    const fadeOutInterval = setInterval(() => {
+        opacity -= 0.05;
+        if (opacity <= 0) {
+            clearInterval(fadeOutInterval);
+            floatingText.style.display = 'none';
+            isAnimating = false; // アニメーション終了、次を表示可能にする
+        } else {
+            floatingText.style.opacity = opacity;
+        }
+    }, 50);
+}
+
+// 5秒ごとに実行
+setInterval(showRandomText, 2000);
+
 
 document.getElementById('bgColor').oninput = (e) => { settings.bgColor = e.target.value; document.body.style.backgroundColor = settings.bgColor; };
 document.getElementById('eyeSize').oninput = (e) => settings.size = parseFloat(e.target.value);

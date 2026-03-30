@@ -109,7 +109,7 @@
       "last_updated": "2026-03-09"
     },
     {
-      "id": "face-eye-swap",
+      "id": "faceEyeSwap",
       "title": "デジタル・アイマスク",
       "tags": ["ジョーク", "AR", "Canvas"],
       "details": {
@@ -494,6 +494,20 @@
     }
   ],
   "logs": [
+	{
+	  "tool_id": "faceEyeSwap",
+	  "date": "2026-03-30",
+	  "version": "1.1.0",
+	  "event": "機能追加および描画最適化",
+	  "note": "入力テキストのランダム表示機能を追加。回転（90度）、最大不透明度選択、目の座標を避ける衝突判定ロジック、およびアニメーション制御（フェードイン・アウト）を実装"
+	},
+	{
+	  "tool_id": "faceEyeSwap",
+	  "date": "2026-03-30",
+	  "version": "1.0.0",
+	  "event": "初期リリース",
+	  "note": "顔と目の入れ替え（FaceEyeSwap）機能の実装、キャンバス描画およびスライダー操作による目の調整機能の提供"
+	},
 	{
 	  "tool_id": "gray-scott",
 	  "date": "2026-03-25",
