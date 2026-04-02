@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>GIF Share to X Sample</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; 
+            display: flex; flex-direction: column; align-items: center; padding: 20px; 
+            background-color: #f5f8fa;
+        }
+        .container { background: white; padding: 20px; border-radius: 12px; shadow: 0 4px 6px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        .preview { max-width: 100%; margin-top: 20px; border-radius: 8px; display: none; border: 1px solid #e1e8ed; }
+        #shareBtn { 
+            margin-top: 20px; padding: 12px 24px; font-size: 16px; font-weight: bold;
+            background-color: #1d9bf0; color: white; border: none; border-radius: 9999px; 
+            cursor: pointer; display: none; transition: background 0.2s;
+        }
+        #shareBtn:hover { background-color: #1a8cd8; }
+        p { font-size: 14px; color: #657786; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <h2>GIFをXでシェア</h2>
+        <p>GIFファイルを選択してください</p>
+        
+        <input type="file" id="fileInput" accept="image/gif">
+        
+        <img id="previewImg" class="preview">
+
+        <button id="shareBtn">X (Twitter) で共有する</button>
+        <p id="status"></p>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const shareBtn = document.getElementById('shareBtn');
+        const previewImg = document.getElementById('previewImg');
+        const status = document.getElementById('status');
+
+        let selectedBlob = null;
+
+        // 1. ファイルが選択されたらBlobとして保持し、プレビューを表示
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file && file.type === 'image/gif') {
+                selectedBlob = file; // FileオブジェクトはBlobを継承しているのでそのまま使えます
+                
+                const url = URL.createObjectURL(file);
+                previewImg.src = url;
+                previewImg.style.display = 'block';
+                shareBtn.style.display = 'block';
+                status.innerText = "";
+            }
+        });
+
+        // 2. 共有ボタン（JSのロジック部分）
+        shareBtn.addEventListener('click', async () => {
+            if (!selectedBlob) return;
+
+            // X側で認識されやすくするため、明示的に File オブジェクトを作成
+            const file = new File([selectedBlob], "nekochira.gif", { type: "image/gif" });
+
+            const shareData = {
+                files: [file],
+                title: 'ねこチラ見え',
+                text: '可愛い猫が撮れたよ！ #ねこチラ見え',
+            };
+
+            // ブラウザの対応確認
+            if (navigator.canShare && navigator.canShare(shareData)) {
+                try {
+                    await navigator.share(shareData);
+                    status.innerText = "共有メニューを起動しました";
+                } catch (err) {
+                    if (err.name === 'AbortError') {
+                        status.innerText = "共有がキャンセルされました";
+                    } else {
+                        console.error('Share Error:', err);
+                        status.innerText = "エラーが発生しました";
+                    }
+                }
+            } else {
+                // PCブラウザや非対応ブラウザへのフォールバック
+                alert("お使いのブラウザは直接共有に対応していません。\n画像を長押しして保存し、Xアプリから投稿してください。");
+                status.innerText = "非対応ブラウザです";
+            }
+        });
+    </script>
+</body>
+</html>
