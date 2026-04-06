@@ -2,15 +2,17 @@
 <html lang="ja">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <style>
-        body { margin: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
-        #controls { position: absolute; top: 10px; z-index: 10; }
-        canvas { cursor: pointer; display: block; }
+        body { margin: 0; background: #333; display: flex; flex-direction: column; height: 100vh; overflow: hidden; }
+        #controls { width: 100%; padding: 10px; background: #111; }
+        #textInput { width: 100%; font-size: 20px; padding: 10px; box-sizing: border-box; }
+        canvas { flex-grow: 1; width: 100%; height: 100%; display: block; }
     </style>
 </head>
 <body>
     <div id="controls">
-        <input type="text" id="textInput" value="IMPACT" placeholder="文字を入力">
+        <input type="text" id="textInput" value="IMPACT" maxlength="8" placeholder="8文字まで入力">
     </div>
     <canvas id="canvas"></canvas>
     <script>
@@ -18,10 +20,19 @@
         const ctx = canvas.getContext('2d');
         const input = document.getElementById('textInput');
         
+        function resize() {
+            canvas.width = canvas.clientWidth;
+            canvas.height = canvas.clientHeight;
+        }
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 【修正】色相が一周し、かつ明度が山なりになる18色パレット
         const colors = Array.from({length: 18}, (_, i) => {
-            let h = (i * 360 / 18);
-            if (h > 90 && h < 180) h += (h - 90) * 0.3;
-            return `hsl(${h}, 90%, 50%)`;
+            const h = (i * 360 / 18);
+            // i=0(明度50) -> i=4.5(明度70) -> i=9(明度50) -> i=13.5(明度30) -> i=18(明度50)
+            const l = 50 + Math.sin((i / 18) * Math.PI * 2) * 20;
+            return `hsl(${h}, 80%, ${Math.round(l)}%)`;
         });
 
         let frame = 0;
@@ -36,52 +47,49 @@
                 lastTime = timestamp;
             }
 
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
             
             const text = input.value || " ";
-            const isLandscape = window.innerWidth > window.innerHeight;
+            const count = 2;
+            const isLandscape = canvas.width > canvas.height;
             
-            // 横向きならフォントを調整
-            ctx.font = `bold ${isLandscape ? 18 : 12}vw sans-serif`;
+            const longSide = isLandscape ? canvas.width : canvas.height;
+            const shortSide = isLandscape ? canvas.height : canvas.width;
+            const fontSize = Math.min(longSide / (count * 8), shortSide * 0.3);
+            
+            ctx.font = `bold ${fontSize}px sans-serif`;
             ctx.textAlign = "center";
             ctx.textBaseline = "middle";
 
-            const off = 6;
-            const count = 2;
+            const off = fontSize * 0.05;
             const edgeCycle = Math.floor(totalFrames / 72) % 4;
 
             for (let i = 0; i < count; i++) {
-                let x, y;
-                if (isLandscape) {
-                    // 横並び配置
-                    x = (canvas.width / count) * (i + 0.5);
-                    y = canvas.height / 2;
-                } else {
-                    // 縦並び配置
-                    x = canvas.width / 2;
-                    y = (canvas.height / count) * (i + 0.5);
-                }
+                const x = isLandscape ? (canvas.width / count) * (i + 0.5) : canvas.width / 2;
+                const y = isLandscape ? canvas.height / 2 : (canvas.height / count) * (i + 0.5);
+                
+                const idx = (frame) % 18;
+                const nextIdx = (idx + 1) % 18;
 
-                const rowFrame = (frame + i * 2) % 18;
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(Math.PI / 2);
 
-                // 1. 全エッジ（ベース）
-                ctx.fillStyle = colors[rowFrame];
-                ctx.fillText(text, x, y - off);
-                ctx.fillText(text, x, y + off);
-                ctx.fillText(text, x - off, y);
-                ctx.fillText(text, x + off, y);
+                ctx.fillStyle = colors[idx];
+                ctx.fillText(text, 0, -off);
+                ctx.fillText(text, 0, off);
+                ctx.fillText(text, -off, 0);
+                ctx.fillText(text, off, 0);
 
-                // 2. 切り替え対象のエッジ
-                ctx.fillStyle = colors[(rowFrame + 1) % 18];
-                if (edgeCycle === 0) ctx.fillText(text, x + off, y);
-                else if (edgeCycle === 1) ctx.fillText(text, x - off, y);
-                else if (edgeCycle === 2) ctx.fillText(text, x, y - off);
-                else if (edgeCycle === 3) ctx.fillText(text, x, y + off);
+                ctx.fillStyle = colors[nextIdx];
+                if (edgeCycle === 0) ctx.fillText(text, off, 0);
+                else if (edgeCycle === 1) ctx.fillText(text, -off, 0);
+                else if (edgeCycle === 2) ctx.fillText(text, 0, -off);
+                else if (edgeCycle === 3) ctx.fillText(text, 0, off);
 
-                // 3. 正面
-                ctx.fillStyle = colors[rowFrame];
-                ctx.fillText(text, x, y);
+                ctx.fillStyle = colors[idx];
+                ctx.fillText(text, 0, 0);
+                ctx.restore();
             }
             requestAnimationFrame(draw);
         }
