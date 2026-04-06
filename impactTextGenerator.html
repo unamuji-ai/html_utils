@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <style>
+        body { margin: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; overflow: hidden; }
+        #controls { position: absolute; top: 10px; z-index: 10; }
+        canvas { cursor: pointer; display: block; }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <input type="text" id="textInput" value="IMPACT" placeholder="文字を入力">
+    </div>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const input = document.getElementById('textInput');
+        
+        const colors = Array.from({length: 18}, (_, i) => {
+            let h = (i * 360 / 18);
+            if (h > 90 && h < 180) h += (h - 90) * 0.3;
+            return `hsl(${h}, 90%, 50%)`;
+        });
+
+        let frame = 0;
+        let totalFrames = 0;
+        let lastTime = 0;
+        const interval = 48;
+
+        function draw(timestamp) {
+            if (timestamp - lastTime > interval) {
+                frame = (frame + 1) % 18;
+                totalFrames++;
+                lastTime = timestamp;
+            }
+
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+            
+            const text = input.value || " ";
+            const isLandscape = window.innerWidth > window.innerHeight;
+            
+            // 横向きならフォントを調整
+            ctx.font = `bold ${isLandscape ? 18 : 12}vw sans-serif`;
+            ctx.textAlign = "center";
+            ctx.textBaseline = "middle";
+
+            const off = 6;
+            const count = 2;
+            const edgeCycle = Math.floor(totalFrames / 72) % 4;
+
+            for (let i = 0; i < count; i++) {
+                let x, y;
+                if (isLandscape) {
+                    // 横並び配置
+                    x = (canvas.width / count) * (i + 0.5);
+                    y = canvas.height / 2;
+                } else {
+                    // 縦並び配置
+                    x = canvas.width / 2;
+                    y = (canvas.height / count) * (i + 0.5);
+                }
+
+                const rowFrame = (frame + i * 2) % 18;
+
+                // 1. 全エッジ（ベース）
+                ctx.fillStyle = colors[rowFrame];
+                ctx.fillText(text, x, y - off);
+                ctx.fillText(text, x, y + off);
+                ctx.fillText(text, x - off, y);
+                ctx.fillText(text, x + off, y);
+
+                // 2. 切り替え対象のエッジ
+                ctx.fillStyle = colors[(rowFrame + 1) % 18];
+                if (edgeCycle === 0) ctx.fillText(text, x + off, y);
+                else if (edgeCycle === 1) ctx.fillText(text, x - off, y);
+                else if (edgeCycle === 2) ctx.fillText(text, x, y - off);
+                else if (edgeCycle === 3) ctx.fillText(text, x, y + off);
+
+                // 3. 正面
+                ctx.fillStyle = colors[rowFrame];
+                ctx.fillText(text, x, y);
+            }
+            requestAnimationFrame(draw);
+        }
+        requestAnimationFrame(draw);
+    </script>
+</body>
+</html>
