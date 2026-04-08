@@ -1,5 +1,17 @@
 {
   "tools": [
+	{
+	  "id": "sushi-lottery",
+	  "title": "回転寿司ロト",
+	  "tags": ["多人数参加型", "運ゲー", "通信ゲーム"],
+	  "details": {
+	    "purpose": "回転レーン上のシャリに、上から降ってくる寿司ネタをうまくキャッチして勝敗を決める、多人数参加型のくじ引きアプリ。",
+	    "summary": "Firebase Realtime Databaseを用いた同期型パーティーゲーム。回転レーンの動きとネタの落下を全参加者で共有。"
+	  },
+	  "dependencies": ["Firebase Realtime Database"],
+	  "related_files": ["sushiLottery.html"],
+	  "last_updated": "2026-04-06"
+	},
     {
       "id": "airhockey",
       "title": "エアホッケー・ゲーム",

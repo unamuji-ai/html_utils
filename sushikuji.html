@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>寿司ロット</title>
+    <style>
+        body { margin: 0; background: #243; color: #fff; font-family: sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; overflow: hidden; }
+        #inputPage { text-align: center; width: 90%; max-width: 400px; }
+        input { width: 80%; padding: 15px; font-size: 18px; margin-bottom: 10px; border-radius: 10px; border: none; }
+        button { width: 85%; padding: 15px; font-size: 18px; margin: 5px 0; border-radius: 10px; border: none; background: #ffd11a; font-weight: bold; }
+        ul { list-style: none; padding: 0; font-size: 20px; margin: 20px 0; }
+        canvas { display: none; width: 100vw; height: 100vh; }
+    </style>
+</head>
+<body>
+    <div id="inputPage">
+        <h1>参加者登録 (2-8名)</h1>
+        <input type="text" id="nameInput" placeholder="名前を入力">
+        <button onclick="addParticipant()">追加</button>
+        <ul id="list"></ul>
+        <button id="startBtn" onclick="startGame()" style="display:none; background: #ff4444; color: #fff;">スタート！</button>
+    </div>
+    <canvas id="canvas"></canvas>
+		<!-- HTMLにリセットボタンを追加 -->
+		<button id="resetBtn" onclick="resetGame()" style="display:none; background: #444; color: #fff; position: absolute; bottom: 20px;">もう一度遊ぶ</button>
+    <script>
+        let participants = [];
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+
+        function addParticipant() {
+            const input = document.getElementById('nameInput');
+            if (input.value && participants.length < 8) {
+                participants.push(input.value);
+                const li = document.createElement('li');
+                li.textContent = participants.length + ". " + input.value;
+                document.getElementById('list').appendChild(li);
+                input.value = '';
+                if (participants.length >= 2) document.getElementById('startBtn').style.display = 'inline-block';
+            }
+        }
+
+        let sushiData, remaining, tunaList = [], badList = [], dummies = [];
+
+        function startGame() {
+            document.getElementById('inputPage').style.display = 'none';
+            canvas.style.display = 'block';
+            resize();
+            
+            remaining = [...participants];
+            sushiData = participants.map((name, i) => ({
+                name,
+                angle: (i / participants.length) * Math.PI * 2,
+                grains: Array.from({length: 40}, () => ({ offX: (Math.random() - 0.5) * 44, offY: (Math.random() - 0.5) * 26, rot: Math.random() * Math.PI * 0.2 })),
+                item: null
+            }));
+            
+            setInterval(() => {
+                if (remaining.length > 0) {
+                    const name = remaining.shift();
+                    const target = sushiData.find(s => s.name === name);
+                    const type = Math.random() < 0.5 ? 'tuna' : 'bad';
+                    if (type === 'tuna') { tunaList.push(name); target.rank = tunaList.length; }
+                    else { badList.push(name); target.rank = (participants.length - badList.length + 1); }
+                    target.item = { type, y: -50, caught: false, missed: false };
+                }
+            }, 3000);
+
+            setInterval(() => {
+                dummies.push({ type: Math.random() < 0.5 ? 'tuna' : 'bad', x: Math.random() * canvas.width, y: -50, vx: (Math.random() - 0.5) * 2 });
+            }, 500);
+            
+            draw();
+        }
+
+		    function resetGame() {
+		        // リセット処理
+		        tunaList = [];
+		        badList = [];
+		        remaining = [...participants];
+		        sushiData = participants.map((name, i) => ({
+		            name,
+		            angle: (i / participants.length) * Math.PI * 2,
+		            grains: Array.from({length: 40}, () => ({ offX: (Math.random() - 0.5) * 44, offY: (Math.random() - 0.5) * 26, rot: Math.random() * Math.PI * 0.2 })),
+		            item: null
+		        }));
+		        dummies = [];
+		        document.getElementById('resetBtn').style.display = 'none';
+		    }
+
+
+        function resize() { canvas.width = window.innerWidth; canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize);
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            const centerX = canvas.width / 2, centerY = canvas.height / 2 + 50;
+            const radiusX = Math.min(canvas.width, canvas.height) * 0.4, radiusY = radiusX * 0.4;
+
+            ctx.strokeStyle = "#555"; ctx.lineWidth = 15; ctx.beginPath(); ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, Math.PI * 2); ctx.stroke();
+
+            sushiData.forEach(sushi => {
+                sushi.angle += 0.005;
+                const x = centerX + radiusX * Math.cos(sushi.angle), y = centerY + radiusY * Math.sin(sushi.angle);
+                const scale = 2.2 + (Math.sin(sushi.angle) * 0.5);
+
+                if (sushi.item && !sushi.item.caught && !sushi.item.missed) {
+                    sushi.item.y += 2;
+                    if (sushi.item.y >= y - 10) sushi.item.caught = true;
+                }
+
+                // シャリ描画
+                ctx.fillStyle = "#f8f8f8"; ctx.beginPath(); ctx.ellipse(x, y, 22 * scale, 13 * scale, 0, 0, Math.PI * 2); ctx.fill();
+
+                ctx.strokeStyle = "#ddd";
+                ctx.lineWidth = 0.5;
+                sushi.grains.forEach(g => {
+                    ctx.save(); 
+                    ctx.translate(x + g.offX * scale, y + g.offY * scale); 
+                    ctx.rotate(g.rot);
+                    
+                    // 影を確実にオフにする
+                    ctx.shadowColor = "transparent";
+                    ctx.shadowBlur = 0;
+                    
+                    // スタイルを明示的に指定
+                    ctx.fillStyle = "#fff"; 
+                    ctx.strokeStyle = "#eee"; // 少し薄いグレーに設定
+                    ctx.lineWidth = 0.5;
+                    
+                    ctx.beginPath(); 
+                    ctx.ellipse(0, 0, 4 * scale, 2.5 * scale, 0, 0, Math.PI * 2); 
+                    ctx.fill(); 
+                    ctx.stroke(); 
+                    ctx.restore();
+                });
+
+                // ネタ描画
+                if (sushi.item && !sushi.item.missed) {
+                    const ty = (sushi.item.caught ? y : sushi.item.y) - 18;
+                    if (sushi.item.type === 'tuna') {
+                        ctx.fillStyle = "#990000"; ctx.beginPath(); ctx.moveTo(x - 60, ty - 15); ctx.lineTo(x + 70, ty + 5); ctx.lineTo(x + 70, ty + 20); ctx.lineTo(x - 50, ty + 20); ctx.fill();
+                        ctx.fillStyle = "#cc0000"; ctx.beginPath(); ctx.moveTo(x - 60, ty - 15); ctx.lineTo(x + 60, ty - 15); ctx.lineTo(x + 70, ty + 5); ctx.lineTo(x - 50, ty + 5); ctx.fill();
+                        ctx.strokeStyle = "#ffcccc"; ctx.lineWidth = 3;
+                        for(let i=0; i<3; i++){ ctx.beginPath(); ctx.moveTo(x-20+i*30, ty-15); ctx.lineTo(x-10+i*30, ty+5); ctx.stroke(); }
+                    } else { ctx.fillStyle="#860"; ctx.beginPath(); ctx.arc(x, ty-10, 25, 0, Math.PI*2); ctx.fill(); }
+                }
+
+                // テキスト描画（ここで影を設定）
+                ctx.fillStyle = "#fff"; 
+                ctx.shadowColor = "red"; ctx.shadowBlur = 4;
+                ctx.font = "bold 28px sans-serif"; ctx.textAlign = "center";
+                ctx.fillText(sushi.name, x, y + 70);
+                
+                if (sushi.item && sushi.item.caught) { 
+                    ctx.font = "bold 20px sans-serif"; 
+                    ctx.fillText("第" + sushi.rank + "位", x, y + 95); 
+                }
+                
+                // ★重要：影をリセット！
+                ctx.shadowColor = "transparent";
+                ctx.shadowBlur = 0;
+            });
+
+            dummies.forEach((d, i) => { d.y += 2; d.x += d.vx; drawItem(d.x, d.y, d.type); if(d.y > canvas.height) dummies.splice(i, 1); });
+ 
+		        // 終了判定（全員にネタが乗ったか）
+		        const isFinished = sushiData.every(s => s.item !== null && (s.item.caught || s.item.missed));
+		        if (isFinished) {
+		            document.getElementById('resetBtn').style.display = 'inline-block';
+		        }
+
+	          requestAnimationFrame(draw);
+        }
+
+
+        function drawItem(x, y, type) {
+            if(type === 'tuna') {
+                ctx.fillStyle = "#990000"; ctx.beginPath(); ctx.moveTo(x - 60, y - 15); ctx.lineTo(x + 70, y + 5); ctx.lineTo(x + 70, y + 20); ctx.lineTo(x - 50, y + 20); ctx.fill();
+                ctx.fillStyle = "#cc0000"; ctx.beginPath(); ctx.moveTo(x - 60, y - 15); ctx.lineTo(x + 60, y - 15); ctx.lineTo(x + 70, y + 5); ctx.lineTo(x - 50, y + 5); ctx.fill();
+                ctx.strokeStyle = "#ffcccc"; ctx.lineWidth = 3;
+                for(let i=0; i<3; i++){ ctx.beginPath(); ctx.moveTo(x-20+i*30, y-15); ctx.lineTo(x-10+i*30, y+5); ctx.stroke(); }
+            } else { ctx.fillStyle="#860"; ctx.beginPath(); ctx.arc(x, y, 25, 0, Math.PI*2); ctx.fill(); }
+        }
+    </script>
+</body>
+</html>
